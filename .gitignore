@@ -40,3 +40,4 @@ pnpm-debug.log*
 /public/manifest.json
 /public/env.js
 /vendor
+public/index.php

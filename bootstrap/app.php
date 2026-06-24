@@ -15,59 +15,63 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__ . '/../routes/console.php',
         health:   '/up',
     )
+   
+   
+   
+    ->withProviders([
+    App\Providers\AppServiceProvider::class,
+])
+   
+   
+   
+   
+   
+   
+   
+   
     ->withMiddleware(function (Middleware $middleware) {
 
-        // ── Prepend: security headers en todas las respuestas ────────────
-        $middleware->web(prepend: [
+               $middleware->statefulApi();     
+	    $middleware->web(prepend: [
             SecurityHeaders::class,
         ]);
 
-        // ── Rate limiter para login (Laravel 13: throttle con redis/db) ──
-        $middleware->throttleWithRedis();
-
-        // ── Alias de middlewares ─────────────────────────────────────────
+        // ← QUITADO throttleWithRedis() — no tienes Redis
+        // Usar throttle normal en su lugar
         $middleware->alias([
-            'check.empresa'   => CheckEmpresa::class,
-            'session.timeout' => SessionTimeout::class,
-            'role'            => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'permission'      => \Spatie\Permission\Middleware\PermissionMiddleware::class,
-            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            'check.empresa'      => CheckEmpresa::class,
+            'session.timeout'    => SessionTimeout::class,
         ]);
 
-        // ── Excluir CSRF para rutas API ──────────────────────────────────
         $middleware->validateCsrfTokens(except: [
-            'api/*',
+		'api/*',
+		'login',
         ]);
 
-        // ── Trusted proxies (para VPS detrás de nginx) ───────────────────
         $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions) {
 
-        // Sin autenticación → JSON o redirect
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, Request $request) {
             if ($request->expectsJson()) {
-                return response()->json(['message' => 'No autenticado.', 'code' => 401], 401);
+                return response()->json(['message' => 'No autenticado.'], 401);
             }
-            return redirect()->route('login')->withErrors(['msg' => 'Tu sesión ha expirado.']);
+            return redirect()->route('login');
         });
 
-        // Sin permiso
         $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, Request $request) {
             if ($request->expectsJson()) {
-                return response()->json(['message' => 'Sin permiso para esta acción.'], 403);
+                return response()->json(['message' => 'Sin permiso.'], 403);
             }
-            abort(403, 'No tienes permiso para realizar esta acción.');
+            abort(403);
         });
 
-        // Model not found → 404 limpio
         $exceptions->render(function (\Illuminate\Database\Eloquent\ModelNotFoundException $e, Request $request) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Registro no encontrado.'], 404);
             }
         });
 
-        // Validation errors → JSON con mensajes
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, Request $request) {
             if ($request->expectsJson()) {
                 return response()->json([
@@ -77,10 +81,9 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        // Throttle (demasiados intentos)
         $exceptions->render(function (\Illuminate\Http\Exceptions\ThrottleRequestsException $e, Request $request) {
             if ($request->expectsJson()) {
-                return response()->json(['message' => 'Demasiadas solicitudes. Espera un momento.'], 429);
+                return response()->json(['message' => 'Demasiadas solicitudes.'], 429);
             }
         });
     })

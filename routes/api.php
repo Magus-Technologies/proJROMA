@@ -8,14 +8,14 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes — todas con auth:sanctum + check.empresa
+| API Routes — todas con auth:sanctum,web + check.empresa
 |--------------------------------------------------------------------------
 | Nota: Los controladores ya usan #[Middleware] en Laravel 13,
 | pero también están protegidos aquí a nivel de grupo como doble capa.
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth:sanctum', 'check.empresa'])->group(function () {
+Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
 
     // ── Ventas ───────────────────────────────────────────────────────────
     Route::prefix('ventas')->group(function () {

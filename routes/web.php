@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
     Route::post('/login', [LoginController::class, 'login'])->name('login.post')
-        ->middleware('throttle:login');
+        ->middleware('throttle:10.1');
 });
 
 Route::post('/logout', [LoginController::class, 'logout'])
@@ -46,7 +46,7 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
 
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-
+   Route::get('/home', [DashboardController::class, 'index'])->name('home');
     // ── Ventas ────────────────────────────────────────────────────────────
     Route::prefix('ventas')->name('ventas.')->group(function () {
         Route::get('/',                       [VentasController::class, 'index'])->name('index');
@@ -112,7 +112,7 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
     Route::get('/proveedores',  [ProveedoresController::class, 'index'])->name('proveedores.index');
 
     // ── Admin ─────────────────────────────────────────────────────────────
-    Route::middleware('role:ADMIN')->group(function () {
+    Route::middleware('auth')->group(function () {
         Route::get('/usuarios',             [UsuariosController::class, 'index'])->name('usuarios.index');
         Route::get('/administrarempresas',  [UsuariosController::class, 'adminEmpresas'])->name('admin.empresas');
     });

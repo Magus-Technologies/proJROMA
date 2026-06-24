@@ -159,27 +159,44 @@
                 form: { user:'', clave:'', sucursal:'1' },
                 loading: false, error: '', showPass: false,
 
-                async submit() {
-                    this.error = '';
-                    if (!this.form.user || !this.form.clave) { this.error = 'Completa usuario y contraseña.'; return; }
+async submit() {
+    this.error = '';
+    if (!this.form.user || !this.form.clave) {
+        this.error = 'Completa usuario y contraseña.';
+        return;
+    }
 
-                    this.loading = true;
-                    try {
-                        const res = await fetch('{{ route("login.post") }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
-                                'Accept': 'application/json',
-                            },
-                            body: JSON.stringify(this.form),
-                        });
-                        const data = await res.json();
-                        if (data.res) { window.location.href = data.ruta; }
-                        else { this.error = data.msg || 'Credenciales inválidas.'; this.form.clave = ''; }
-                    } catch { this.error = 'Error de conexión. Intenta nuevamente.'; }
-                    finally { this.loading = false; }
-                }
+    this.loading = true;
+    try {
+        // Obtener CSRF token fresco del meta tag
+        const token = document.querySelector('meta[name="csrf-token"]')?.content;
+
+	const res = await fetch('{{ config("app.url") }}/login', {
+	method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': token,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            },
+            credentials: 'same-origin',  // ← incluir cookies
+            body: JSON.stringify(this.form),
+        });
+
+        const data = await res.json();
+        if (data.res) {
+            window.location.href = data.ruta;
+        } else {
+            this.error = data.msg || 'Credenciales inválidas.';
+            this.form.clave = '';
+        }
+    } catch(e) {
+        this.error = 'Error de conexión.';
+    } finally {
+        this.loading = false;
+    }
+}
+
             }
         }
     </script>

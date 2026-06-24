@@ -1,7 +1,13 @@
 {
     "name": "titanicsac/facturacion",
-    "description": "Sistema de Facturación, Ventas y Almacén - TitanicSAC",
-    "keywords": ["laravel", "facturacion", "ventas", "sunat", "abarrotes"],
+    "description": "Sistema de Facturaci\u00f3n, Ventas y Almac\u00e9n - TitanicSAC",
+    "keywords": [
+        "laravel",
+        "facturacion",
+        "ventas",
+        "sunat",
+        "abarrotes"
+    ],
     "license": "proprietary",
     "require": {
         "php": "^8.3",
@@ -28,7 +34,10 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
-        }
+        },
+        "files": [
+            "app/Helpers/helpers.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

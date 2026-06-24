@@ -194,7 +194,7 @@
 </table>
 
 <div class="footer">
-    Generado por TitanicSAC — titanicsac.com | {{ now()->format('d/m/Y H:i:s') }}
+    Generado por ProjRoma — projroma.com | {{ now()->format('d/m/Y H:i:s') }}
 </div>
 
 </body>

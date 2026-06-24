@@ -1,6 +1,6 @@
 {
-    "name": "titanicsac/facturacion",
-    "description": "Sistema de Facturaci\u00f3n, Ventas y Almac\u00e9n - TitanicSAC",
+    "name": "projroma/facturacion",
+    "description": "Sistema de Facturaci\u00f3n, Ventas y Almac\u00e9n - ProjRoma",
     "keywords": [
         "laravel",
         "facturacion",

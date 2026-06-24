@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>TitanicSAC — Iniciar Sesión</title>
+    <title>ProjRoma — Iniciar Sesión</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -147,7 +147,7 @@
                 </div>
 
                 <p class="mt-5 text-center text-[10px] text-blue-400/50">
-                    &copy; {{ date('Y') }} TitanicSAC · titanicsac.com · Laravel 13 · PHP 8.3
+                    &copy; {{ date('Y') }} ProjRoma · projroma.com · Laravel 13 · PHP 8.3
                 </p>
             </div>
         </div>

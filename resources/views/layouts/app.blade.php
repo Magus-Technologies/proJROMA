@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="robots" content="noindex, nofollow">
-    <title>@yield('title', 'TitanicSAC') — Facturación</title>
+    <title>@yield('title', 'ProjRoma') — Facturación</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -76,7 +76,7 @@
                 <i class="ti ti-ship text-xl text-white"></i>
             </div>
             <div class="flex-1 min-w-0">
-                <div class="text-sm font-bold text-white">TitanicSAC</div>
+                <div class="text-sm font-bold text-white">ProjRoma</div>
                 <div class="text-[10px] text-blue-300 truncate">{{ session('nombre_empresa') }}</div>
             </div>
             <button @click="sidebar=false" class="lg:hidden text-white/60 hover:text-white">

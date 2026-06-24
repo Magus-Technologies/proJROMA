@@ -18,8 +18,16 @@ class Producto extends Model
     ];
 
     protected $casts = [
-        'precio'=>'float','costo'=>'float','precio2'=>'float',
-        'precio3'=>'float','precio4'=>'float','cantidad'=>'integer',
+        'precio'        => 'float',
+        'costo'         => 'float',
+        'precio2'       => 'float',
+        'precio3'       => 'float',
+        'precio4'       => 'float',
+        'precio_unidad' => 'float',
+        'precio_mayor'  => 'float',
+        'precio_menor'  => 'float',
+        'cantidad'      => 'integer',
+        'ultima_salida' => 'date',
     ];
 
     public function scopeActivos(Builder $q): Builder             { return $q->where('estado','1'); }

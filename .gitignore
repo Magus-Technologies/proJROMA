@@ -15,13 +15,13 @@ yarn-error.log*
 pnpm-debug.log*
 .env
 .env.backup
-.phpunit.result.cache
 .phpstorm.meta.php
 .php_cs.cache
 /_ide_helper.php
 /_ide_helper_models.php
 /._ide_helper.php
-/.env.*
+/.env.local
+/.env.production
 /storage
 /storage/app/public
 /storage/debugbar
@@ -30,7 +30,6 @@ pnpm-debug.log*
 /storage/framework/testing
 /storage/framework/views
 /bootstrap/cache
-/.phpunit.result.cache
 /coverage
 /public/vendor
 /public/mix-manifest.json
@@ -39,5 +38,3 @@ pnpm-debug.log*
 /public/js
 /public/manifest.json
 /public/env.js
-/vendor
-public/index.php

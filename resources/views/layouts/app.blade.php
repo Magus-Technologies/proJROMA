@@ -12,44 +12,19 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Plus Jakarta Sans', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace']
-                    },
-                    colors: {
-                        brand: { 50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#1d4ed8',700:'#1e40af',800:'#1e3a8a',900:'#1c2e6e' },
-                        navy:  { 800:'#0f1f3d', 900:'#0a1628' },
-                    }
-                }
-            }
-        }
-    </script>
 
+    {{-- Sistema de diseño: paleta de colores + estilos de componentes --}}
+    @include('partials.theme')
+
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.tailwindcss.min.css">
-
-    <style>
-        [x-cloak]{display:none!important}
-        ::-webkit-scrollbar{width:5px;height:5px}
-        ::-webkit-scrollbar-track{background:#f1f5f9}
-        ::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:3px}
-        ::-webkit-scrollbar-thumb:hover{background:#1d4ed8}
-        #sidebar{transition:transform .25s cubic-bezier(.4,0,.2,1)}
-        .card-hover{transition:box-shadow .2s,transform .2s}
-        .card-hover:hover{box-shadow:0 10px 30px rgba(0,0,0,.12);transform:translateY(-2px)}
-        tbody tr{transition:background .15s}
-        tbody tr:hover{background:#eff6ff}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        .spin{animation:spin 1s linear infinite}
-        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-        .fade-in{animation:fadeIn .3s ease-out}
-    </style>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.dataTables.min.css">
+    {{-- Extensiones DataTables: ColReorder · Buttons(colVis) · Responsive --}}
+    <link rel="stylesheet" href="https://cdn.datatables.net/colreorder/1.7.0/css/colReorder.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
 
     @stack('styles')
 </head>
@@ -84,78 +59,75 @@
             </button>
         </div>
 
-        {{-- Usuario --}}
-        <div class="flex items-center gap-3 border-b border-white/10 px-5 py-3">
-            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white">
-                {{ strtoupper(substr(auth()->user()->nombres ?? 'U', 0, 2)) }}
-            </div>
-            <div class="min-w-0">
-                <div class="truncate text-xs font-semibold text-white">{{ auth()->user()->nombres }} {{ auth()->user()->apellidos }}</div>
-                <div class="text-[10px] text-blue-300">{{ auth()->user()->rol?->nombre ?? 'Usuario' }} · Suc.{{ session('sucursal') }}</div>
-            </div>
-        </div>
-
         {{-- Nav --}}
         <nav class="flex-1 overflow-y-auto px-3 py-3 space-y-0.5 text-sm">
             @php $rol = auth()->user()->id_rol ?? 2; @endphp
 
-            <x-nav-link href="{{ route('dashboard') }}"           icon="ti-home"            label="Dashboard" />
+            <x-nav-link href="{{ route('dashboard') }}" icon="ti ti-home" label="Dashboard" />
 
-            <x-nav-section label="Facturación" />
-            <x-nav-link href="{{ route('ventas.index') }}"        icon="ti-receipt"         label="Ventas" />
-            <x-nav-link href="{{ route('guias.index') }}"         icon="ti-truck-delivery"  label="Guías de Remisión" />
-            <x-nav-link href="{{ route('nota.electronica.lista') }}" icon="ti-file-invoice" label="Notas Electrónicas" />
+            <x-nav-group icon="ti ti-receipt" label="Facturación"
+                         :active="request()->routeIs('ventas.*','guias.*','nota.electronica.*')">
+                <x-nav-link href="{{ route('ventas.index') }}"           icon="ti ti-receipt"         label="Ventas" />
+                <x-nav-link href="{{ route('guias.index') }}"            icon="ti ti-truck-delivery"  label="Guías de Remisión" />
+                <x-nav-link href="{{ route('nota.electronica.lista') }}" icon="ti ti-file-invoice"    label="Notas Electrónicas" />
+            </x-nav-group>
 
-            <x-nav-section label="Pedidos" />
-            <x-nav-link href="{{ route('cotizaciones.index') }}"  icon="ti-clipboard-list"  label="Pedidos / Cotizaciones" />
+            <x-nav-group icon="ti ti-clipboard-list" label="Pedidos"
+                         :active="request()->routeIs('cotizaciones.*')">
+                <x-nav-link href="{{ route('cotizaciones.index') }}" icon="ti ti-clipboard-list" label="Pedidos / Cotizaciones" />
+            </x-nav-group>
 
-            <x-nav-section label="Cobranzas" />
-            <x-nav-link href="{{ route('cobranzas.index') }}"     icon="ti-credit-card"     label="Cuentas por Cobrar" />
-            <x-nav-link href="{{ route('cobranzas.deudas') }}"    icon="ti-report-money"    label="Reporte Deudas" />
-            @if(in_array($rol,[3,4]))
-                <x-nav-link href="{{ route('cobranzas.miscobros') }}" icon="ti-wallet"      label="Mis Cobros" />
-            @endif
+            <x-nav-group icon="ti ti-credit-card" label="Cobranzas"
+                         :active="request()->routeIs('cobranzas.*')">
+                <x-nav-link href="{{ route('cobranzas.index') }}"  icon="ti ti-credit-card"  label="Cuentas por Cobrar" />
+                <x-nav-link href="{{ route('cobranzas.deudas') }}" icon="ti ti-report-money" label="Reporte Deudas" />
+                @if(in_array($rol,[3,4]))
+                    <x-nav-link href="{{ route('cobranzas.miscobros') }}" icon="ti ti-wallet" label="Mis Cobros" />
+                @endif
+            </x-nav-group>
 
-            <x-nav-section label="Pagos" />
-            <x-nav-link href="{{ route('pagos.index') }}"         icon="ti-building-bank"   label="Cuentas por Pagar" />
-            <x-nav-link href="{{ route('devoluciones.index') }}"  icon="ti-arrow-back-up"   label="Devoluciones" />
+            <x-nav-group icon="ti ti-building-bank" label="Pagos"
+                         :active="request()->routeIs('pagos.*','devoluciones.*')">
+                <x-nav-link href="{{ route('pagos.index') }}"        icon="ti ti-building-bank" label="Cuentas por Pagar" />
+                <x-nav-link href="{{ route('devoluciones.index') }}" icon="ti ti-arrow-back-up" label="Devoluciones" />
+            </x-nav-group>
 
-            <x-nav-section label="Cajas" />
-            <x-nav-link href="{{ route('caja.registros') }}"      icon="ti-cash-register"   label="Registro de Caja" />
-            <x-nav-link href="{{ route('caja.flujo') }}"          icon="ti-coins"           label="Caja Chica" />
-            <x-nav-link href="{{ route('caja.arqueo') }}"         icon="ti-calculator"      label="Arqueo Diario" />
-            @if($rol == 3)
-                <x-nav-link href="{{ route('caja.micaja') }}"     icon="ti-wallet"          label="Mi Caja" />
-            @endif
+            <x-nav-group icon="ti ti-cash" label="Cajas"
+                         :active="request()->routeIs('caja.*')">
+                <x-nav-link href="{{ route('caja.registros') }}" icon="ti ti-cash" label="Registro de Caja" />
+                <x-nav-link href="{{ route('caja.flujo') }}"     icon="ti ti-coins"         label="Caja Chica" />
+                <x-nav-link href="{{ route('caja.arqueo') }}"    icon="ti ti-calculator"    label="Arqueo Diario" />
+                @if($rol == 3)
+                    <x-nav-link href="{{ route('caja.micaja') }}" icon="ti ti-wallet" label="Mi Caja" />
+                @endif
+            </x-nav-group>
 
-            <x-nav-section label="Compras" />
-            <x-nav-link href="{{ route('compras.index') }}"       icon="ti-shopping-cart"   label="Compras" />
+            <x-nav-group icon="ti ti-shopping-cart" label="Compras"
+                         :active="request()->routeIs('compras.*')">
+                <x-nav-link href="{{ route('compras.index') }}" icon="ti ti-shopping-cart" label="Compras" />
+            </x-nav-group>
 
-            <x-nav-section label="Almacén" />
-            <x-nav-link href="{{ route('almacen.index') }}"       icon="ti-packages"        label="Kardex / Productos" />
-            <x-nav-link href="{{ route('almacen.intercambio') }}" icon="ti-arrows-exchange" label="Intercambio" />
+            <x-nav-group icon="ti ti-packages" label="Almacén"
+                         :active="request()->routeIs('almacen.*')">
+                <x-nav-link href="{{ route('almacen.index') }}"       icon="ti ti-packages"        label="Kardex / Productos" />
+                <x-nav-link href="{{ route('almacen.intercambio') }}" icon="ti ti-arrows-exchange" label="Intercambio" />
+            </x-nav-group>
 
-            <x-nav-section label="Maestros" />
-            <x-nav-link href="{{ route('clientes.index') }}"      icon="ti-users"           label="Clientes" />
-            <x-nav-link href="{{ route('proveedores.index') }}"   icon="ti-building-store"  label="Proveedores" />
+            <x-nav-group icon="ti ti-users" label="Maestros"
+                         :active="request()->routeIs('clientes.*','proveedores.*')">
+                <x-nav-link href="{{ route('clientes.index') }}"    icon="ti ti-users"          label="Clientes" />
+                <x-nav-link href="{{ route('proveedores.index') }}" icon="ti ti-building-store" label="Proveedores" />
+            </x-nav-group>
 
             @if($rol == 1)
-                <x-nav-section label="Administración" />
-                <x-nav-link href="{{ route('usuarios.index') }}"  icon="ti-user-cog"        label="Usuarios" />
-                <x-nav-link href="{{ route('admin.empresas') }}"  icon="ti-building"        label="Empresas" />
+                <x-nav-group icon="ti ti-settings" label="Administración"
+                             :active="request()->routeIs('usuarios.*','admin.*')">
+                    <x-nav-link href="{{ route('usuarios.index') }}" icon="ti ti-user-cog" label="Usuarios" />
+                    <x-nav-link href="{{ route('admin.empresas') }}" icon="ti ti-building" label="Empresas" />
+                </x-nav-group>
             @endif
         </nav>
 
-        {{-- Logout --}}
-        <div class="shrink-0 border-t border-white/10 p-3">
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit"
-                        class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-blue-200 hover:bg-white/10 hover:text-white transition-colors">
-                    <i class="ti ti-logout text-sm"></i> Cerrar sesión
-                </button>
-            </form>
-        </div>
     </aside>
 
     {{-- ══ CONTENIDO ════════════════════════════════════════════════════════ --}}
@@ -174,11 +146,40 @@
                 @endif
             </div>
 
-            <div class="hidden sm:flex items-center gap-3 shrink-0">
-                <span class="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-brand-700">
-                    <i class="ti ti-building text-[10px]"></i> Suc. {{ session('sucursal') }}
-                </span>
-                <span class="text-xs text-gray-400">{{ now()->format('d/m/Y') }}</span>
+            <span class="hidden md:block text-xs text-gray-400 shrink-0">{{ now()->format('d/m/Y') }}</span>
+
+            {{-- Menú de usuario --}}
+            <div class="relative shrink-0" x-data="{ open: false }">
+                <button @click="open=!open"
+                        class="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-gray-100 transition-colors">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-500 text-xs font-bold text-white">
+                        {{ strtoupper(substr(auth()->user()->nombres ?? 'U', 0, 2)) }}
+                    </div>
+                    <div class="hidden sm:block text-left leading-tight">
+                        <div class="truncate max-w-[140px] text-xs font-semibold text-gray-700">{{ auth()->user()->nombres }} {{ auth()->user()->apellidos }}</div>
+                        <div class="text-[10px] text-gray-400">{{ auth()->user()->rol?->nombre ?? 'Usuario' }} · Suc.{{ session('sucursal') }}</div>
+                    </div>
+                    <i class="ti ti-chevron-down text-sm text-gray-400 hidden sm:block" :class="open && 'rotate-180'" style="transition:transform .2s"></i>
+                </button>
+
+                <div x-show="open" x-cloak @click.outside="open=false"
+                     x-transition.origin.top.right
+                     class="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-xl z-50">
+                    <div class="border-b border-gray-100 px-4 py-3 sm:hidden">
+                        <div class="truncate text-xs font-semibold text-gray-700">{{ auth()->user()->nombres }} {{ auth()->user()->apellidos }}</div>
+                        <div class="text-[10px] text-gray-400">{{ auth()->user()->rol?->nombre ?? 'Usuario' }} · Suc.{{ session('sucursal') }}</div>
+                    </div>
+                    <div class="flex items-center gap-1 px-4 py-2 text-[10px] font-semibold text-brand-700">
+                        <i class="ti ti-building text-[10px]"></i> Sucursal {{ session('sucursal') }}
+                    </div>
+                    <form method="POST" action="{{ route('logout') }}" class="border-t border-gray-100">
+                        @csrf
+                        <button type="submit"
+                                class="flex w-full items-center gap-2 px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 transition-colors">
+                            <i class="ti ti-logout text-sm"></i> Cerrar sesión
+                        </button>
+                    </form>
+                </div>
             </div>
         </header>
 
@@ -210,6 +211,11 @@
 {{-- Scripts globales --}}
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+{{-- Extensiones DataTables --}}
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.colVis.min.js"></script>
+<script src="https://cdn.datatables.net/colreorder/1.7.0/js/dataTables.colReorder.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
 
 <script>
     // CSRF global para jQuery AJAX
@@ -243,6 +249,57 @@
 
     // Formatear moneda
     const sol = n => 'S/ ' + parseFloat(n || 0).toFixed(2);
+
+    /**
+     * Inicializa una tabla DataTable con las capacidades del sistema:
+     *  • Responsive  → en móvil cada fila se vuelve una tarjeta (toca el + para ver todo)
+     *  • ColReorder  → arrastra el encabezado para mover columnas de lugar
+     *  • colVis      → un solo ícono arriba para mostrar/ocultar columnas
+     *  • stateSave   → recuerda orden/visibilidad de columnas por tabla
+     *  • min-height fijo (vía CSS .dataTables_wrapper) aunque no haya datos
+     *
+     * @param {string} selector  ej. '#tblProductos'
+     * @param {object} options   opciones propias (ajax, columns, order, ...) — se fusionan
+     */
+    window.initDataTable = function (selector, options = {}) {
+        const base = {
+            responsive: true,
+            colReorder: true,
+            stateSave: true,
+            stateDuration: 60 * 60 * 24 * 30,   // 30 días
+            deferRender: true,
+            autoWidth: false,
+            pageLength: 25,
+            language: { url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' },
+            // El buscador es el componente x-search. Aquí solo: tabla(t) + Show(l)+info(i)+paginación(p)
+            dom: 'rt<"dt-foot flex flex-wrap items-center justify-between gap-3 mt-4"<"flex items-center gap-3"li>p>',
+        };
+        const dt = $(selector).DataTable($.extend(true, {}, base, options));
+
+        // Ícono ÚNICO de mostrar/ocultar columnas, ubicado en el header de la tabla
+        const id    = selector.replace(/^#/, '');
+        const tools = document.getElementById(id + '-tools');
+        if (tools) {
+            tools.innerHTML = '';   // evita duplicados al re-inicializar
+            new $.fn.dataTable.Buttons(dt, {
+                buttons: [{
+                    extend: 'colvis',
+                    text: '<i class="ti ti-columns-3"></i>',
+                    titleAttr: 'Mostrar / ocultar columnas',
+                    className: 'dt-icon-btn',
+                    columns: ':not(.no-colvis)',   // .no-colvis = columnas que no se pueden ocultar
+                }],
+            });
+            dt.buttons().container().appendTo(tools);
+        }
+        return dt;
+    };
+
+    // Conecta cualquier campo x-search (atributo data-dt-search) con su DataTable
+    $(document).on('input', 'input[data-dt-search]', function () {
+        const t = document.getElementById(this.dataset.dtSearch);
+        if (t && $.fn.dataTable.isDataTable(t)) $(t).DataTable().search(this.value).draw();
+    });
 </script>
 
 @stack('scripts')

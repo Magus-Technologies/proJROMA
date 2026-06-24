@@ -13,35 +13,24 @@
     </button>
 </div>
 
-<div class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
-    <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-        <h3 class="text-sm font-semibold text-gray-700">Kardex de Productos</h3>
-        <div class="flex items-center gap-3">
-            <select id="filtroAlmacen" onchange="cambiarAlmacen()" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs">
-                <option value="1">Almacén 1</option>
-                <option value="2">Almacén 2</option>
-                <option value="3">Almacén 3</option>
-            </select>
-            <span id="tbl-loading" class="hidden"><i class="ti ti-loader-2 text-blue-500 spin"></i></span>
-        </div>
-    </div>
-    <div class="overflow-x-auto p-4">
-        <table id="tblProductos" class="w-full text-xs">
-            <thead class="bg-gray-50 text-gray-500">
-                <tr>
-                    <th class="px-3 py-2.5 text-left">Código</th>
-                    <th class="px-3 py-2.5 text-left">Cód. Barra</th>
-                    <th class="px-3 py-2.5 text-left">Descripción</th>
-                    <th class="px-3 py-2.5 text-right">Precio</th>
-                    <th class="px-3 py-2.5 text-right">Costo</th>
-                    <th class="px-3 py-2.5 text-center">Stock</th>
-                    <th class="px-3 py-2.5 text-center">Acciones</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
-</div>
+<x-table id="tblProductos" title="Kardex de Productos">
+    <x-slot:filters>
+        <select id="filtroAlmacen" onchange="cambiarAlmacen()" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs">
+            <option value="1">Almacén 1</option>
+            <option value="2">Almacén 2</option>
+            <option value="3">Almacén 3</option>
+        </select>
+    </x-slot:filters>
+    <x-slot:thead>
+        <x-th>Código</x-th>
+        <x-th>Cód. Barra</x-th>
+        <x-th>Descripción</x-th>
+        <x-th align="right">Precio</x-th>
+        <x-th align="right">Costo</x-th>
+        <x-th align="center">Stock</x-th>
+        <x-th align="center">Acciones</x-th>
+    </x-slot:thead>
+</x-table>
 
 {{-- Modal --}}
 <div id="mdProducto" class="fixed inset-0 z-50 hidden items-start justify-center pt-10 px-4">
@@ -134,32 +123,30 @@ $(function() { cargarTabla(1); });
 
 function cargarTabla(almacen) {
     if (tabla) { tabla.destroy(); $('#tblProductos').empty().append('<thead class="bg-gray-50 text-gray-500"><tr><th class="px-3 py-2.5 text-left">Código</th><th class="px-3 py-2.5 text-left">Cód. Barra</th><th class="px-3 py-2.5 text-left">Descripción</th><th class="px-3 py-2.5 text-right">Precio</th><th class="px-3 py-2.5 text-right">Costo</th><th class="px-3 py-2.5 text-center">Stock</th><th class="px-3 py-2.5 text-center">Acciones</th></tr></thead><tbody></tbody>'); }
-    tabla = $('#tblProductos').DataTable({
+    tabla = initDataTable('#tblProductos', {
         processing: true, serverSide: true,
         ajax: {
             url: BASE+'/api/productos/serverside',
             data: d => { d.almacenId = almacen; },
             headers: { 'Accept':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}' },
-            beforeSend: () => $('#tbl-loading').removeClass('hidden'),
-            complete:   () => $('#tbl-loading').addClass('hidden'),
+            beforeSend: () => $('#tblProductos-loading').removeClass('hidden'),
+            complete:   () => $('#tblProductos-loading').addClass('hidden'),
         },
         columns: [
             { data:'codigo',      defaultContent:'-' },
             { data:'cod_barra',   defaultContent:'-' },
-            { data:'descripcion' },
+            { data:'descripcion', responsivePriority:1 },
             { data:'precio',   className:'text-right', render: v => 'S/ '+parseFloat(v||0).toFixed(2) },
             { data:'costo',    className:'text-right', render: v => 'S/ '+parseFloat(v||0).toFixed(2) },
             { data:'cantidad', className:'text-center font-bold',
               render: v => `<span class="${parseInt(v)<=5?'text-red-600':'text-emerald-600'}">${v}</span>` },
-            { data:'id_producto', orderable:false, className:'text-center',
+            { data:'id_producto', orderable:false, responsivePriority:2, className:'text-center no-colvis',
               render: id => `<div class="flex justify-center gap-1">
                 <button onclick="editarProducto(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600"><i class="ti ti-pencil text-sm"></i></button>
                 <button onclick="eliminarProducto(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600"><i class="ti ti-trash text-sm"></i></button>
               </div>` },
         ],
-        order:[[2,'asc']], pageLength:25,
-        language:{ url:'//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' },
-        dom:'<"flex flex-wrap gap-2 items-center justify-between mb-4"lf>t<"flex flex-wrap gap-2 items-center justify-between mt-4"ip>',
+        order:[[2,'asc']],
     });
 }
 

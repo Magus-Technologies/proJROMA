@@ -4,8 +4,10 @@
 @section('breadcrumb','Cajas / Mi Caja')
 
 @section('content')
-<div x-data="{ idCaja: 0, nombre: 'Mi Caja', saldo: 0, cargando: true }"
-     x-init="cargarMiCaja($data)">
+<div x-data="{
+    idCaja: 0, nombre: 'Mi Caja', saldo: 0, cargando: true,
+    esHija: false, balanceCierre: null
+}" x-init="cargarMiCaja()">
 
     <template x-if="cargando">
         <div class="flex items-center justify-center py-20">
@@ -34,6 +36,9 @@
                 <div class="flex gap-2">
                     <x-btn color="emerald" icon="ti ti-arrow-up" onclick="abrirMiMovimiento('INGRESO')">Ingreso</x-btn>
                     <x-btn color="red" icon="ti ti-arrow-down" onclick="abrirMiMovimiento('EGRESO')">Egreso</x-btn>
+                    <template x-if="esHija">
+                        <x-btn color="primary" icon="ti ti-lock" @click="abrirCierre()">Cerrar caja</x-btn>
+                    </template>
                 </div>
             </div>
 
@@ -46,14 +51,30 @@
                     <x-th>Instrumento</x-th>
                     <x-th align="right">Monto</x-th>
                     <x-th align="right">Saldo</x-th>
+                    <x-th align="center">Acciones</x-th>
                 </x-slot:thead>
             </x-table>
+
+            <div class="mt-8">
+                <h3 class="text-sm font-bold text-gray-700 mb-3">Historial de cierres</h3>
+                <x-table id="tblCierresMC" title="Cierres">
+                    <x-slot:thead>
+                        <x-th>Fecha</x-th>
+                        <x-th align="right">Declarado</x-th>
+                        <x-th align="right">Sistema</x-th>
+                        <x-th align="center">Estado</x-th>
+                        <x-th>Observaciones</x-th>
+                    </x-slot:thead>
+                </x-table>
+            </div>
         </div>
     </template>
 </div>
 
+{{-- Modal Movimiento --}}
 <x-modal id="md-micaja" title="Movimiento Personal" size="max-w-lg">
     <input type="hidden" id="mc-tipo">
+    <input type="hidden" id="mc-monto-id">
     <div class="space-y-4">
         <x-input-group label="Descripción" :required="true">
             <x-input id="mc-desc" maxlength="245" placeholder="Descripción del movimiento" />
@@ -84,31 +105,60 @@
         <x-btn color="primary" icon="ti ti-device-floppy" onclick="guardarMiMovimiento()">Guardar</x-btn>
     </x-slot:footer>
 </x-modal>
+
+{{-- Modal Cierre --}}
+<x-modal id="md-cierre" title="Cierre de Caja" size="max-w-md">
+    <div class="space-y-4">
+        <template x-if="balanceCierre">
+            <div>
+                <div class="mb-3 space-y-2 text-xs" x-show="balanceCierre.desglose">
+                    <template x-for="item in balanceCierre.desglose" :key="item.label">
+                        <div class="flex justify-between py-1 border-b border-gray-100">
+                            <span class="text-gray-600" x-text="item.label"></span>
+                            <span class="font-bold" x-text="'S/ ' + item.monto.toFixed(2)"></span>
+                        </div>
+                    </template>
+                    <div class="flex justify-between py-1 text-sm font-bold border-t border-gray-300 mt-2">
+                        <span>Saldo según sistema</span>
+                        <span x-text="'S/ ' + balanceCierre.saldo_sistema.toFixed(2)"></span>
+                    </div>
+                </div>
+                <x-input-group label="Saldo declarado (físico)" :required="true">
+                    <x-input id="mc-saldo-declarado" type="number" step="0.01" min="0" placeholder="0.00" />
+                </x-input-group>
+            </div>
+        </template>
+    </div>
+    <x-slot:footer>
+        <x-btn color="ghost" onclick="cerrarModal('md-cierre')">Cancelar</x-btn>
+        <x-btn color="primary" icon="ti ti-lock" onclick="confirmarCierre()">Cerrar caja</x-btn>
+    </x-slot:footer>
+</x-modal>
 @endsection
 
 @push('scripts')
 <script>
 const BASE = '{{ config("app.url") }}';
 const g = id => document.getElementById(id);
-let tblMC, miCajaId = 0;
+let tblMC, tblCierresMC, miCajaId = 0;
 let alpineCaja;
 
-function cargarMiCaja(alpine) {
-    alpineCaja = alpine;
-    if (!alpine) return;
+function cargarMiCaja() {
+    alpineCaja = document.querySelector('[x-data]')?.__x;
+    if (!alpineCaja) return;
     apiGet(BASE + '/api/cajas/opciones').then(opts => {
         const cajas = opts.cajas || [];
         const usuarioId = {{ auth()->user()->usuario_id ?? 0 }};
-        // Buscar caja tipo VENDEDOR asignada al usuario, o CHICA, o GENERAL
-        let miCaja = cajas.find(c => c.tipo === 'VENDEDOR' && c.id_usuario_responsable == usuarioId)
-                  || cajas.find(c => c.tipo === 'CHICA' && c.id_usuario_responsable == usuarioId)
-                  || cajas.find(c => c.tipo === 'GENERAL');
+        // Buscar por id_usuario_responsable (sin tipo)
+        let miCaja = cajas.find(c => c.id_usuario_responsable == usuarioId)
+                  || cajas[0];
         if (miCaja) {
             miCajaId = miCaja.id;
-            alpine.idCaja = miCaja.id;
-            alpine.nombre = miCaja.nombre;
+            alpineCaja.idCaja = miCaja.id;
+            alpineCaja.nombre = miCaja.nombre;
+            alpineCaja.esHija = !!miCaja.id_caja_padre;
         }
-        alpine.cargando = false;
+        alpineCaja.cargando = false;
 
         if (miCajaId) {
             tblMC = initDataTable('#tblMiCaja', {
@@ -126,6 +176,26 @@ function cargarMiCaja(alpine) {
                       render: (v, t, row) => (row.tipo === 'INGRESO' ? '+ ' : '- ') + 'S/ ' + parseFloat(v || 0).toFixed(2) },
                     { data: 'saldo_posterior', className: 'text-right text-xs text-gray-500',
                       render: v => 'S/ ' + parseFloat(v || 0).toFixed(2) },
+                    { data: 'id', orderable: false, className: 'text-center',
+                      render: (id, t, row) => row.estado === 'CONFIRMADO' ? `<div class="flex justify-center gap-1"><button onclick="editarMiMovimiento(${id})" class="h-6 w-6 flex items-center justify-center rounded bg-blue-50 hover:bg-blue-100 text-blue-500" title="Editar"><i class="ti ti-pencil text-[11px]"></i></button><button onclick="anularMiMovimiento(${id})" class="h-6 w-6 flex items-center justify-center rounded bg-red-50 hover:bg-red-100 text-red-500" title="Anular"><i class="ti ti-x text-[11px]"></i></button></div>` : '' },
+                ],
+                order: [[0, 'desc']],
+            });
+
+            tblCierresMC = initDataTable('#tblCierresMC', {
+                processing: true, serverSide: true,
+                ajax: { url: BASE + '/api/cierres/historial/' + miCajaId, headers: { 'Accept': 'application/json' } },
+                columns: [
+                    { data: 'fecha', defaultContent: '-' },
+                    { data: 'saldo_declarado', className: 'text-right', render: v => 'S/ ' + parseFloat(v || 0).toFixed(2) },
+                    { data: 'saldo_sistema', className: 'text-right', render: v => 'S/ ' + parseFloat(v || 0).toFixed(2) },
+                    { data: 'estado', className: 'text-center',
+                      render: v => ({
+                        PENDIENTE: '<span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">Pendiente</span>',
+                        APROBADO: '<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Aprobado</span>',
+                        RECHAZADO: '<span class="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">Rechazado</span>',
+                      }[v] || v) },
+                    { data: 'observaciones', defaultContent: '-', className: 'text-xs' },
                 ],
                 order: [[0, 'desc']],
             });
@@ -134,6 +204,7 @@ function cargarMiCaja(alpine) {
 }
 
 function abrirMiMovimiento(tipo) {
+    g('mc-monto-id').value = '';
     g('mc-tipo').value = tipo;
     g('mc-desc').value = '';
     g('mc-monto').value = '';
@@ -143,6 +214,29 @@ function abrirMiMovimiento(tipo) {
     g('mc-instr-id').classList.add('hidden');
     abrirModal('md-micaja');
     setTimeout(() => g('mc-desc').focus(), 100);
+}
+
+function editarMiMovimiento(id) {
+    const data = tblMC.rows().data().toArray().find(r => String(r.id) === String(id));
+    if (!data) return;
+    g('mc-monto-id').value = data.id;
+    g('mc-tipo').value = data.tipo;
+    g('mc-desc').value = data.descripcion || '';
+    g('mc-monto').value = data.monto;
+    g('mc-fecha').value = data.fecha;
+    g('mc-instr-tipo').value = data.instrumento_tipo || '';
+    window.cargarInstrMC().then(() => {
+        g('mc-instr-id').value = data.instrumento_id || '';
+    });
+    abrirModal('md-micaja');
+}
+
+async function anularMiMovimiento(id) {
+    const conf = await Swal.fire({ title: '¿Anular movimiento?', text: 'Se restaurará el saldo anterior.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, anular', cancelButtonText: 'Cancelar' });
+    if (!conf.isConfirmed) return;
+    const d = await apiPost(BASE + '/api/caja-movimientos/anular', { id });
+    if (d.res) { toastOk('Movimiento anulado.'); tblMC.ajax.reload(null, false); }
+    else toastErr(d.msg || 'Error.');
 }
 
 window.cargarInstrMC = async function () {
@@ -165,23 +259,71 @@ window.cargarInstrMC = async function () {
 };
 
 async function guardarMiMovimiento() {
+    const id = g('mc-monto-id').value;
     const tipo = g('mc-tipo').value;
     const desc = g('mc-desc').value.trim();
     const monto = parseFloat(g('mc-monto').value || 0);
     if (!desc) { toastWarn('Escribe una descripción.'); return; }
     if (monto <= 0) { toastWarn('Ingresa un monto válido.'); return; }
 
-    const payload = {
-        id_caja: miCajaId, tipo, descripcion: desc, monto,
-        fecha: g('mc-fecha').value || undefined,
-        categoria: 'MANUAL',
-        instrumento_tipo: g('mc-instr-tipo').value || null,
-        instrumento_id: g('mc-instr-id').value || null,
-    };
+    let url, payload;
+    if (id) {
+        url = BASE + '/api/caja-movimientos/editar';
+        payload = { id, descripcion: desc, monto, fecha: g('mc-fecha').value || undefined };
+    } else {
+        url = BASE + '/api/caja-movimientos';
+        payload = {
+            id_caja: miCajaId, tipo, descripcion: desc, monto,
+            fecha: g('mc-fecha').value || undefined,
+            categoria: 'MANUAL',
+            instrumento_tipo: g('mc-instr-tipo').value || null,
+            instrumento_id: g('mc-instr-id').value || null,
+        };
+    }
 
-    const d = await apiPost(BASE + '/api/caja-movimientos', payload);
-    if (d.res) { toastOk('Movimiento registrado.'); cerrarModal('md-micaja'); tblMC.ajax.reload(null, false); }
+    const d = await apiPost(url, payload);
+    if (d.res) { toastOk(id ? 'Movimiento actualizado.' : 'Movimiento registrado.'); cerrarModal('md-micaja'); tblMC.ajax.reload(null, false); }
     else toastErr(d.msg || 'Error.');
+}
+
+function editarMiMovimiento(id) {
+    toastWarn('Editar movimiento próximamente.');
+}
+
+// ── Cierre de caja ───────────────────────────────────────────────
+async function abrirCierre() {
+    if (!miCajaId) return;
+    const d = await apiGet(BASE + '/api/cierres/balance/' + miCajaId);
+    if (d.res) {
+        alpineCaja.balanceCierre = d;
+        g('mc-saldo-declarado').value = '';
+        abrirModal('md-cierre');
+    } else {
+        toastErr(d.msg || 'Error al obtener balance.');
+    }
+}
+
+async function confirmarCierre() {
+    if (!miCajaId) return;
+    const saldoDeclarado = parseFloat(g('mc-saldo-declarado').value || 0);
+    if (saldoDeclarado < 0) { toastWarn('Ingresa un saldo válido.'); return; }
+
+    const conf = await Swal.fire({
+        title: '¿Cerrar caja?',
+        text: 'Se registrará un cierre. Si hay diferencia se generará un ajuste.',
+        icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, cerrar', cancelButtonText: 'Cancelar'
+    });
+    if (!conf.isConfirmed) return;
+
+    const d = await apiPost(BASE + '/api/cierres/cerrar', {
+        id_caja: miCajaId, saldo_declarado: saldoDeclarado, desglose: []
+    });
+    if (d.res) {
+        toastOk('Cierre registrado.'); cerrarModal('md-cierre');
+        if (tblCierresMC) tblCierresMC.ajax.reload(null, false);
+    } else {
+        toastErr(d.msg || 'Error.');
+    }
 }
 </script>
 @endpush

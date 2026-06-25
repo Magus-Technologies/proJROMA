@@ -111,7 +111,7 @@
                          :active="request()->routeIs('caja.*','pago.*')">
                 <x-nav-link href="{{ route('caja.gestion') }}"     icon="ti ti-building-bank" label="Gestión de Cajas" />
                 <x-nav-link href="{{ route('caja.movimientos') }}" icon="ti ti-arrows-exchange" label="Movimientos" />
-                <x-nav-link href="{{ route('caja.rendiciones') }}" icon="ti ti-coins"           label="Caja Chica" />
+                <x-nav-link href="{{ route('caja.rendiciones') }}" icon="ti ti-coins"           label="Cierres y Cuadre" />
                 <x-nav-link href="{{ route('caja.arqueo') }}"      icon="ti ti-calculator"      label="Arqueo Diario" />
                 <x-nav-link href="{{ route('caja.micaja') }}"      icon="ti ti-wallet"          label="Mi Caja" />
                 <x-nav-link href="{{ route('pago.instrumentos') }}" icon="ti ti-credit-card"    label="Métodos de Pago" />
@@ -298,7 +298,7 @@
             deferRender: true,
             autoWidth: false,
             pageLength: 25,
-            language: { url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' },
+            language: { url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' },
             // El buscador es el componente x-search. Aquí solo: tabla(t) + Show(l)+info(i)+paginación(p)
             dom: 'rt<"dt-foot flex flex-wrap items-center justify-between gap-3 mt-4"<"flex items-center gap-3"li>p>',
         };

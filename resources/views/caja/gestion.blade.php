@@ -4,53 +4,75 @@
 @section('breadcrumb','Cajas / Gestión')
 
 @section('content')
-<div x-data="{ cajaPadre: null, tipo: '' }">
-    <x-table id="tblCajas" title="Cajas">
-        <x-slot:filters>
-            <x-btn color="primary" icon="ti ti-plus" onclick="abrirModalCaja()">Nueva Caja</x-btn>
-        </x-slot:filters>
-        <x-slot:thead>
-            <x-th>Nombre</x-th>
-            <x-th align="center">Tipo</x-th>
-            <x-th>Responsable</x-th>
-            <x-th align="right">Saldo Actual</x-th>
-            <x-th align="right">Fondo Fijo</x-th>
-            <x-th align="center">Estado</x-th>
-            <x-th align="center">Acciones</x-th>
-        </x-slot:thead>
-    </x-table>
+<div x-data="{ tab: 'principales' }" x-init="$watch('tab', val => { setTimeout(() => { if (val==='principales' && tblPrincipales) tblPrincipales.columns.adjust().draw(); if (val==='hijas' && tblHijas) tblHijas.columns.adjust().draw(); }, 100); })">
 
-    <x-modal id="md-caja" title="Caja" size="max-w-lg">
+    {{-- Tabs --}}
+    <div class="mb-4 flex gap-1 border-b border-gray-200">
+        <button @click="tab='principales'" class="px-4 py-2 text-xs font-bold rounded-t transition"
+                :class="tab==='principales' ? 'border-b-2 border-brand-500 text-brand-600 bg-brand-50' : 'text-gray-500 hover:text-gray-700'">
+            <i class="ti ti-building-bank mr-1"></i> Cajas Principales
+        </button>
+        <button @click="tab='hijas'" class="px-4 py-2 text-xs font-bold rounded-t transition"
+                :class="tab==='hijas' ? 'border-b-2 border-brand-500 text-brand-600 bg-brand-50' : 'text-gray-500 hover:text-gray-700'">
+            <i class="ti ti-building-arch mr-1"></i> Cajas Hijas
+        </button>
+    </div>
+
+    {{-- Tab: Principales --}}
+    <div x-show="tab==='principales'">
+        <x-table id="tblPrincipales" title="Cajas Principales">
+            <x-slot:filters>
+                <x-btn color="primary" icon="ti ti-plus" onclick="abrirModalPrincipal()">Nueva Caja Principal</x-btn>
+            </x-slot:filters>
+            <x-slot:thead>
+                <x-th>Nombre</x-th>
+                <x-th>Responsable</x-th>
+                <x-th align="right">Saldo Actual</x-th>
+                <x-th align="center">Estado</x-th>
+                <x-th align="center">Acciones</x-th>
+            </x-slot:thead>
+        </x-table>
+    </div>
+
+    {{-- Tab: Hijas --}}
+    <div x-show="tab==='hijas'">
+        <x-table id="tblHijas" title="Cajas Hijas">
+            <x-slot:filters>
+                <x-btn color="primary" icon="ti ti-plus" onclick="abrirModalHija()">Nueva Caja Hija</x-btn>
+            </x-slot:filters>
+            <x-slot:thead>
+                <x-th>Nombre</x-th>
+                <x-th>Responsable</x-th>
+                <x-th>Caja Padre</x-th>
+                <x-th align="right">Saldo Actual</x-th>
+                <x-th align="center">Estado</x-th>
+                <x-th align="center">Acciones</x-th>
+            </x-slot:thead>
+        </x-table>
+    </div>
+
+    <x-modal id="md-caja" title="Nueva Caja" size="max-w-lg">
         <input type="hidden" id="md-caja-id">
+        <input type="hidden" id="md-es-hija" value="0">
         <div class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
                 <x-input-group label="Nombre" :required="true">
                     <x-input id="md-caja-nombre" maxlength="100" placeholder="Ej: Caja Principal" />
                 </x-input-group>
-                <x-input-group label="Tipo" :required="true">
-                    <select id="md-caja-tipo" @change="tipo = $el.value; if($el.value!=='CHICA'){cajaPadre=null; document.getElementById('md-caja-padre').value=''; document.getElementById('md-caja-fondo').value='';}" class="field bg-white">
-                        <option value="GENERAL">General</option>
-                        <option value="CHICA">Caja Chica</option>
-                        <option value="VENDEDOR">Vendedor</option>
-                    </select>
-                </x-input-group>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
                 <x-input-group label="Responsable">
                     <select id="md-caja-responsable" class="field bg-white">
                         <option value="">— Sin responsable —</option>
                     </select>
                 </x-input-group>
-                <x-input-group label="Caja padre" x-show="tipo==='CHICA'">
+            </div>
+            <div id="md-caja-padre-wrap" class="hidden">
+                <x-input-group label="Depende de la caja" :required="true">
                     <select id="md-caja-padre" class="field bg-white">
-                        <option value="">— Selecciona —</option>
+                        <option value="">— Selecciona caja principal —</option>
                     </select>
                 </x-input-group>
             </div>
-            <x-input-group label="Fondo fijo (S/)" x-show="tipo==='CHICA'">
-                <x-input id="md-caja-fondo" type="number" step="0.01" min="0" placeholder="500.00" />
-            </x-input-group>
-            <div x-show="tipo==='' || tipo==='GENERAL' || tipo==='VENDEDOR'">
+            <div>
                 <x-label>Estado</x-label>
                 <x-switch id="md-caja-estado" />
             </div>
@@ -79,7 +101,7 @@
             </x-table>
         </div>
         <x-slot:footer>
-            <x-btn color="ghost" onclick="cerrarModal('md-instrumentos')">Cerrar</x-btn>
+            <x-btn color="ghost" onclick="cerrarModalInstrumentos()">Cerrar</x-btn>
         </x-slot:footer>
     </x-modal>
 </div>
@@ -89,61 +111,89 @@
 <script>
 const BASE = '{{ config("app.url") }}';
 const g = id => document.getElementById(id);
-let tblCajas, tblInstr, idCajaInstr = 0;
+let tblPrincipales, tblHijas, tblInstr, idCajaInstr = 0;
+
+function reloadTables() { if (tblPrincipales) tblPrincipales.ajax.reload(null, false); if (tblHijas) tblHijas.ajax.reload(null, false); }
+
+function colDefs(padre) {
+    const cols = [
+        { data: 'nombre' },
+        { data: 'responsable', defaultContent: '-' },
+        { data: 'saldo_actual', className: 'text-right font-bold',
+          render: v => 'S/ ' + parseFloat(v || 0).toFixed(2) },
+        { data: 'estado', className: 'text-center', orderable: false,
+          render: v => v === 'ACTIVA' ? '<span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Activa</span>' : '<span class="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">Inactiva</span>' },
+        { data: 'id', orderable: false, className: 'text-center no-colvis',
+          render: (id, t, row) => `<div class="flex justify-center gap-1">
+              <button onclick="editarCaja(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600" title="Editar"><i class="ti ti-pencil text-sm"></i></button>
+              <button onclick="toggleCaja(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600" title="Cambiar Estado"><i class="ti ti-refresh text-sm"></i></button>
+              ${row.id_caja_padre ? `<button onclick="abrirInstrumentos(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-600" title="Asignar Instrumentos"><i class="ti ti-credit-card text-sm"></i></button>` : ''}
+          </div>` },
+    ];
+    if (padre) cols.splice(2, 0, { data: 'padre_nombre', defaultContent: '-' });
+    return cols;
+}
 
 $(function () {
-    tblCajas = initDataTable('#tblCajas', {
+    tblPrincipales = initDataTable('#tblPrincipales', {
         processing: true, serverSide: true,
-        ajax: { url: BASE + '/api/cajas', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' } },
-        columns: [
-            { data: 'nombre' },
-            { data: 'tipo', className: 'text-center',
-              render: v => ({ GENERAL: 'General', CHICA: 'Caja Chica', VENDEDOR: 'Vendedor' })[v] || v },
-            { data: 'responsable', defaultContent: '-' },
-            { data: 'saldo_actual', className: 'text-right font-bold',
-              render: v => 'S/ ' + parseFloat(v || 0).toFixed(2) },
-            { data: 'monto_fondo_fijo', className: 'text-right',
-              render: v => v ? 'S/ ' + parseFloat(v).toFixed(2) : '-' },
-            { data: 'estado', className: 'text-center', orderable: false,
-              render: v => v === 'ACTIVA' ? '<span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Activa</span>' : '<span class="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">Inactiva</span>' },
-            { data: 'id', orderable: false, className: 'text-center no-colvis',
-              render: id => `<div class="flex justify-center gap-1">
-                  <button onclick="editarCaja(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600"><i class="ti ti-pencil text-sm"></i></button>
-                  <button onclick="toggleCaja(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600"><i class="ti ti-refresh text-sm"></i></button>
-                  <button onclick="abrirInstrumentos(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-600"><i class="ti ti-credit-card text-sm"></i></button>
-              </div>` },
-        ],
+        ajax: { url: BASE + '/api/cajas?solo_principales=1', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' } },
+        columns: colDefs(false),
+        order: [[0, 'asc']],
+    });
+    tblHijas = initDataTable('#tblHijas', {
+        processing: true, serverSide: true,
+        ajax: { url: BASE + '/api/cajas?solo_hijas=1', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' } },
+        columns: colDefs(true),
         order: [[0, 'asc']],
     });
 });
 
-async function abrirModalCaja() {
+async function abrirModalPrincipal() {
+    g('md-es-hija').value = '0';
     g('md-caja-id').value = '';
     g('md-caja-nombre').value = '';
-    g('md-caja-tipo').value = 'GENERAL';
     g('md-caja-responsable').value = '';
     g('md-caja-padre').value = '';
-    g('md-caja-fondo').value = '';
     g('md-caja-estado').checked = true;
+    document.getElementById('md-caja-padre-wrap').classList.add('hidden');
 
     const opts = await apiGet(BASE + '/api/cajas/opciones');
     fillSel('md-caja-responsable', opts.usuarios || [], 'usuario_id', u => u.nombres + ' ' + u.apellidos);
-    fillSel('md-caja-padre', (opts.cajas || []).filter(c => c.tipo === 'GENERAL'), 'id', 'nombre');
+    abrirModal('md-caja');
+}
+
+async function abrirModalHija() {
+    g('md-es-hija').value = '1';
+    g('md-caja-id').value = '';
+    g('md-caja-nombre').value = '';
+    g('md-caja-responsable').value = '';
+    g('md-caja-padre').value = '';
+    g('md-caja-estado').checked = true;
+    document.getElementById('md-caja-padre-wrap').classList.remove('hidden');
+
+    const opts = await apiGet(BASE + '/api/cajas/opciones');
+    fillSel('md-caja-responsable', opts.usuarios || [], 'usuario_id', u => u.nombres + ' ' + u.apellidos);
+    fillSel('md-caja-padre', (opts.cajas || []).filter(c => !c.id_caja_padre), 'id', 'nombre');
     abrirModal('md-caja');
 }
 
 async function editarCaja(id) {
-    const row = tblCajas.rows().data().toArray().find(r => String(r.id) === String(id));
+    const row = (tblPrincipales ? tblPrincipales.rows().data().toArray() : []).concat(tblHijas ? tblHijas.rows().data().toArray() : []).find(r => String(r.id) === String(id));
     if (!row) return;
+    g('md-es-hija').value = row.id_caja_padre ? '1' : '0';
     g('md-caja-id').value = row.id;
     g('md-caja-nombre').value = row.nombre;
-    g('md-caja-tipo').value = row.tipo;
     g('md-caja-estado').checked = row.estado === 'ACTIVA';
+
+    const esHija = !!row.id_caja_padre;
+    document.getElementById('md-caja-padre-wrap').classList.toggle('hidden', !esHija);
 
     const opts = await apiGet(BASE + '/api/cajas/opciones');
     fillSel('md-caja-responsable', opts.usuarios || [], 'usuario_id', u => u.nombres + ' ' + u.apellidos, row.id_usuario_responsable);
-    fillSel('md-caja-padre', (opts.cajas || []).filter(c => c.tipo === 'GENERAL'), 'id', 'nombre', row.id_caja_padre);
-    document.getElementById('md-caja-fondo').value = row.monto_fondo_fijo || '';
+    if (esHija) {
+        fillSel('md-caja-padre', (opts.cajas || []).filter(c => !c.id_caja_padre && String(c.id) !== String(row.id)), 'id', 'nombre', row.id_caja_padre);
+    }
     abrirModal('md-caja');
 }
 
@@ -160,22 +210,30 @@ function fillSel(id, items, valKey, labelFn, selected) {
 async function guardarCaja() {
     const id = g('md-caja-id').value;
     const nombre = g('md-caja-nombre').value.trim();
-    const tipo = g('md-caja-tipo').value;
+    const id_caja_padre = g('md-caja-padre').value || null;
     if (!nombre) { toastWarn('Escribe el nombre.'); return; }
-    const payload = { nombre, tipo, id_usuario_responsable: g('md-caja-responsable').value || null, estado: g('md-caja-estado').checked ? 'ACTIVA' : 'INACTIVA' };
-    if (tipo === 'CHICA') {
-        payload.id_caja_padre = g('md-caja-padre').value || null;
-        payload.monto_fondo_fijo = parseFloat(g('md-caja-fondo').value || 0);
-    }
+    const payload = { 
+        nombre, 
+        id_caja_padre, 
+        id_usuario_responsable: g('md-caja-responsable').value || null, 
+        estado: g('md-caja-estado').checked ? 'ACTIVA' : 'INACTIVA' 
+    };
     if (id) { payload.id = id; }
     const d = await apiPost(BASE + '/api/cajas' + (id ? '/editar' : ''), payload);
-    if (d.res) { toastOk(id ? 'Caja actualizada.' : 'Caja creada.'); cerrarModal('md-caja'); tblCajas.ajax.reload(null, false); }
+    if (d.res) { 
+        toastOk(id ? 'Caja actualizada.' : 'Caja creada.');
+        cerrarModal('md-caja');
+        reloadTables();
+        if (!id && id_caja_padre) {
+            abrirInstrumentos(d.id);
+        }
+    }
     else toastErr(d.msg || 'Error.');
 }
 
 async function toggleCaja(id) {
     const d = await apiPost(BASE + '/api/cajas/toggle', { id });
-    if (d.res) { toastOk(d.estado === 'ACTIVA' ? 'Activada.' : 'Desactivada.'); tblCajas.ajax.reload(null, false); }
+    if (d.res) { toastOk(d.estado === 'ACTIVA' ? 'Activada.' : 'Desactivada.'); reloadTables(); }
     else Swal.fire({ icon: 'warning', title: 'Error', text: d.msg || 'No se pudo cambiar el estado.' });
 }
 
@@ -189,7 +247,7 @@ async function abrirInstrumentos(idCaja) {
         processing: true, serverSide: true,
         ajax: { url: BASE + '/api/caja-instrumentos/' + idCaja, headers: { 'Accept': 'application/json' } },
         columns: [
-            { data: 'instrumento_label', defaultContent: '-' },
+            { data: 'instrumento_label', defaultContent: '-', searchable: false },
             { data: 'id', orderable: false, className: 'text-center',
               render: id => `<button onclick="quitarInstrumento(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600"><i class="ti ti-trash text-sm"></i></button>` },
         ],
@@ -216,6 +274,23 @@ async function asignarInstrumento() {
 async function quitarInstrumento(id) {
     const d = await apiPost(BASE + '/api/caja-instrumentos/quitar', { id });
     if (d.res) { toastOk('Quitado.'); tblInstr.ajax.reload(null, false); }
+}
+
+async function cerrarModalInstrumentos() {
+    const allData = (tblPrincipales ? tblPrincipales.rows().data().toArray() : []).concat(tblHijas ? tblHijas.rows().data().toArray() : []);
+    const row = allData.find(r => String(r.id) === String(idCajaInstr));
+    if (row && row.id_caja_padre) {
+        const count = tblInstr.page.info().recordsTotal;
+        if (count === 0) {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'Atención',
+                text: 'Esta caja es una caja hija y no tiene instrumentos de pago asignados. Debe agregar al menos uno.',
+                confirmButtonText: 'Entendido'
+            });
+        }
+    }
+    cerrarModal('md-instrumentos');
 }
 </script>
 @endpush

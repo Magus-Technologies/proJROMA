@@ -34,6 +34,12 @@ class CajaInstrumentoApiController extends Controller
             'instrumento_tipo' => 'required|in:EFECTIVO,CUENTA_BANCARIA,TARJETA,BILLETERA_DIGITAL',
         ]);
 
+        // Validar que la caja sea hija (tenga padre)
+        $caja = DB::table('cajas')->where('id', $r->id_caja)->first();
+        if (!$caja || !$caja->id_caja_padre) {
+            return response()->json(['res' => false, 'msg' => 'Solo las cajas hijas pueden tener instrumentos asignados.']);
+        }
+
         $existe = DB::table('caja_instrumentos')
             ->where('id_caja', $r->id_caja)
             ->where('instrumento_tipo', $r->instrumento_tipo)

@@ -13,32 +13,38 @@ class CajaMaestroApiController extends Controller
     private function empresa(): int  { return (int) session('id_empresa'); }
     private function sucursal(): int { return (int) session('sucursal'); }
 
-    public function listar(): mixed
+    public function listar(Request $r): mixed
     {
-        return DataTables::of(
-            DB::table('cajas')
-                ->where('cajas.id_empresa', $this->empresa())
-                ->where('cajas.sucursal', $this->sucursal())
-                ->leftJoin('usuarios as u', 'u.usuario_id', '=', 'cajas.id_usuario_responsable')
-                ->select('cajas.*', DB::raw('COALESCE(CONCAT(u.nombres, " ", u.apellidos), "-") as responsable'))
-        )->make(true);
+        $q = DB::table('cajas as c')
+            ->where('c.id_empresa', $this->empresa())
+            ->where('c.sucursal', $this->sucursal())
+            ->leftJoin('usuarios as u', 'u.usuario_id', '=', 'c.id_usuario_responsable')
+            ->leftJoin('cajas as p', 'p.id', '=', 'c.id_caja_padre')
+            ->select(
+                'c.*',
+                DB::raw("COALESCE(CONCAT_WS(' ', u.nombres, u.apellidos), '-') as responsable"),
+                DB::raw('COALESCE(p.nombre, "-") as padre_nombre')
+            );
+
+        if ($r->boolean('solo_principales')) $q->whereNull('c.id_caja_padre');
+        if ($r->boolean('solo_hijas')) $q->whereNotNull('c.id_caja_padre');
+
+        return DataTables::of($q)->make(true);
     }
 
     public function guardar(Request $r): JsonResponse
     {
         $r->validate([
             'nombre' => 'required|string|max:100',
-            'tipo'   => 'required|in:GENERAL,CHICA,VENDEDOR',
+            'id_caja_padre' => 'nullable|integer',
         ]);
 
         $id = DB::table('cajas')->insertGetId([
             'id_empresa'             => $this->empresa(),
             'sucursal'               => $this->sucursal(),
             'nombre'                 => $r->nombre,
-            'tipo'                   => $r->tipo,
             'id_usuario_responsable' => $r->id_usuario_responsable ?? null,
-            'id_caja_padre'          => $r->tipo === 'CHICA' ? ($r->id_caja_padre ?? null) : null,
-            'monto_fondo_fijo'       => $r->tipo === 'CHICA' ? ($r->monto_fondo_fijo ?? 0) : null,
+            'id_caja_padre'          => $r->id_caja_padre ?? null,
             'saldo_actual'           => 0,
             'moneda'                 => 'PEN',
             'estado'                 => 'ACTIVA',
@@ -52,6 +58,7 @@ class CajaMaestroApiController extends Controller
         $r->validate([
             'id'     => 'required|integer',
             'nombre' => 'required|string|max:100',
+            'id_caja_padre' => 'nullable|integer',
         ]);
 
         DB::table('cajas')->where('id', $r->id)
@@ -59,7 +66,7 @@ class CajaMaestroApiController extends Controller
             ->update([
                 'nombre'                 => $r->nombre,
                 'id_usuario_responsable' => $r->id_usuario_responsable ?? null,
-                'monto_fondo_fijo'       => $r->monto_fondo_fijo ?? null,
+                'id_caja_padre'          => $r->id_caja_padre ?? null,
                 'estado'                 => $r->estado ?? 'ACTIVA',
             ]);
 
@@ -82,7 +89,7 @@ class CajaMaestroApiController extends Controller
             ->where('id_empresa', $this->empresa())
             ->where('sucursal', $this->sucursal())
             ->where('estado', 'ACTIVA')
-            ->get(['id', 'nombre', 'tipo', 'id_usuario_responsable']);
+            ->get(['id', 'nombre', 'id_usuario_responsable', 'id_caja_padre']);
 
         $usuarios = DB::table('usuarios')
             ->where('id_empresa', $this->empresa())

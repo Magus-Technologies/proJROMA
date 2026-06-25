@@ -20,7 +20,6 @@ use App\Http\Controllers\Api\PagoInstrumentoApiController;
 use App\Http\Controllers\Api\CajaMaestroApiController;
 use App\Http\Controllers\Api\CajaInstrumentoApiController;
 use App\Http\Controllers\Api\CajaMovimientoApiController;
-use App\Http\Controllers\Api\RendicionApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -199,6 +198,7 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
     Route::prefix('caja-movimientos')->group(function () {
         Route::get('/{idCaja}',       [CajaMovimientoApiController::class, 'listar']);
         Route::post('/',              [CajaMovimientoApiController::class, 'guardar']);
+        Route::post('/editar',        [CajaMovimientoApiController::class, 'editar']);
         Route::post('/anular',        [CajaMovimientoApiController::class, 'anular']);
     });
 
@@ -211,12 +211,13 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/quitar',               [CajaInstrumentoApiController::class, 'quitar']);
     });
 
-    // ── Rendiciones Caja Chica ────────────────────────────────────────────
-    Route::prefix('rendiciones')->group(function () {
-        Route::get('/activa/{idCaja}',    [RendicionApiController::class, 'activa']);
-        Route::post('/solicitar',         [RendicionApiController::class, 'solicitarAprobacion']);
-        Route::post('/aprobar',           [RendicionApiController::class, 'aprobar']);
-        Route::get('/historial/{idCaja}', [RendicionApiController::class, 'historial']);
+    // ── Cierres y Consolidado de Cajas ────────────────────────────────────
+    Route::prefix('cierres')->group(function () {
+        Route::get('/balance/{idCaja}',   [\App\Http\Controllers\Api\CierreCajaApiController::class, 'balanceSistema']);
+        Route::post('/cerrar',            [\App\Http\Controllers\Api\CierreCajaApiController::class, 'cerrar']);
+        Route::get('/consolidado',        [\App\Http\Controllers\Api\CierreCajaApiController::class, 'consolidado']);
+        Route::post('/aprobar',           [\App\Http\Controllers\Api\CierreCajaApiController::class, 'aprobar']);
+        Route::get('/historial/{idCaja}', [\App\Http\Controllers\Api\CierreCajaApiController::class, 'historial']);
     });
 
     // ── Arqueo Diario ─────────────────────────────────────────────────────

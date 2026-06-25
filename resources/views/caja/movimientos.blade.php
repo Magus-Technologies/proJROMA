@@ -12,7 +12,7 @@
             <select x-model="idCaja" @change="cambiarCaja()" class="field bg-white text-xs min-w-[200px]">
                 <option value="0">— Selecciona caja —</option>
                 <template x-for="c in cajas" :key="c.id">
-                    <option :value="c.id" x-text="c.nombre + ' (' + c.tipo + ')'"></option>
+                    <option :value="c.id" x-text="c.nombre"></option>
                 </template>
             </select>
             <span x-show="idCaja" class="text-xs text-gray-500" x-text="'Saldo: S/ ' + saldo.toFixed(2)"></span>
@@ -35,9 +35,9 @@
                 <option value="VENTA">Venta</option>
                 <option value="COMPRA">Compra</option>
                 <option value="APERTURA">Apertura</option>
-                <option value="REPOSICION">Reposición</option>
-                <option value="RENDICION">Rendición</option>
                 <option value="AJUSTE">Ajuste</option>
+                <option value="CIERRE">Cierre</option>
+                <option value="CUADRE">Cuadre</option>
             </select>
         </div>
     </div>
@@ -53,6 +53,7 @@
             <x-th align="right">Saldo</x-th>
             <x-th>Usuario</x-th>
             <x-th align="center">Estado</x-th>
+            <x-th align="center">Acciones</x-th>
         </x-slot:thead>
     </x-table>
 </div>
@@ -150,12 +151,15 @@ $(function () {
             { data: 'usuario', defaultContent: '-', className: 'text-xs' },
             { data: 'estado', className: 'text-center', orderable: false,
               render: v => v === 'CONFIRMADO' ? '<span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Confirmado</span>' : '<span class="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">Anulado</span>' },
+            { data: 'id', orderable: false, className: 'text-center',
+              render: (id, t, row) => row.estado === 'CONFIRMADO' ? `<div class="flex justify-center gap-1"><button onclick="editarMovimiento(${id})" class="h-6 w-6 flex items-center justify-center rounded bg-blue-50 hover:bg-blue-100 text-blue-500" title="Editar"><i class="ti ti-pencil text-[11px]"></i></button><button onclick="anularMovimiento(${id})" class="h-6 w-6 flex items-center justify-center rounded bg-red-50 hover:bg-red-100 text-red-500" title="Anular"><i class="ti ti-x text-[11px]"></i></button></div>` : '' },
         ],
         order: [[0, 'desc']],
     });
 });
 
 function abrirMovimiento(tipo) {
+    g('md-mov-id').value = '';
     g('md-mov-tipo').value = tipo;
     g('md-mov-desc').value = '';
     g('md-mov-monto').value = '';
@@ -165,6 +169,21 @@ function abrirMovimiento(tipo) {
     g('md-mov-instr-id').classList.add('hidden');
     abrirModal('md-mov');
     setTimeout(() => g('md-mov-desc').focus(), 100);
+}
+
+function editarMovimiento(id) {
+    const data = tblMov.rows().data().toArray().find(r => String(r.id) === String(id));
+    if (!data) return;
+    g('md-mov-id').value = data.id;
+    g('md-mov-tipo').value = data.tipo;
+    g('md-mov-desc').value = data.descripcion || '';
+    g('md-mov-monto').value = data.monto;
+    g('md-mov-fecha').value = data.fecha;
+    g('md-mov-instr-tipo').value = data.instrumento_tipo || '';
+    window.cargarInstrMov().then(() => {
+        g('md-mov-instr-id').value = data.instrumento_id || '';
+    });
+    abrirModal('md-mov');
 }
 
 window.cargarInstrMov = async function () {
@@ -187,22 +206,38 @@ window.cargarInstrMov = async function () {
 };
 
 async function guardarMovimiento() {
+    const id = g('md-mov-id').value;
     const tipo = g('md-mov-tipo').value;
     const desc = g('md-mov-desc').value.trim();
     const monto = parseFloat(g('md-mov-monto').value || 0);
     if (!desc) { toastWarn('Escribe una descripción.'); return; }
     if (monto <= 0) { toastWarn('Ingresa un monto válido.'); return; }
 
-    const payload = {
-        id_caja: currentCaja, tipo, descripcion: desc, monto,
-        fecha: g('md-mov-fecha').value || undefined,
-        categoria: 'MANUAL',
-        instrumento_tipo: g('md-mov-instr-tipo').value || null,
-        instrumento_id: g('md-mov-instr-id').value || null,
-    };
+    let url, payload;
+    if (id) {
+        url = BASE + '/api/caja-movimientos/editar';
+        payload = { id, descripcion: desc, monto, fecha: g('md-mov-fecha').value || undefined };
+    } else {
+        url = BASE + '/api/caja-movimientos';
+        payload = {
+            id_caja: currentCaja, tipo, descripcion: desc, monto,
+            fecha: g('md-mov-fecha').value || undefined,
+            categoria: 'MANUAL',
+            instrumento_tipo: g('md-mov-instr-tipo').value || null,
+            instrumento_id: g('md-mov-instr-id').value || null,
+        };
+    }
 
-    const d = await apiPost(BASE + '/api/caja-movimientos', payload);
-    if (d.res) { toastOk('Movimiento registrado.'); cerrarModal('md-mov'); recargar(); }
+    const d = await apiPost(url, payload);
+    if (d.res) { toastOk(id ? 'Movimiento actualizado.' : 'Movimiento registrado.'); cerrarModal('md-mov'); recargar(); }
+    else toastErr(d.msg || 'Error.');
+}
+
+async function anularMovimiento(id) {
+    const conf = await Swal.fire({ title: '¿Anular movimiento?', text: 'Se restaurará el saldo anterior.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, anular', cancelButtonText: 'Cancelar' });
+    if (!conf.isConfirmed) return;
+    const d = await apiPost(BASE + '/api/caja-movimientos/anular', { id });
+    if (d.res) { toastOk('Movimiento anulado.'); recargar(); }
     else toastErr(d.msg || 'Error.');
 }
 </script>

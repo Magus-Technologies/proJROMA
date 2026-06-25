@@ -75,6 +75,87 @@ class CajaMovimientoApiController extends Controller
     }
 
     /**
+     * Editar movimiento (descripción, fecha, monto, instrumento).
+     * Si cambia el monto, recalcula saldos posteriores.
+     */
+    public function editar(Request $r, CajaService $svc): JsonResponse
+    {
+        $r->validate([
+            'id'       => 'required|integer',
+            'monto'    => 'nullable|numeric|min:0.01',
+            'fecha'    => 'nullable|date',
+            'descripcion' => 'nullable|string|max:245',
+        ]);
+
+        try {
+            $mov = DB::table('caja_movimientos')->where('id', $r->id)->first();
+            if (!$mov || $mov->estado === 'ANULADO') {
+                return response()->json(['res' => false, 'msg' => 'Movimiento no encontrado o anulado.'], 400);
+            }
+
+            $updates = [];
+            if ($r->filled('descripcion')) $updates['descripcion'] = $r->descripcion;
+            if ($r->filled('fecha')) $updates['fecha'] = $r->fecha;
+            if ($r->filled('instrumento_tipo')) $updates['instrumento_tipo'] = $r->instrumento_tipo;
+            if ($r->filled('instrumento_id')) $updates['instrumento_id'] = $r->instrumento_id;
+
+            // Si cambia el monto, recalcular saldos
+            if ($r->filled('monto') && abs((float)$r->monto - (float)$mov->monto) > 0.001) {
+                DB::transaction(function () use ($r, $mov, $svc) {
+                    $nuevoMonto = (float) $r->monto;
+                    $montoOriginal = (float) $mov->monto;
+                    $diferencia = $nuevoMonto - $montoOriginal;
+
+                    // Actualizar el movimiento
+                    DB::table('caja_movimientos')->where('id', $mov->id)->update([
+                        'monto' => $nuevoMonto,
+                        'saldo_posterior' => DB::raw('saldo_posterior + ' . $diferencia),
+                    ]);
+
+                    // Recalcular saldo_actual de la caja
+                    $caja = DB::table('cajas')->where('id', $mov->id_caja)->lockForUpdate()->first();
+                    DB::table('cajas')->where('id', $mov->id_caja)->update([
+                        'saldo_actual' => $caja->saldo_actual + $diferencia,
+                    ]);
+
+                    // Recalcular saldos de movimientos posteriores
+                    $movsPosteriores = DB::table('caja_movimientos')
+                        ->where('id_caja', $mov->id_caja)
+                        ->where('id', '>', $mov->id)
+                        ->where('estado', 'CONFIRMADO')
+                        ->orderBy('id')
+                        ->get();
+
+                    foreach ($movsPosteriores as $mp) {
+                        $nuevoSaldoAnterior = (float) DB::table('caja_movimientos')
+                            ->where('id', $mp->id - 1)
+                            ->value('saldo_posterior');
+
+                        $nuevoSaldoPosterior = $mp->tipo === 'INGRESO'
+                            ? $nuevoSaldoAnterior + (float) $mp->monto
+                            : $nuevoSaldoAnterior - (float) $mp->monto;
+
+                        DB::table('caja_movimientos')->where('id', $mp->id)->update([
+                            'saldo_anterior' => $nuevoSaldoAnterior,
+                            'saldo_posterior' => $nuevoSaldoPosterior,
+                        ]);
+                    }
+                });
+
+                return response()->json(['res' => true, 'msg' => 'Movimiento actualizado con recalculo de saldos.']);
+            }
+
+            if (!empty($updates)) {
+                DB::table('caja_movimientos')->where('id', $r->id)->update($updates);
+            }
+
+            return response()->json(['res' => true, 'msg' => 'Movimiento actualizado.']);
+        } catch (\Exception $e) {
+            return response()->json(['res' => false, 'msg' => $e->getMessage()], 400);
+        }
+    }
+
+    /**
      * Anular movimiento.
      */
     public function anular(Request $r, CajaService $svc): JsonResponse

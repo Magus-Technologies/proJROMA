@@ -91,25 +91,155 @@ class CajaService
 
         if ($existe) return;
 
-        DB::table('cajas')->insert([
-            [
-                'id_empresa' => $idEmpresa,
-                'sucursal'   => $sucursal,
-                'nombre'     => 'Caja Principal',
-                'tipo'       => 'GENERAL',
-                'saldo_actual' => 0,
-                'moneda'     => 'PEN',
-                'estado'     => 'ACTIVA',
-            ],
-            [
-                'id_empresa' => $idEmpresa,
-                'sucursal'   => $sucursal,
-                'nombre'     => 'Caja Chica',
-                'tipo'       => 'CHICA',
-                'saldo_actual' => 0,
-                'moneda'     => 'PEN',
-                'estado'     => 'ACTIVA',
-            ],
+        $idPadre = DB::table('cajas')->insertGetId([
+            'id_empresa' => $idEmpresa,
+            'sucursal'   => $sucursal,
+            'nombre'     => 'Caja Principal',
+            'saldo_actual' => 0,
+            'moneda'     => 'PEN',
+            'estado'     => 'ACTIVA',
         ]);
+
+        DB::table('cajas')->insert([
+            'id_empresa' => $idEmpresa,
+            'sucursal'   => $sucursal,
+            'nombre'     => 'Caja Chica',
+            'id_caja_padre' => $idPadre,
+            'saldo_actual' => 0,
+            'moneda'     => 'PEN',
+            'estado'     => 'ACTIVA',
+        ]);
+    }
+
+    /**
+     * Registrar el cierre diario de una caja.
+     */
+    public function cerrarCaja(int $idCaja, float $saldoDeclarado, array $desglose, int $idUsuario): int
+    {
+        return DB::transaction(function () use ($idCaja, $saldoDeclarado, $desglose, $idUsuario) {
+            $caja = DB::table('cajas')->where('id', $idCaja)->lockForUpdate()->first();
+            if (!$caja) throw new \RuntimeException('Caja no encontrada.');
+
+            $saldoSistema = (float) $caja->saldo_actual;
+            $diferencia = $saldoDeclarado - $saldoSistema;
+
+            // Registrar movimiento de AJUSTE si hay diferencia
+            if (abs($diferencia) > 0.001) {
+                $tipoAjuste = $diferencia > 0 ? 'INGRESO' : 'EGRESO';
+                $montoAjuste = abs($diferencia);
+                $this->registrarMovimiento([
+                    'id_caja' => $idCaja,
+                    'fecha' => now()->toDateString(),
+                    'tipo' => $tipoAjuste,
+                    'categoria' => 'AJUSTE',
+                    'descripcion' => $diferencia > 0 ? 'Ajuste por sobrante en cierre' : 'Ajuste por faltante en cierre',
+                    'monto' => $montoAjuste,
+                    'id_usuario' => $idUsuario,
+                ]);
+            }
+
+            // Registrar el movimiento de CIERRE (monto 0 para no alterar saldo)
+            $this->registrarMovimiento([
+                'id_caja' => $idCaja,
+                'fecha' => now()->toDateString(),
+                'tipo' => 'EGRESO',
+                'categoria' => 'CIERRE',
+                'descripcion' => 'Cierre de caja diario',
+                'monto' => 0,
+                'id_usuario' => $idUsuario,
+            ]);
+
+            // Insertar el registro de cierre
+            $idCierre = DB::table('cierre_caja')->insertGetId([
+                'id_caja' => $idCaja,
+                'fecha' => now()->toDateString(),
+                'saldo_declarado' => $saldoDeclarado,
+                'saldo_sistema' => $saldoSistema,
+                'desglose_instrumentos' => json_encode($desglose),
+                'estado' => 'PENDIENTE',
+                'id_usuario_cierra' => $idUsuario,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return $idCierre;
+        });
+    }
+
+    /**
+     * Aprobar o rechazar el cierre de caja.
+     */
+    public function aprobarCierre(int $idCierre, int $idUsuarioAprueba, string $nuevoEstado = 'APROBADO', ?string $observaciones = null): void
+    {
+        DB::transaction(function () use ($idCierre, $idUsuarioAprueba, $nuevoEstado, $observaciones) {
+            $cierre = DB::table('cierre_caja')->where('id', $idCierre)->lockForUpdate()->first();
+            if (!$cierre) throw new \RuntimeException('Cierre no encontrado.');
+            if ($cierre->estado !== 'PENDIENTE') return;
+
+            DB::table('cierre_caja')->where('id', $idCierre)->update([
+                'estado' => $nuevoEstado,
+                'id_usuario_aprueba' => $idUsuarioAprueba,
+                'observaciones' => $observaciones,
+                'updated_at' => now(),
+            ]);
+
+            if ($nuevoEstado === 'APROBADO') {
+                // Generar movimiento de CUADRE en la caja principal (padre) si existe
+                $cajaHija = DB::table('cajas')->where('id', $cierre->id_caja)->first();
+                if ($cajaHija && $cajaHija->id_caja_padre) {
+                    $this->registrarMovimiento([
+                        'id_caja' => $cajaHija->id_caja_padre,
+                        'fecha' => now()->toDateString(),
+                        'tipo' => 'INGRESO',
+                        'categoria' => 'CUADRE',
+                        'descripcion' => 'Cuadre consolidado de caja: ' . $cajaHija->nombre . ' (Cierre #' . $idCierre . ')',
+                        'monto' => 0,
+                        'id_usuario' => $idUsuarioAprueba,
+                    ]);
+                }
+            }
+        });
+    }
+
+    /**
+     * Consolidar el estado de las cajas hijas de una caja principal.
+     */
+    public function consolidadoCajasHijas(int $idCajaPadre, string $fecha): array
+    {
+        $hijas = DB::table('cajas')->where('id_caja_padre', $idCajaPadre)->get();
+        $idsHijas = $hijas->pluck('id')->toArray();
+
+        if (empty($idsHijas)) {
+            return [
+                'total_declarado' => 0,
+                'total_sistema' => 0,
+                'diferencia' => 0,
+                'cierres' => [],
+            ];
+        }
+
+        $cierres = DB::table('cierre_caja as cc')
+            ->join('cajas as c', 'c.id', '=', 'cc.id_caja')
+            ->leftJoin('usuarios as uc', 'uc.usuario_id', '=', 'cc.id_usuario_cierra')
+            ->leftJoin('usuarios as ua', 'ua.usuario_id', '=', 'cc.id_usuario_aprueba')
+            ->whereIn('cc.id_caja', $idsHijas)
+            ->where('cc.fecha', $fecha)
+            ->select(
+                'cc.*',
+                'c.nombre as caja_nombre',
+                DB::raw('CONCAT(uc.nombres, " ", uc.apellidos) as usuario_cierra_nombre'),
+                DB::raw('COALESCE(CONCAT(ua.nombres, " ", ua.apellidos), "-") as usuario_aprueba_nombre')
+            )
+            ->get();
+
+        $totalDeclarado = $cierres->sum('saldo_declarado');
+        $totalSistema = $cierres->sum('saldo_sistema');
+
+        return [
+            'total_declarado' => (float) $totalDeclarado,
+            'total_sistema' => (float) $totalSistema,
+            'diferencia' => (float) ($totalDeclarado - $totalSistema),
+            'cierres' => $cierres,
+        ];
     }
 }

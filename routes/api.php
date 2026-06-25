@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\CajaApiController;
 use App\Http\Controllers\Api\FlujoApiController;
 use App\Http\Controllers\Api\MiCajaApiController;
 use App\Http\Controllers\Api\PagoInstrumentoApiController;
+use App\Http\Controllers\Api\EmpresaApiController;
 use App\Http\Controllers\Api\CajaMaestroApiController;
 use App\Http\Controllers\Api\CajaInstrumentoApiController;
 use App\Http\Controllers\Api\CajaMovimientoApiController;
@@ -61,6 +62,17 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/editar',       [ClientesApiController::class, 'editar']);
         Route::post('/borrar',       [ClientesApiController::class, 'borrar']);
         Route::get('/buscar/datos',  [ClientesApiController::class, 'buscarDatos']);
+    });
+
+    // ── Empresas (admin) ──────────────────────────────────────────────────
+    Route::prefix('empresas')->group(function () {
+        Route::get('/',          [EmpresaApiController::class, 'listar']);
+        Route::post('/add',      [EmpresaApiController::class, 'guardar']);
+        Route::post('/get-one',  [EmpresaApiController::class, 'getOne']);
+        Route::post('/editar',   [EmpresaApiController::class, 'editar']);
+        Route::post('/toggle',   [EmpresaApiController::class, 'toggle']);
+        Route::post('/eliminar', [EmpresaApiController::class, 'eliminar']);
+        Route::post('/buscar-ruc', [EmpresaApiController::class, 'buscarRuc']);
     });
 
     // ── Productos ─────────────────────────────────────────────────────────

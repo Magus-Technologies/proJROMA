@@ -101,6 +101,10 @@
             <x-input-group label="Descripción">
                 <x-input id="md-{{ $tipo }}-desc" maxlength="255" placeholder="Descripción (opcional)" />
             </x-input-group>
+            <div>
+                <x-label>Estado</x-label>
+                <x-switch id="md-{{ $tipo }}-estado" />
+            </div>
         </div>
         <x-slot:footer>
             <x-btn color="ghost" onclick="cerrarModal('md-{{ $tipo }}')">Cancelar</x-btn>
@@ -356,12 +360,14 @@ window.taxTab = function (tipo) {
     });
     cols.push({
         data: cfg.pk, orderable: false, searchable: false, responsivePriority: 2, className: 'text-center no-colvis',
-        render: (id, t, row) => `<div class="flex justify-center gap-1">
-            <button onclick="taxEditOpen('${tipo}',${id})" title="Editar" class="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600"><i class="ti ti-pencil text-sm"></i></button>
-            ${row.estado === '1'
-                ? `<button onclick="taxToggle('${tipo}',${id})" title="Desactivar" class="h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600"><i class="ti ti-ban text-sm"></i></button>`
-                : `<button onclick="taxToggle('${tipo}',${id})" title="Activar" class="h-7 w-7 flex items-center justify-center rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600"><i class="ti ti-circle-check text-sm"></i></button>`}
-        </div>`,
+        render: (id, t, row) => {
+            const active = String(row.estado) === '1';
+            return `<div class="flex justify-center gap-1">
+                <button onclick="taxEditOpen('${tipo}',${id})" title="Editar" class="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600"><i class="ti ti-pencil text-sm"></i></button>
+                <button onclick="taxToggle('${tipo}',${id})" title="${active?'Desactivar':'Activar'}" class="h-7 w-7 flex items-center justify-center rounded-lg ${active?'bg-red-50 hover:bg-red-100 text-red-600':'bg-emerald-50 hover:bg-emerald-100 text-emerald-600'}"><i class="ti ${active?'ti-ban':'ti-circle-check'} text-sm"></i></button>
+                <button onclick="taxDel('${tipo}',${id})" title="Eliminar" class="h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600"><i class="ti ti-trash text-sm"></i></button>
+            </div>`;
+        },
     });
 
     tablasTax[tipo] = initDataTable('#tbl-' + tipo, {
@@ -387,6 +393,7 @@ async function abrirTaxModal(tipo, row = null) {
     g(`md-${tipo}-id`).value     = row ? row[cfg.pk] : '';
     g(`md-${tipo}-nombre`).value = row ? (row.nombre || '') : '';
     g(`md-${tipo}-desc`).value   = row ? (row.descripcion || '') : '';
+    g(`md-${tipo}-estado`).checked = row ? (row.estado === '1') : true;   // nuevo = Activo por defecto
     if (cfg.parent) {
         const opts = await apiGet(`${BASE}/api/catalogo/${cfg.parent.tipo}`, { activos: 1 });
         fillSel(`md-${tipo}-parent`, opts, TAX[cfg.parent.tipo].pk, cfg.parent.lbl);
@@ -408,7 +415,7 @@ async function taxGuardar(tipo) {
     const id  = g(`md-${tipo}-id`).value;
     const nombre = g(`md-${tipo}-nombre`).value.trim();
     if (!nombre) { toastWarn('Escribe un nombre.'); return; }
-    const payload = { nombre, descripcion: g(`md-${tipo}-desc`).value.trim() };
+    const payload = { nombre, descripcion: g(`md-${tipo}-desc`).value.trim(), estado: g(`md-${tipo}-estado`).checked ? '1' : '0' };
     if (cfg.parent) {
         const pid = g(`md-${tipo}-parent`).value;
         if (!pid) { toastWarn(`Selecciona ${cfg.parent.lbl}.`); return; }
@@ -421,11 +428,24 @@ async function taxGuardar(tipo) {
     else toastErr(d.msg || 'Error al guardar.');
 }
 
-// Activa / desactiva (con validación de integridad al desactivar)
+// Toggle activar/desactivar (con validación de integridad)
 async function taxToggle(tipo, id) {
     const d = await apiPost(`${BASE}/api/catalogo/${tipo}/toggle`, { id });
-    if (d.res) { toastOk(d.estado === '1' ? 'Activado.' : 'Desactivado.'); taxReload(tipo); }
-    else Swal.fire({ icon:'warning', title:'No se puede desactivar', text: d.msg || 'Ocurrió un error.', confirmButtonColor:'#1d4ed8' });
+    if (d.res) {
+        toastOk(d.estado === '1' ? 'Activado.' : 'Desactivado.');
+        taxReload(tipo);
+    } else {
+        Swal.fire({ icon: 'warning', title: 'No se puede desactivar', text: d.msg || 'Error.', confirmButtonColor: '#1d4ed8' });
+    }
+}
+
+// Eliminar (con validación de integridad: no se puede si está en uso)
+async function taxDel(tipo, id) {
+    const { isConfirmed } = await Swal.fire({ title:'¿Eliminar?', text:'Esta acción no se puede deshacer.', icon:'warning', showCancelButton:true, confirmButtonColor:'#dc2626', confirmButtonText:'Sí, eliminar', cancelButtonText:'Cancelar' });
+    if (!isConfirmed) return;
+    const d = await apiPost(`${BASE}/api/catalogo/${tipo}/borrar`, { id });
+    if (d.res) { toastOk('Eliminado.'); taxReload(tipo); }
+    else Swal.fire({ icon:'warning', title:'No se puede eliminar', text: d.msg || 'Ocurrió un error.', confirmButtonColor:'#1d4ed8' });
 }
 </script>
 @endpush

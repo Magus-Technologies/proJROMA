@@ -25,17 +25,17 @@ class CatalogoApiController extends Controller
 
     private function cfg(string $tipo): array { return self::MAP[$tipo]; }
 
-    /** Tablas/etiquetas que referencian a este item y lo dejan "en uso" */
-    private function enUso(array $cfg, int $id): array
+    /**
+     * Tablas/etiquetas que referencian a este item y lo dejan "en uso".
+     * $soloActivos: true para desactivar (sólo refs activas), false para eliminar (cualquier ref).
+     */
+    private function enUso(array $cfg, int $id, bool $soloActivos = true): array
     {
         $usos = [];
         foreach ($cfg['guards'] ?? [] as [$tabla, $col, $lbl]) {
-            $existe = DB::table($tabla)
-                ->where($col, $id)
-                ->where('id_empresa', $this->empresa())
-                ->where('estado', '1')
-                ->exists();
-            if ($existe) $usos[] = $lbl;
+            $q = DB::table($tabla)->where($col, $id)->where('id_empresa', $this->empresa());
+            if ($soloActivos) $q->where('estado', '1');
+            if ($q->exists()) $usos[] = $lbl;
         }
         return $usos;
     }
@@ -75,14 +75,14 @@ class CatalogoApiController extends Controller
     {
         $cfg = $this->cfg($tipo);
 
-        $rules = ['nombre' => 'required|string|max:150', 'descripcion' => 'nullable|string|max:255'];
+        $rules = ['nombre' => 'required|string|max:150', 'descripcion' => 'nullable|string|max:255', 'estado' => 'nullable|in:0,1'];
         if ($cfg['parent']) {
             $rules[$cfg['parent']] = 'required|integer';
         }
         $data = $request->validate($rules);
 
         $data['id_empresa'] = $this->empresa();
-        $data['estado']     = '1';
+        $data['estado']     = $request->input('estado', '1');   // permite registrar desactivado
 
         $item = $cfg['model']::create($data);
 
@@ -93,13 +93,13 @@ class CatalogoApiController extends Controller
     {
         $cfg = $this->cfg($tipo);
 
-        $rules = ['id' => 'required|integer', 'nombre' => 'required|string|max:150', 'descripcion' => 'nullable|string|max:255'];
+        $rules = ['id' => 'required|integer', 'nombre' => 'required|string|max:150', 'descripcion' => 'nullable|string|max:255', 'estado' => 'nullable|in:0,1'];
         if ($cfg['parent']) {
             $rules[$cfg['parent']] = 'nullable|integer';
         }
         $request->validate($rules);
 
-        $payload = ['nombre' => $request->nombre, 'descripcion' => $request->descripcion];
+        $payload = ['nombre' => $request->nombre, 'descripcion' => $request->descripcion, 'estado' => $request->input('estado', '1')];
         if ($cfg['parent'] && $request->filled($cfg['parent'])) {
             $payload[$cfg['parent']] = (int) $request->{$cfg['parent']};
         }
@@ -143,7 +143,7 @@ class CatalogoApiController extends Controller
         $cfg = $this->cfg($tipo);
         $request->validate(['id' => 'required|integer']);
 
-        $usos = $this->enUso($cfg, (int) $request->id);
+        $usos = $this->enUso($cfg, (int) $request->id, false);
         if ($usos) {
             return response()->json([
                 'res' => false,
@@ -153,7 +153,7 @@ class CatalogoApiController extends Controller
 
         $cfg['model']::where('id_empresa', $this->empresa())
             ->where($cfg['pk'], $request->id)
-            ->update(['estado' => '0']);
+            ->delete();
 
         return response()->json(['res' => true]);
     }

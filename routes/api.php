@@ -105,7 +105,16 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
     Route::post('/compras/editar', [ComprasApiController::class, 'editar']);
 
     // ── Cotizaciones ────────────────────────────────────────────────────
-    Route::get('/cotizaciones', [CotizacionesApiController::class, 'listar']);
+    Route::prefix('cotizaciones')->group(function () {
+        Route::get('/',                  [CotizacionesApiController::class, 'listar']);
+        Route::get('/tipo',              [CotizacionesApiController::class, 'tipoDocumento']);
+        Route::get('/buscar/producto',   [CotizacionesApiController::class, 'buscarProducto']);
+        Route::post('/add',              [CotizacionesApiController::class, 'guardar']);
+        Route::post('/editar',           [CotizacionesApiController::class, 'editar']);
+        Route::post('/anular',           [CotizacionesApiController::class, 'anular']);
+        Route::post('/detalle',          [CotizacionesApiController::class, 'detalle']);
+        Route::post('/cuotas',           [CotizacionesApiController::class, 'cuotas']);
+    });
 
     // ── Instrumentos de pago (bancos, cuentas, tarjetas, billeteras) ──────
     Route::prefix('pago-instrumento')->group(function () {

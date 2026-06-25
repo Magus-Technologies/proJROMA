@@ -46,13 +46,6 @@
         </div>
 
         <x-table id="tblProductos" title="Productos">
-            <x-slot:filters>
-                <select id="filtroAlmacen" onchange="cambiarAlmacen()" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs">
-                    <option value="1">Almacén 1</option>
-                    <option value="2">Almacén 2</option>
-                    <option value="3">Almacén 3</option>
-                </select>
-            </x-slot:filters>
             <x-slot:thead>
                 <x-th>Código</x-th>
                 <x-th>Descripción</x-th>
@@ -176,11 +169,7 @@
             </div>
             <div>
                 <x-label :optional="true">Almacén</x-label>
-                <select id="palmacen" class="field bg-white">
-                    <option value="1">Almacén 1</option>
-                    <option value="2">Almacén 2</option>
-                    <option value="3">Almacén 3</option>
-                </select>
+                <select id="palmacen" class="field bg-white"></select>
             </div>
             <div>
                 <x-label :optional="true">Código SUNAT</x-label>
@@ -211,16 +200,25 @@ const BASE = '{{ config("app.url") }}';
 let tabla;
 const g = id => document.getElementById(id);
 
-/* ════════ TABLA PRODUCTOS ════════ */
-$(function () { cargarTabla(1); });
+/* ════════ CATÁLOGO DE PRODUCTOS ════════ */
+$(async function () {
+    await loadAlmacenes();   // solo para el select del modal
+    cargarTabla();
+});
 
-function cargarTabla(almacen) {
+// Llena el select de almacén del modal desde el maestro de Almacenes
+async function loadAlmacenes() {
+    const alms = await apiGet(`${BASE}/api/almacenes`, { activos: 1 });
+    g('palmacen').innerHTML = alms.map(a => `<option value="${a.codigo ?? a.id_almacen}">${a.nombre}</option>`).join('')
+                              || '<option value="1">Almacén 1</option>';
+}
+
+function cargarTabla() {
     if (tabla) { tabla.destroy(); $('#tblProductos tbody').empty(); }
     tabla = initDataTable('#tblProductos', {
         processing: true, serverSide: true,
         ajax: {
-            url: BASE + '/api/productos/serverside',
-            data: d => { d.almacenId = almacen; },
+            url: BASE + '/api/productos/catalogo',
             headers: { 'Accept':'application/json', 'X-CSRF-TOKEN':'{{ csrf_token() }}' },
             beforeSend: () => $('#tblProductos-loading').removeClass('hidden'),
             complete:   () => $('#tblProductos-loading').addClass('hidden'),
@@ -231,9 +229,9 @@ function cargarTabla(almacen) {
             { data:'categoria_nombre', defaultContent:'-', orderable:false, searchable:false },
             { data:'marca_nombre', defaultContent:'-', orderable:false, searchable:false },
             { data:'precio', className:'text-right', render: v => 'S/ ' + parseFloat(v||0).toFixed(2) },
-            { data:'cantidad', className:'text-center font-bold',
-              render: v => `<span class="${parseInt(v)<=5?'text-red-600':'text-emerald-600'}">${v}</span>` },
-            { data:'id_producto', orderable:false, responsivePriority:2, className:'text-center no-colvis',
+            { data:'stock_total', className:'text-center font-bold', searchable:false,
+              render: v => `<span class="${parseInt(v)<=5?'text-red-600':'text-emerald-600'}">${v ?? 0}</span>` },
+            { data:'id_producto', orderable:false, searchable:false, responsivePriority:2, className:'text-center no-colvis',
               render: id => `<div class="flex justify-center gap-1">
                 <button onclick="editarProducto(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600"><i class="ti ti-pencil text-sm"></i></button>
                 <button onclick="eliminarProducto(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600"><i class="ti ti-trash text-sm"></i></button>
@@ -242,7 +240,6 @@ function cargarTabla(almacen) {
         order:[[1,'asc']],
     });
 }
-function cambiarAlmacen() { cargarTabla(g('filtroAlmacen').value); }
 
 /* ════════ MODAL PRODUCTO ════════ */
 function abrirModalProd()  { g('mdProducto').classList.replace('hidden','flex'); }
@@ -277,7 +274,7 @@ async function onProdMarcaChange(mid = null) {
 async function abrirModalNuevo() {
     g('mdTitulo').textContent = 'Nuevo Producto';
     ['pid','pdesc','pcod','pbarra','pprecio','pcosto','pprecio2','pprecio3','pcantidad','psunat'].forEach(id => g(id).value = '');
-    g('palmacen').value = '1'; g('piscbp').value = '0';
+    g('palmacen').selectedIndex = 0; g('piscbp').value = '0';
     await loadProdClasif();
     abrirModalProd();
 }

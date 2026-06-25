@@ -31,6 +31,35 @@ class ProductosApiController extends Controller
         return $this->listar($request);
     }
 
+    /**
+     * Catálogo: un solo producto por código, con Stock = suma de todos los almacenes.
+     * Se usa en "Registro de Productos" (vista de catálogo, no por almacén).
+     */
+    public function catalogo(Request $request): mixed
+    {
+        $sub = DB::table('productos')
+            ->where('id_empresa', $this->empresa())
+            ->where('estado', '1')
+            // agrupa por código; si no tiene código, cada producto es su propio grupo
+            ->groupBy(DB::raw("COALESCE(NULLIF(codigo,''), CONCAT('ID-', id_producto))"))
+            ->select(
+                DB::raw('MIN(id_producto) as id_producto'),
+                DB::raw('MAX(codigo) as codigo'),
+                DB::raw('MAX(descripcion) as descripcion'),
+                DB::raw('MAX(precio) as precio'),
+                DB::raw('MAX(id_categoria) as id_categoria'),
+                DB::raw('MAX(id_marca) as id_marca'),
+                DB::raw('SUM(cantidad) as stock_total')
+            );
+
+        $query = DB::query()->fromSub($sub, 'p')
+            ->leftJoin('categorias as cat', 'cat.id_categoria', '=', 'p.id_categoria')
+            ->leftJoin('marcas as mar', 'mar.id_marca', '=', 'p.id_marca')
+            ->select('p.*', 'cat.nombre as categoria_nombre', 'mar.nombre as marca_nombre');
+
+        return DataTables::of($query)->make(true);
+    }
+
     public function guardar(Request $request): JsonResponse
     {
         $request->validate([

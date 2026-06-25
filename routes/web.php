@@ -11,6 +11,7 @@ use App\Http\Controllers\CobranzasController;
 use App\Http\Controllers\CajaController;
 use App\Http\Controllers\ReportesController;
 use App\Http\Controllers\UsuariosController;
+use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\ProveedoresController;
 use App\Http\Controllers\GuiaRemisionController;
 use App\Http\Controllers\DevolucionesController;
@@ -107,6 +108,7 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/recepcion',     [ProductosController::class, 'recepcion'])->name('recepcion');// Recepción
         Route::get('/existencias',   [ProductosController::class, 'almacen'])->name('almacen');   // Almacén
         Route::get('/kardex',        [ProductosController::class, 'kardex'])->name('kardex');     // Kardex
+        Route::get('/ajustes',       [ProductosController::class, 'ajustes'])->name('ajustes');   // Cuadres / Ajustes
         Route::get('/traslado',      [ProductosController::class, 'traslado'])->name('traslado'); // Traslado de Stock
         Route::get('/prestamos',     [ProductosController::class, 'prestamos'])->name('prestamos');// Préstamos de Productos
     });
@@ -118,6 +120,7 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
     // ── Admin ─────────────────────────────────────────────────────────────
     Route::middleware('auth')->group(function () {
         Route::get('/usuarios',             [UsuariosController::class, 'index'])->name('usuarios.index');
+        Route::get('/sucursales',           [SucursalController::class, 'index'])->name('admin.sucursales');
         Route::get('/administrarempresas',  [UsuariosController::class, 'adminEmpresas'])->name('admin.empresas');
     });
 

@@ -5,6 +5,12 @@ use App\Http\Controllers\Api\ClientesApiController;
 use App\Http\Controllers\Api\ProductosApiController;
 use App\Http\Controllers\Api\CatalogoApiController;
 use App\Http\Controllers\Api\ComprasApiController;
+use App\Http\Controllers\Api\AlmacenApiController;
+use App\Http\Controllers\Api\MovimientoApiController;
+use App\Http\Controllers\Api\RecepcionApiController;
+use App\Http\Controllers\Api\PrestamoApiController;
+use App\Http\Controllers\Api\MotivoApiController;
+use App\Http\Controllers\Api\SucursalApiController;
 use App\Http\Controllers\Api\ArqueoApiController;
 use Illuminate\Support\Facades\Route;
 
@@ -53,6 +59,7 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
     Route::prefix('productos')->group(function () {
         Route::get('/',              [ProductosApiController::class, 'listar']);
         Route::get('/serverside',    [ProductosApiController::class, 'serverside']);
+        Route::get('/catalogo',      [ProductosApiController::class, 'catalogo']);
         Route::post('/add',          [ProductosApiController::class, 'guardar']);
         Route::post('/add/lista',    [ProductosApiController::class, 'agregarPorLista']);
         Route::post('/editar',       [ProductosApiController::class, 'editar']);
@@ -72,6 +79,56 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
 
     // ── Compras ────────────────────────────────────────────────────────────
     Route::get('/compras', [ComprasApiController::class, 'listar']);
+
+    // ── Almacenes (maestro) ──────────────────────────────────────────────────
+    Route::prefix('almacenes')->group(function () {
+        Route::get('/',        [AlmacenApiController::class, 'listar']);
+        Route::post('/',       [AlmacenApiController::class, 'guardar']);
+        Route::post('/editar', [AlmacenApiController::class, 'editar']);
+        Route::post('/toggle', [AlmacenApiController::class, 'toggle']);
+        Route::post('/borrar', [AlmacenApiController::class, 'borrar']);
+    });
+
+    // ── Movimientos de Inventario (Ingresos / Salidas) ───────────────────────
+    Route::prefix('movimientos')->group(function () {
+        Route::get('/',          [MovimientoApiController::class, 'listar']);
+        Route::get('/ajustes',   [MovimientoApiController::class, 'ajustes']);
+        Route::get('/motivos',   [MovimientoApiController::class, 'motivos']);
+        Route::get('/productos', [MovimientoApiController::class, 'productosAlmacen']);
+        Route::post('/',         [MovimientoApiController::class, 'guardar']);
+        Route::post('/traslado', [MovimientoApiController::class, 'traslado']);
+    });
+
+    // ── Recepción de compras ─────────────────────────────────────────────────
+    Route::prefix('recepcion')->group(function () {
+        Route::get('/pendientes',  [RecepcionApiController::class, 'pendientes']);
+        Route::post('/recepcionar', [RecepcionApiController::class, 'recepcionar']);
+    });
+
+    // ── Préstamos de productos ───────────────────────────────────────────────
+    Route::prefix('prestamos')->group(function () {
+        Route::get('/',          [PrestamoApiController::class, 'listar']);
+        Route::post('/',         [PrestamoApiController::class, 'guardar']);
+        Route::post('/devolver', [PrestamoApiController::class, 'devolver']);
+    });
+
+    // ── Motivos de movimiento (maestro) ──────────────────────────────────────
+    Route::prefix('motivos')->group(function () {
+        Route::get('/',        [MotivoApiController::class, 'listar']);
+        Route::post('/',       [MotivoApiController::class, 'guardar']);
+        Route::post('/editar', [MotivoApiController::class, 'editar']);
+        Route::post('/toggle', [MotivoApiController::class, 'toggle']);
+        Route::post('/borrar', [MotivoApiController::class, 'borrar']);
+    });
+
+    // ── Sucursales (maestro) ─────────────────────────────────────────────────
+    Route::prefix('sucursales')->group(function () {
+        Route::get('/',        [SucursalApiController::class, 'listar']);
+        Route::post('/',       [SucursalApiController::class, 'guardar']);
+        Route::post('/editar', [SucursalApiController::class, 'editar']);
+        Route::post('/toggle', [SucursalApiController::class, 'toggle']);
+        Route::post('/borrar', [SucursalApiController::class, 'borrar']);
+    });
 
     // ── Arqueo Diario ─────────────────────────────────────────────────────
     Route::prefix('arqueo')->group(function () {

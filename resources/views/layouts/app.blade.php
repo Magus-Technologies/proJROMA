@@ -30,7 +30,14 @@
 </head>
 
 <body class="h-full bg-slate-50 font-sans text-gray-800 antialiased"
-      x-data="{ sidebar: false }">
+      x-data="{
+        sidebar: false,
+        collapsed: localStorage.getItem('sidebarCollapsed') === 'true',
+        toggleCollapsed() {
+          this.collapsed = !this.collapsed;
+          localStorage.setItem('sidebarCollapsed', this.collapsed);
+        }
+      }">
 
 {{-- Overlay móvil --}}
 <div x-show="sidebar" x-cloak @click="sidebar=false"
@@ -40,27 +47,35 @@
 
     {{-- ══ SIDEBAR ══════════════════════════════════════════════════════════ --}}
     <aside id="sidebar"
-           :class="{ '-translate-x-full': !sidebar, 'translate-x-0': sidebar }"
-           class="fixed inset-y-0 left-0 z-30 w-64 flex flex-col
+           :class="{
+             'w-16': collapsed,
+             'w-64': !collapsed,
+             '-translate-x-full': !sidebar,
+             'translate-x-0': sidebar
+           }"
+           class="fixed inset-y-0 left-0 z-30 flex flex-col
                   bg-gradient-to-b from-[#0a1628] via-[#0f1f3d] to-[#1e3a8a]
-                  shadow-2xl lg:relative lg:translate-x-0">
+                  shadow-2xl lg:relative lg:translate-x-0 transition-all duration-300">
 
         {{-- Logo --}}
-        <div class="flex h-16 shrink-0 items-center gap-3 border-b border-white/10 px-5">
-            <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 shadow-lg">
+        <div class="flex h-16 shrink-0 items-center gap-3 border-b border-white/10 px-4"
+             :class="collapsed ? 'justify-center px-0' : 'px-4'">
+            <button @click="toggleCollapsed()"
+                    class="hidden lg:flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 shadow-lg hover:bg-white/20 transition-colors shrink-0">
                 <i class="ti ti-ship text-xl text-white"></i>
-            </div>
-            <div class="flex-1 min-w-0">
+            </button>
+            <button @click="sidebar=false" class="lg:hidden text-white/60 hover:text-white shrink-0">
+                <i class="ti ti-x"></i>
+            </button>
+            <div x-show="!collapsed" class="flex-1 min-w-0">
                 <div class="text-sm font-bold text-white">ProjRoma</div>
                 <div class="text-[10px] text-blue-300 truncate">{{ session('nombre_empresa') }}</div>
             </div>
-            <button @click="sidebar=false" class="lg:hidden text-white/60 hover:text-white">
-                <i class="ti ti-x"></i>
-            </button>
         </div>
 
         {{-- Nav --}}
-        <nav class="flex-1 overflow-y-auto px-3 py-3 space-y-0.5 text-sm">
+        <nav class="flex-1 overflow-y-auto px-3 py-3 space-y-0.5 text-sm"
+             :class="collapsed ? 'px-2' : 'px-3'">
             @php $rol = auth()->user()->id_rol ?? 2; @endphp
 
             <x-nav-link href="{{ route('dashboard') }}" icon="ti ti-home" label="Dashboard" />
@@ -109,6 +124,7 @@
                 <x-nav-link href="{{ route('almacen.recepcion') }}" icon="ti ti-package-import"  label="Recepción" />
                 <x-nav-link href="{{ route('almacen.almacen') }}"   icon="ti ti-archive"         label="Almacén" />
                 <x-nav-link href="{{ route('almacen.kardex') }}"    icon="ti ti-history"         label="Kardex" />
+                <x-nav-link href="{{ route('almacen.ajustes') }}"   icon="ti ti-adjustments"     label="Ajustes / Cuadres" />
                 <x-nav-link href="{{ route('almacen.traslado') }}"  icon="ti ti-arrows-exchange" label="Traslado de Stock" />
                 <x-nav-link href="{{ route('almacen.prestamos') }}" icon="ti ti-arrows-left-right" label="Préstamos de Productos" />
             </x-nav-group>
@@ -123,11 +139,23 @@
                 <x-nav-group icon="ti ti-settings" label="Administración"
                              :active="request()->routeIs('usuarios.*','admin.*')">
                     <x-nav-link href="{{ route('usuarios.index') }}" icon="ti ti-user-cog" label="Usuarios" />
+                    <x-nav-link href="{{ route('admin.sucursales') }}" icon="ti ti-building-store" label="Sucursales" />
                     <x-nav-link href="{{ route('admin.empresas') }}" icon="ti ti-building" label="Empresas" />
                 </x-nav-group>
             @endif
         </nav>
 
+        {{-- Toggle collapse --}}
+        <div class="hidden lg:flex shrink-0 border-t border-white/10 p-3" :class="collapsed ? 'justify-center p-2' : ''">
+            <button @click="toggleCollapsed()"
+                    class="flex items-center justify-center w-full gap-2 rounded-lg px-3 py-2 text-blue-300/60 hover:text-white hover:bg-white/10 transition-all text-xs"
+                    :class="collapsed ? 'w-9 h-9 p-0' : ''">
+                <i class="ti ti-menu-deep text-sm"
+                   :class="collapsed ? 'rotate-180' : ''"
+                   style="transition:transform .3s"></i>
+                <span x-show="!collapsed" class="text-xs">Colapsar</span>
+            </button>
+        </div>
     </aside>
 
     {{-- ══ CONTENIDO ════════════════════════════════════════════════════════ --}}

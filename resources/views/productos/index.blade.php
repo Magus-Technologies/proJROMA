@@ -47,8 +47,10 @@
 
         <x-table id="tblProductos" title="Productos">
             <x-slot:thead>
+                <x-th align="center">Img</x-th>
                 <x-th>Código</x-th>
                 <x-th>Descripción</x-th>
+                <x-th align="center">Medida</x-th>
                 <x-th>Categoría</x-th>
                 <x-th>Marca</x-th>
                 <x-th align="right">Precio</x-th>
@@ -172,6 +174,26 @@
                 <select id="palmacen" class="field bg-white"></select>
             </div>
             <div>
+                <x-label :optional="true">Unidad de medida</x-label>
+                <input id="pmedida" type="text" maxlength="100" placeholder="UND, KG, LT…" class="field">
+            </div>
+            <div>
+                <x-label :optional="true">Precio por unidad</x-label>
+                <input id="ppreciounidad" type="number" step="0.01" min="0" placeholder="0.00" class="field">
+            </div>
+            <div>
+                <x-label :optional="true">Peso bruto</x-label>
+                <input id="ppeso" type="number" step="0.01" min="0" placeholder="0.00" class="field">
+            </div>
+            <div>
+                <x-label :optional="true">Presentación</x-label>
+                <input id="ppresent" type="text" maxlength="100" placeholder="Caja, Docena…" class="field">
+            </div>
+            <div>
+                <x-label :optional="true">Cant. por presentación</x-label>
+                <input id="pcntpres" type="number" step="0.01" min="0" placeholder="0" class="field">
+            </div>
+            <div>
                 <x-label :optional="true">Código SUNAT</x-label>
                 <input id="psunat" type="text" maxlength="20" placeholder="ZZ" class="field">
             </div>
@@ -182,6 +204,18 @@
                     <option value="1">Exonerado</option>
                     <option value="2">Inafecto</option>
                 </select>
+            </div>
+
+            {{-- Imagen --}}
+            <div class="col-span-full">
+                <x-label :optional="true">Imagen del producto</x-label>
+                <div class="flex items-center gap-3">
+                    <img id="pimg-preview" src="" class="hidden h-16 w-16 rounded-lg border border-gray-200 object-cover">
+                    <input type="file" id="pimg-file" accept="image/*" onchange="subirImagenProd(this)"
+                           class="text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-brand-600 hover:file:bg-brand-100">
+                    <input type="hidden" id="pimagen">
+                    <span id="pimg-status" class="text-[10px] text-gray-400"></span>
+                </div>
             </div>
         </div>
         <div class="flex justify-end gap-2 border-t border-gray-100 bg-gray-50 px-5 py-3">
@@ -224,8 +258,13 @@ function cargarTabla() {
             complete:   () => $('#tblProductos-loading').addClass('hidden'),
         },
         columns: [
+            { data:'imagen', orderable:false, searchable:false, className:'text-center',
+              render: v => v
+                  ? `<img src="${BASE}/${v}" class="inline-block h-9 w-9 rounded object-cover">`
+                  : '<span class="text-gray-300"><i class="ti ti-photo text-lg"></i></span>' },
             { data:'codigo', defaultContent:'-' },
             { data:'descripcion', responsivePriority:1 },
+            { data:'medida', defaultContent:'-', orderable:false, searchable:false, className:'text-center' },
             { data:'categoria_nombre', defaultContent:'-', orderable:false, searchable:false },
             { data:'marca_nombre', defaultContent:'-', orderable:false, searchable:false },
             { data:'precio', className:'text-right', render: v => 'S/ ' + parseFloat(v||0).toFixed(2) },
@@ -273,8 +312,11 @@ async function onProdMarcaChange(mid = null) {
 
 async function abrirModalNuevo() {
     g('mdTitulo').textContent = 'Nuevo Producto';
-    ['pid','pdesc','pcod','pbarra','pprecio','pcosto','pprecio2','pprecio3','pcantidad','psunat'].forEach(id => g(id).value = '');
+    ['pid','pdesc','pcod','pbarra','pprecio','pcosto','pprecio2','pprecio3','pcantidad','psunat',
+     'pmedida','ppreciounidad','ppeso','ppresent','pcntpres','pimagen'].forEach(id => g(id).value = '');
     g('palmacen').selectedIndex = 0; g('piscbp').value = '0';
+    g('pimg-file').value = ''; g('pimg-status').textContent = '';
+    g('pimg-preview').classList.add('hidden'); g('pimg-preview').src = '';
     await loadProdClasif();
     abrirModalProd();
 }
@@ -294,6 +336,14 @@ async function editarProducto(id) {
     g('p_subcategoria').value = d.id_subcategoria || '';
     g('p_submarca').value = d.id_submarca || '';
 
+    g('pmedida').value = d.medida || ''; g('ppreciounidad').value = d.precio_unidad || 0;
+    g('ppeso').value = d.peso_bruto || 0; g('ppresent').value = d.presentaciones || '';
+    g('pcntpres').value = d.cnt_presenta || '';
+    g('pimagen').value = d.imagen || '';
+    g('pimg-file').value = ''; g('pimg-status').textContent = '';
+    if (d.imagen) { g('pimg-preview').src = `${BASE}/${d.imagen}`; g('pimg-preview').classList.remove('hidden'); }
+    else { g('pimg-preview').classList.add('hidden'); g('pimg-preview').src = ''; }
+
     abrirModalProd();
 }
 
@@ -310,6 +360,12 @@ async function guardarProducto() {
         id_subcategoria: g('p_subcategoria').value || null,
         id_marca:        g('p_marca').value        || null,
         id_submarca:     g('p_submarca').value     || null,
+        medida:          g('pmedida').value.trim(),
+        precio_unidad:   parseFloat(g('ppreciounidad').value || 0),
+        peso_bruto:      parseFloat(g('ppeso').value || 0),
+        presentaciones:  g('ppresent').value.trim(),
+        cnt_presenta:    g('pcntpres').value || null,
+        imagen:          g('pimagen').value || null,
     };
     if (id) payload.id_producto = parseInt(id);
     const url  = id ? BASE + '/api/productos/editar' : BASE + '/api/productos/add';
@@ -327,6 +383,27 @@ async function eliminarProducto(id) {
 }
 
 function exportarExcel() { window.open(BASE + '/reporte/producto/excel', '_blank'); }
+
+async function subirImagenProd(input) {
+    const file = input.files[0]; if (!file) return;
+    g('pimg-status').textContent = 'Subiendo…';
+    const fd = new FormData(); fd.append('imagen', file);
+    const r = await fetch(`${BASE}/api/productos/imagen`, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json' },
+        body: fd,
+    });
+    const d = await r.json().catch(() => ({ res: false }));
+    if (d.res) {
+        g('pimagen').value = d.path;
+        g('pimg-preview').src = d.url;
+        g('pimg-preview').classList.remove('hidden');
+        g('pimg-status').textContent = 'Imagen lista ✓';
+    } else {
+        toastErr('Error al subir la imagen.');
+        g('pimg-status').textContent = '';
+    }
+}
 
 /* ════════ TAXONOMÍAS (Categorías / Subcategorías / Marcas / Submarcas) ════════ */
 const TAX = {

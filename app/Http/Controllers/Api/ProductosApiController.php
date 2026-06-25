@@ -49,6 +49,8 @@ class ProductosApiController extends Controller
                 DB::raw('MAX(precio) as precio'),
                 DB::raw('MAX(id_categoria) as id_categoria'),
                 DB::raw('MAX(id_marca) as id_marca'),
+                DB::raw('MAX(medida) as medida'),
+                DB::raw('MAX(imagen) as imagen'),
                 DB::raw('SUM(cantidad) as stock_total')
             );
 
@@ -74,7 +76,8 @@ class ProductosApiController extends Controller
                            'cod_barra','precio2','precio3','precio4','precio_mayor',
                            'precio_menor','peso_bruto','razon_social','ruc','iscbp',
                            'usar_barra','codigo','precio_unidad',
-                           'id_categoria','id_subcategoria','id_marca','id_submarca']),
+                           'id_categoria','id_subcategoria','id_marca','id_submarca',
+                           'medida','presentaciones','cnt_presenta','imagen']),
             [
                 'id_empresa'    => $this->empresa(),
                 'sucursal'      => $this->sucursal(),
@@ -110,6 +113,7 @@ class ProductosApiController extends Controller
                 'precio_mayor','precio_menor','razon_social','ruc',
                 'iscbp','precio_unidad','codigo',
                 'id_categoria','id_subcategoria','id_marca','id_submarca',
+                'medida','presentaciones','cnt_presenta','imagen',
             ]));
 
         return response()->json(['res' => true]);
@@ -173,6 +177,17 @@ class ProductosApiController extends Controller
             \Log::error('Error importar productos: ' . $e->getMessage());
             return response()->json(['res' => false, 'msg' => 'Error al importar productos.'], 500);
         }
+    }
+
+    public function subirImagen(Request $request): JsonResponse
+    {
+        $request->validate(['imagen' => 'required|image|max:3072']);   // máx 3MB
+        $file = $request->file('imagen');
+        $name = 'prod_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+        $file->move(public_path('uploads/productos'), $name);
+        $path = 'uploads/productos/' . $name;
+
+        return response()->json(['res' => true, 'path' => $path, 'url' => asset($path)]);
     }
 
     public function porRazonSocial(Request $request): JsonResponse

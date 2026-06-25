@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\RecepcionApiController;
 use App\Http\Controllers\Api\PrestamoApiController;
 use App\Http\Controllers\Api\MotivoApiController;
 use App\Http\Controllers\Api\SucursalApiController;
+use App\Http\Controllers\Api\TrasladoApiController;
 use App\Http\Controllers\Api\ArqueoApiController;
 use Illuminate\Support\Facades\Route;
 
@@ -65,6 +66,7 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/editar',       [ProductosApiController::class, 'editar']);
         Route::post('/borrar',       [ProductosApiController::class, 'borrar']);
         Route::post('/get-one',      [ProductosApiController::class, 'getOne']);
+        Route::post('/imagen',       [ProductosApiController::class, 'subirImagen']);
         Route::get('/razon-social',  [ProductosApiController::class, 'porRazonSocial']);
     });
 
@@ -109,6 +111,8 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
     // ── Préstamos de productos ───────────────────────────────────────────────
     Route::prefix('prestamos')->group(function () {
         Route::get('/',          [PrestamoApiController::class, 'listar']);
+        Route::get('/detalle',   [PrestamoApiController::class, 'detalle']);
+        Route::get('/lineas-devolucion', [PrestamoApiController::class, 'lineasDevolucion']);
         Route::post('/',         [PrestamoApiController::class, 'guardar']);
         Route::post('/devolver', [PrestamoApiController::class, 'devolver']);
     });
@@ -120,6 +124,13 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/editar', [MotivoApiController::class, 'editar']);
         Route::post('/toggle', [MotivoApiController::class, 'toggle']);
         Route::post('/borrar', [MotivoApiController::class, 'borrar']);
+    });
+
+    // ── Traslados (cabecera + detalle) ───────────────────────────────────────
+    Route::prefix('traslados')->group(function () {
+        Route::get('/',        [TrasladoApiController::class, 'listar']);
+        Route::get('/detalle', [TrasladoApiController::class, 'detalle']);
+        Route::post('/',       [TrasladoApiController::class, 'guardar']);
     });
 
     // ── Sucursales (maestro) ─────────────────────────────────────────────────

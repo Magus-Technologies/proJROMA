@@ -80,8 +80,9 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
     })->where('tipo', 'categorias|subcategorias|marcas|submarcas');
 
     // ── Compras ────────────────────────────────────────────────────────────
-    Route::get('/compras',  [ComprasApiController::class, 'listar']);
-    Route::post('/compras', [ComprasApiController::class, 'guardar']);
+    Route::get('/compras',         [ComprasApiController::class, 'listar']);
+    Route::post('/compras',        [ComprasApiController::class, 'guardar']);
+    Route::post('/compras/editar', [ComprasApiController::class, 'editar']);
 
     // ── Almacenes (maestro) ──────────────────────────────────────────────────
     Route::prefix('almacenes')->group(function () {
@@ -106,7 +107,12 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
     // ── Recepción de compras ─────────────────────────────────────────────────
     Route::prefix('recepcion')->group(function () {
         Route::get('/pendientes',  [RecepcionApiController::class, 'pendientes']);
+        Route::get('/lineas',      [RecepcionApiController::class, 'lineas']);
+        Route::get('/registro',    [RecepcionApiController::class, 'registro']);
+        Route::get('/detalle-recepcion', [RecepcionApiController::class, 'detalleRecepcion']);
+        Route::get('/historial',   [RecepcionApiController::class, 'historial']);
         Route::post('/recepcionar', [RecepcionApiController::class, 'recepcionar']);
+        Route::post('/eliminar',    [RecepcionApiController::class, 'eliminar']);
     });
 
     // ── Préstamos de productos ───────────────────────────────────────────────

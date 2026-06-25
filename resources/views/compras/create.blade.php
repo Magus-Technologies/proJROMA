@@ -1,7 +1,7 @@
 @extends('layouts.app')
-@section('title','Nueva Compra')
-@section('page-title','Nueva Compra')
-@section('breadcrumb','Inventario / Compras / Nueva')
+@section('title', $compra ? 'Editar Compra' : 'Nueva Compra')
+@section('page-title', $compra ? 'Editar Compra' : 'Nueva Compra')
+@section('breadcrumb','Inventario / Compras')
 
 @section('content')
 <div x-data="compraForm()">
@@ -124,15 +124,22 @@ const BASE = '{{ config("app.url") }}';
 
 function compraForm() {
     return {
-        prov: '', tido: '', tipoPago: '{{ $tiposPago->first()->tipo_pago_id ?? 1 }}',
-        serie: '', numero: '', fecha: '{{ now()->toDateString() }}', obs: '',
-        buscar: '', resultados: [], lineas: [], guardando: false,
+        id: '{{ $compra->id_compra ?? '' }}',
+        prov: '{{ $compra->id_proveedor ?? '' }}',
+        tido: '{{ $compra->id_tido ?? '' }}',
+        tipoPago: '{{ $compra->id_tipo_pago ?? ($tiposPago->first()->tipo_pago_id ?? 1) }}',
+        serie: @json($compra->serie ?? ''),
+        numero: @json($compra->numero ?? ''),
+        fecha: '{{ $compra ? substr($compra->fecha_emision ?? '', 0, 10) : now()->toDateString() }}',
+        obs: @json($compra->direccion ?? ''),
+        buscar: '', resultados: [], guardando: false,
+        lineas: @json($items),
 
         get total() { return this.lineas.reduce((s, l) => s + ((l.cantidad || 0) * (l.costo || 0)), 0); },
 
         async search() {
             if (this.buscar.trim().length < 2) { this.resultados = []; return; }
-            this.resultados = await apiGet(`${BASE}/api/cargar/productos`, { term: this.buscar.trim() });
+            this.resultados = await apiGet(`${BASE}/api/ventas/cargar/productos`, { term: this.buscar.trim() });
         },
 
         agregar(p) {
@@ -151,14 +158,17 @@ function compraForm() {
             if (this.lineas.some(l => !l.cantidad || l.cantidad <= 0)) { toastWarn('Revisa las cantidades.'); return; }
 
             this.guardando = true;
-            const d = await apiPost(`${BASE}/api/compras`, {
+            const payload = {
                 id_proveedor: this.prov, id_tido: this.tido, id_tipo_pago: this.tipoPago,
                 fecha: this.fecha, serie: this.serie, numero: this.numero, observacion: this.obs,
                 total: this.total, productos: this.lineas,
-            });
+            };
+            if (this.id) payload.id_compra = this.id;
+            const url = this.id ? `${BASE}/api/compras/editar` : `${BASE}/api/compras`;
+            const d = await apiPost(url, payload);
             this.guardando = false;
-            if (d.res) { toastOk('Compra registrada. Queda pendiente de recepción.'); window.location = `${BASE}/compras`; }
-            else toastErr(d.msg || 'Error al registrar la compra.');
+            if (d.res) { toastOk(this.id ? 'Compra actualizada.' : 'Compra registrada. Queda pendiente de recepción.'); window.location = `${BASE}/compras`; }
+            else toastErr(d.msg || 'Error al guardar la compra.');
         },
     };
 }

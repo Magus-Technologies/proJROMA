@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\VentasApiController;
 use App\Http\Controllers\Api\ClientesApiController;
 use App\Http\Controllers\Api\ProductosApiController;
 use App\Http\Controllers\Api\CatalogoApiController;
+use App\Http\Controllers\Api\ComprasApiController;
 use App\Http\Controllers\Api\ArqueoApiController;
 use Illuminate\Support\Facades\Route;
 
@@ -68,6 +69,9 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/{tipo}/toggle', [CatalogoApiController::class, 'toggle']);
         Route::post('/{tipo}/borrar', [CatalogoApiController::class, 'borrar']);
     })->where('tipo', 'categorias|subcategorias|marcas|submarcas');
+
+    // ── Compras ────────────────────────────────────────────────────────────
+    Route::get('/compras', [ComprasApiController::class, 'listar']);
 
     // ── Arqueo Diario ─────────────────────────────────────────────────────
     Route::prefix('arqueo')->group(function () {

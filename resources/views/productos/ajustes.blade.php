@@ -60,15 +60,15 @@
     </div>
 
     {{-- Agregar productos --}}
-    <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
-        <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+    <div class="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-2">
+        <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
             <i class="ti ti-plus"></i> Agregar producto del catálogo
         </div>
         <div class="flex gap-2">
             <div class="relative flex-1">
-                <input id="aj-prod-search" type="text" placeholder="Buscar producto por nombre o código..." class="field bg-white w-full"
+                <input id="aj-prod-search" type="text" placeholder="Buscar producto por nombre o código..." class="field bg-white w-full text-xs"
                        oninput="filtrarProductos(this.value)" onfocus="filtrarProductos(this.value)">
-                <div id="aj-prod-lista" class="absolute z-50 mt-0.5 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto hidden"></div>
+                <div id="aj-prod-lista" class="absolute z-50 mt-0.5 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-40 overflow-y-auto hidden"></div>
                 <input type="hidden" id="aj-producto">
             </div>
             <x-btn color="primary" icon="ti ti-plus" onclick="agregarProducto()">Agregar</x-btn>
@@ -76,26 +76,17 @@
     </div>
 
     {{-- Tabla de productos agregados --}}
-    <div class="mt-4">
-        <div class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Productos del ajuste</div>
-        <div class="overflow-x-auto rounded-lg border border-gray-200">
-            <table class="w-full text-xs">
-                <thead>
-                    <tr class="bg-gray-100 text-left text-[10px] font-semibold uppercase text-gray-500">
-                        <th class="px-3 py-2 w-8">#</th>
-                        <th class="px-3 py-2">Producto</th>
-                        <th class="px-3 py-2 w-20 text-right">Stock Actual</th>
-                        <th class="px-3 py-2 w-24 text-right">Nuevo Stock</th>
-                        <th class="px-3 py-2 w-20 text-right">Diferencia</th>
-                        <th class="px-3 py-2 w-10 text-center">Acción</th>
-                    </tr>
-                </thead>
-                <tbody id="aj-tbody"></tbody>
-            </table>
-            <div id="aj-empty" class="px-3 py-6 text-center text-xs text-gray-400">
-                <i class="ti ti-box"></i> Aún no has agregado productos. Selecciona un producto arriba y haz clic en "Agregar".
-            </div>
-        </div>
+    <div class="mt-3">
+        <x-table id="tblProductosAjuste" title="Productos del ajuste" :search="false" :loading="false">
+            <x-slot:thead>
+                <x-th class="w-6">#</x-th>
+                <x-th>Producto</x-th>
+                <x-th align="right">Stock<br>Actual</x-th>
+                <x-th align="right">Nuevo<br>Stock</x-th>
+                <x-th align="right">Dif.</x-th>
+                <x-th align="center" class="w-8"></x-th>
+            </x-slot:thead>
+        </x-table>
     </div>
 
     <div class="mt-4">
@@ -258,55 +249,30 @@ function agregarProducto() {
     g('aj-prod-search').focus();
 }
 
-function agregarProducto() {
-    const id = parseInt(g('aj-producto').value);
-    if (!id) { toastWarn('Selecciona un producto del catálogo.'); return; }
-    if (productosAjuste.some(p => p.id_producto === id)) { toastWarn('Ese producto ya está en la lista.'); return; }
-
-    const prod = productosCatalogo.find(p => p.id_producto === id);
-    if (!prod) return;
-
-    // Buscar stock actual en el almacén seleccionado
-    const almacen = g('aj-almacen').value;
-    const stockEnAlmacen = productosCatalogo.filter(p => p.id_producto === id && p.almacen === almacen);
-    const stockActual = stockEnAlmacen.length > 0 ? parseInt(stockEnAlmacen[0].cantidad) : 0;
-
-    productosAjuste.push({
-        id_producto: prod.id_producto,
-        descripcion: prod.descripcion,
-        stock_actual: stockActual,
-        nuevo_stock: stockActual,
-    });
-
-    renderTabla();
-    g('aj-producto').value = '';
-}
-
 function renderTabla() {
-    const tbody = g('aj-tbody');
-    const empty = g('aj-empty');
+    const tbody = document.querySelector('#tblProductosAjuste tbody');
+    if (!tbody) return;
     if (productosAjuste.length === 0) {
-        tbody.innerHTML = '';
-        empty.classList.remove('hidden');
+        tbody.innerHTML = '<tr><td colspan="6" class="px-3 py-6 text-center text-xs text-gray-400"><i class="ti ti-box"></i> Aún no has agregado productos.</td></tr>';
         return;
     }
-    empty.classList.add('hidden');
     tbody.innerHTML = productosAjuste.map((p, i) => {
         const dif = p.nuevo_stock - p.stock_actual;
         const difClass = dif > 0 ? 'text-emerald-600' : dif < 0 ? 'text-red-600' : 'text-gray-400';
         const difSign = dif > 0 ? '+' : '';
-        return `<tr class="border-b border-gray-100 hover:bg-gray-50">
-            <td class="px-3 py-2 text-gray-400">${i + 1}</td>
-            <td class="px-3 py-2 font-medium">${p.descripcion}</td>
-            <td class="px-3 py-2 text-right font-mono">${p.stock_actual}</td>
-            <td class="px-3 py-2 text-right">
+        const even = i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50';
+        return `<tr class="${even} border-b border-gray-100 hover:bg-brand-50/40">
+            <td class="px-2 py-1 text-gray-400">${i + 1}</td>
+            <td class="px-2 py-1 font-medium text-gray-700">${p.descripcion}</td>
+            <td class="px-2 py-1 text-right font-mono text-gray-500">${p.stock_actual}</td>
+            <td class="px-2 py-1 text-right">
                 <input type="number" min="0" value="${p.nuevo_stock}"
                        onchange="cambiarStock(${i}, this.value)"
-                       class="w-20 rounded border border-gray-300 px-2 py-1 text-right font-mono text-xs focus:border-brand-400 focus:ring-1 focus:ring-brand-300">
+                       class="field w-16 text-right font-mono text-[11px] py-0.5">
             </td>
-            <td class="px-3 py-2 text-right font-mono font-bold ${difClass}">${difSign}${dif}</td>
-            <td class="px-3 py-2 text-center">
-                <button onclick="quitarProducto(${i})" class="h-6 w-6 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500" title="Quitar"><i class="ti ti-trash text-xs"></i></button>
+            <td class="px-2 py-1 text-right font-mono font-bold ${difClass}">${difSign}${dif}</td>
+            <td class="px-2 py-1 text-center">
+                <button onclick="quitarProducto(${i})" class="h-5 w-5 flex items-center justify-center rounded bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600" title="Quitar"><i class="ti ti-trash text-[10px]"></i></button>
             </td>
         </tr>`;
     }).join('');

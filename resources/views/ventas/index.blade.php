@@ -5,7 +5,7 @@
 
 @section('content')
 <div class="mb-4 flex flex-wrap gap-2">
-    <a href="{{ config('app.url') }}/ventas/productos"
+    <a href="{{ route('ventas.productos') }}"
        class="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition">
         <i class="ti ti-plus"></i> Nueva Venta
     </a>

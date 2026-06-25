@@ -4,7 +4,7 @@
 @section('breadcrumb','Inventario / Compras')
 @section('content')
 <div class="mb-4 flex gap-2">
-    <a href="{{ config('app.url') }}/compras/add" class="inline-flex items-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition"><i class="ti ti-plus"></i> Nueva Compra</a>
+    <a href="{{ route('compras.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition"><i class="ti ti-plus"></i> Nueva Compra</a>
 </div>
 <div class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
     <div class="border-b border-gray-100 px-5 py-4"><h3 class="text-sm font-semibold text-gray-700">Lista de Compras</h3></div>

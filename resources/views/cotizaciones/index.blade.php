@@ -5,7 +5,7 @@
 @section('breadcrumb','Pedidos / Cotizaciones')
 @section('content')
 <div class="mb-4 flex gap-2">
-    <a href="{{ config('app.url') }}/cotizaciones/add" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 text-xs font-semibold text-white transition"><i class="ti ti-plus"></i> Nueva Cotización</a>
+    <a href="{{ route('cotizaciones.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 text-xs font-semibold text-white transition"><i class="ti ti-plus"></i> Nueva Cotización</a>
 </div>
 <div class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
     <div class="border-b border-gray-100 px-5 py-4"><h3 class="text-sm font-semibold text-gray-700">Pedidos / Cotizaciones</h3></div>

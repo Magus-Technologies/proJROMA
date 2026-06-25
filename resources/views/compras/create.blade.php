@@ -173,7 +173,7 @@
                         class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-600 disabled:opacity-50 px-4 py-3 text-sm font-bold text-white transition">
                     <i class="ti ti-device-floppy"></i> Registrar Compra
                 </button>
-                <a href="{{ config('app.url') }}/compras"
+                <a href="{{ route('compras.index') }}"
                    class="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 px-4 py-2.5 text-xs font-medium text-gray-600 transition">
                     <i class="ti ti-arrow-left text-xs"></i> Cancelar
                 </a>

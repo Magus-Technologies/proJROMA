@@ -13,8 +13,7 @@
         <select x-model="filtroInstr" @change="window.filtrarTabla && window.filtrarTabla(filtroInstr)" class="field bg-white text-xs w-48">
             <option value="">Todos los métodos</option>
             <option value="EFECTIVO">Efectivo</option>
-            <option value="CUENTA_BANCARIA">Cuenta bancaria</option>
-            <option value="TARJETA">Tarjeta</option>
+            <option value="TRANSFERENCIA">Transferencia</option>
             <option value="BILLETERA_DIGITAL">Billetera digital</option>
         </select>
     </div>
@@ -45,8 +44,7 @@
                 <select id="caja-instr-tipo" @change="window.cargarInstrCaja && window.cargarInstrCaja()" class="field bg-white">
                     <option value="">— Selecciona —</option>
                     <option value="EFECTIVO">Efectivo</option>
-                    <option value="CUENTA_BANCARIA">Cuenta bancaria</option>
-                    <option value="TARJETA">Tarjeta</option>
+                    <option value="TRANSFERENCIA">Transferencia</option>
                     <option value="BILLETERA_DIGITAL">Billetera digital</option>
                 </select>
                 <select id="caja-instr-id" x-show="$data.filtroInstrVal" class="field bg-white hidden">
@@ -83,7 +81,7 @@ $(function () {
                   : '<span class="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700"><i class="ti ti-arrow-down"></i> Egreso</span>' },
             { data: 'descripcion', defaultContent: '-', responsivePriority: 1 },
             { data: 'instrumento_tipo', defaultContent: 'EFECTIVO',
-              render: v => ({ EFECTIVO: 'Efectivo', CUENTA_BANCARIA: 'Cuenta bancaria', TARJETA: 'Tarjeta', BILLETERA_DIGITAL: 'Billetera digital' })[v] || v },
+              render: v => ({ EFECTIVO: 'Efectivo', TRANSFERENCIA: 'Transferencia', BILLETERA_DIGITAL: 'Billetera digital', CUENTA_BANCARIA: 'Cuenta bancaria', TARJETA: 'Tarjeta' })[v] || v },
             { data: 'monto', className: 'text-right font-bold',
               render: (v, t, row) => (row.tipo === 'INGRESO' ? '' : '-') + 'S/ ' + parseFloat(v || 0).toFixed(2) },
         ],
@@ -123,7 +121,7 @@ window.cargarInstrCaja = async function () {
     selId.innerHTML = '<option value="">— Selecciona —</option>';
     if (!tipo || tipo === 'EFECTIVO') { selId.classList.add('hidden'); return; }
     selId.classList.remove('hidden');
-    const endpoint = tipo === 'CUENTA_BANCARIA' ? 'cuentas' : tipo === 'TARJETA' ? 'tarjetas' : 'billeteras';
+    const endpoint = tipo === 'TRANSFERENCIA' ? 'cuentas' : 'billeteras';
     const items = await apiGet(`${BASE}/api/pago-instrumento/${endpoint}`);
     items.forEach(it => {
         const id = it.id_cuenta ?? it.id_tarjeta ?? it.id_billetera;

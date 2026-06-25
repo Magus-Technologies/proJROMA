@@ -42,9 +42,14 @@ class CierreCajaApiController extends Controller
         ];
 
         // Obtener catálogos de instrumentos para poner labels bonitas
-        $cuentas = DB::table('cuentas_bancarias')->get()->keyBy('id_cuenta');
-        $tarjetas = DB::table('tarjetas')->get()->keyBy('id_tarjeta');
-        $billeteras = DB::table('billeteras_digitales')->get()->keyBy('id_billetera');
+        $cuentas = DB::table('cuentas_bancarias as cb')
+            ->leftJoin('bancos as b', 'b.id_banco', '=', 'cb.id_banco')
+            ->select('cb.*', 'b.nombre as banco')
+            ->get()->keyBy('id_cuenta');
+        $billeteras = DB::table('billeteras_digitales as bd')
+            ->leftJoin('billetera_tipos as bt', 'bt.id', '=', 'bd.id_billetera_tipo')
+            ->select('bd.*', 'bt.nombre as tipo')
+            ->get()->keyBy('id_billetera');
 
         foreach ($movs as $m) {
             $tipo = $m->instrumento_tipo ?: 'EFECTIVO';
@@ -54,12 +59,9 @@ class CierreCajaApiController extends Controller
             if (!isset($desglose[$key])) {
                 $label = $tipo;
                 if ($tipo === 'EFECTIVO') $label = 'Efectivo';
-                elseif ($tipo === 'CUENTA_BANCARIA' && isset($cuentas[$id])) {
+                elseif ($tipo === 'TRANSFERENCIA' && isset($cuentas[$id])) {
                     $c = $cuentas[$id];
-                    $label = "Cta: {$c->banco} - " . ($c->tipo_cuenta ?? '') . " " . substr($c->numero_cuenta, -4);
-                } elseif ($tipo === 'TARJETA' && isset($tarjetas[$id])) {
-                    $t = $tarjetas[$id];
-                    $label = "Tarj: {$t->banco} - {$t->tipo} *{$t->ultimos_4}";
+                    $label = "Transf: {$c->banco} - " . ($c->tipo_cuenta ?? '') . " " . substr((string) $c->numero_cuenta, -4);
                 } elseif ($tipo === 'BILLETERA_DIGITAL' && isset($billeteras[$id])) {
                     $b = $billeteras[$id];
                     $label = "Bill: {$b->tipo} - {$b->titular}";

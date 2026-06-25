@@ -16,13 +16,24 @@ class CajaInstrumentoApiController extends Controller
     {
         return DataTables::of(
             DB::table('caja_instrumentos as ci')
+                ->leftJoin('cuentas_bancarias as cb', function ($j) {
+                    $j->on('cb.id_cuenta', '=', 'ci.instrumento_id')
+                      ->where('ci.instrumento_tipo', '=', 'TRANSFERENCIA');
+                })
+                ->leftJoin('bancos as cbb', 'cbb.id_banco', '=', 'cb.id_banco')
+                ->leftJoin('billeteras_digitales as bd', function ($j) {
+                    $j->on('bd.id_billetera', '=', 'ci.instrumento_id')
+                      ->where('ci.instrumento_tipo', '=', 'BILLETERA_DIGITAL');
+                })
+                ->leftJoin('billetera_tipos as bt', 'bt.id', '=', 'bd.id_billetera_tipo')
                 ->where('ci.id_caja', $idCaja)
                 ->select('ci.*',
                     DB::raw("CASE ci.instrumento_tipo
                         WHEN 'EFECTIVO' THEN 'Efectivo'
+                        WHEN 'TRANSFERENCIA' THEN CONCAT('Transferencia: ', COALESCE(cbb.nombre, ''), ' ', COALESCE(cb.numero_cuenta, ''))
+                        WHEN 'BILLETERA_DIGITAL' THEN CONCAT(COALESCE(bt.nombre, 'Billetera'), ' - ', COALESCE(bd.titular, ''))
                         WHEN 'CUENTA_BANCARIA' THEN 'Cuenta bancaria'
                         WHEN 'TARJETA' THEN 'Tarjeta'
-                        WHEN 'BILLETERA_DIGITAL' THEN 'Billetera digital'
                     END as instrumento_label"))
         )->make(true);
     }
@@ -31,13 +42,19 @@ class CajaInstrumentoApiController extends Controller
     {
         $r->validate([
             'id_caja'          => 'required|integer',
-            'instrumento_tipo' => 'required|in:EFECTIVO,CUENTA_BANCARIA,TARJETA,BILLETERA_DIGITAL',
+            'instrumento_tipo' => 'required|in:EFECTIVO,TRANSFERENCIA,BILLETERA_DIGITAL',
+            'instrumento_id'   => 'nullable|integer',
         ]);
+
+        // Transferencia y billetera exigen una cuenta/billetera vinculada; efectivo no
+        if ($r->instrumento_tipo !== 'EFECTIVO' && !$r->instrumento_id) {
+            return response()->json(['res' => false, 'msg' => 'Selecciona la cuenta o billetera vinculada.']);
+        }
 
         // Validar que la caja sea hija (tenga padre)
         $caja = DB::table('cajas')->where('id', $r->id_caja)->first();
         if (!$caja || !$caja->id_caja_padre) {
-            return response()->json(['res' => false, 'msg' => 'Solo las cajas hijas pueden tener instrumentos asignados.']);
+            return response()->json(['res' => false, 'msg' => 'Solo las cajas hijas pueden tener métodos de pago asignados.']);
         }
 
         $existe = DB::table('caja_instrumentos')
@@ -76,40 +93,28 @@ class CajaInstrumentoApiController extends Controller
             ->map(fn($ci) => $ci->instrumento_tipo . '_' . ($ci->instrumento_id ?? 'null'))
             ->toArray();
 
-        $result = [];
-
-        // Efectivo siempre disponible
-        if (!in_array('EFECTIVO_null', $yaAsignados)) {
-            $result[] = ['tipo' => 'EFECTIVO', 'id' => null, 'label' => 'Efectivo'];
-        }
-
         $empresa = $this->empresa();
 
-        // Cuentas bancarias
+        // Métodos de pago permitidos para una caja: Efectivo, Transferencia y Billetera digital.
+        $result = [
+            'efectivo_disponible' => !in_array('EFECTIVO_null', $yaAsignados),
+            'cuentas'             => [],
+            'billeteras'          => [],
+        ];
+
+        // Cuentas bancarias → método "Transferencia" (cuenta vinculada)
         $cuentas = DB::table('cuentas_bancarias as cb')
             ->join('bancos as b', 'b.id_banco', '=', 'cb.id_banco')
             ->where('cb.id_empresa', $empresa)->where('cb.estado', '1')
             ->select('cb.id_cuenta', DB::raw("CONCAT(b.nombre, ' - ', cb.tipo_cuenta, ' ', cb.numero_cuenta) as label"))
             ->get();
         foreach ($cuentas as $c) {
-            if (!in_array('CUENTA_BANCARIA_' . $c->id_cuenta, $yaAsignados)) {
-                $result[] = ['tipo' => 'CUENTA_BANCARIA', 'id' => $c->id_cuenta, 'label' => $c->label];
+            if (!in_array('TRANSFERENCIA_' . $c->id_cuenta, $yaAsignados)) {
+                $result['cuentas'][] = ['id' => $c->id_cuenta, 'label' => $c->label];
             }
         }
 
-        // Tarjetas
-        $tarjetas = DB::table('tarjetas as t')
-            ->join('bancos as b', 'b.id_banco', '=', 't.id_banco')
-            ->where('t.id_empresa', $empresa)->where('t.estado', '1')
-            ->select('t.id_tarjeta', DB::raw("CONCAT(b.nombre, ' ', t.marca, ' *', t.ultimos_4) as label"))
-            ->get();
-        foreach ($tarjetas as $t) {
-            if (!in_array('TARJETA_' . $t->id_tarjeta, $yaAsignados)) {
-                $result[] = ['tipo' => 'TARJETA', 'id' => $t->id_tarjeta, 'label' => $t->label];
-            }
-        }
-
-        // Billeteras
+        // Billeteras (cada una ya trae su cuenta bancaria vinculada)
         $billeteras = DB::table('billeteras_digitales as bd')
             ->join('billetera_tipos as bt', 'bt.id', '=', 'bd.id_billetera_tipo')
             ->where('bd.id_empresa', $empresa)->where('bd.estado', '1')
@@ -117,7 +122,7 @@ class CajaInstrumentoApiController extends Controller
             ->get();
         foreach ($billeteras as $b) {
             if (!in_array('BILLETERA_DIGITAL_' . $b->id_billetera, $yaAsignados)) {
-                $result[] = ['tipo' => 'BILLETERA_DIGITAL', 'id' => $b->id_billetera, 'label' => $b->tipo . ' - ' . $b->titular];
+                $result['billeteras'][] = ['id' => $b->id_billetera, 'label' => $b->tipo . ' - ' . $b->titular];
             }
         }
 

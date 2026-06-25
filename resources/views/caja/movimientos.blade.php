@@ -25,8 +25,7 @@
             <select x-model="filtroInstr" @change="recargar()" class="field bg-white text-xs w-40">
                 <option value="">Todos los métodos</option>
                 <option value="EFECTIVO">Efectivo</option>
-                <option value="CUENTA_BANCARIA">Cuenta bancaria</option>
-                <option value="TARJETA">Tarjeta</option>
+                <option value="TRANSFERENCIA">Transferencia</option>
                 <option value="BILLETERA_DIGITAL">Billetera digital</option>
             </select>
             <select x-model="filtroCat" @change="recargar()" class="field bg-white text-xs w-40">
@@ -77,8 +76,7 @@
             <select id="md-mov-instr-tipo" @change="window.cargarInstrMov && window.cargarInstrMov()" class="field bg-white">
                 <option value="">— Selecciona —</option>
                 <option value="EFECTIVO">Efectivo</option>
-                <option value="CUENTA_BANCARIA">Cuenta bancaria</option>
-                <option value="TARJETA">Tarjeta</option>
+                <option value="TRANSFERENCIA">Transferencia</option>
                 <option value="BILLETERA_DIGITAL">Billetera digital</option>
             </select>
         </x-input-group>
@@ -143,7 +141,7 @@ $(function () {
             { data: 'categoria', defaultContent: '-', className: 'text-xs' },
             { data: 'descripcion', defaultContent: '-', responsivePriority: 1 },
             { data: 'instrumento_tipo', defaultContent: 'EFECTIVO',
-              render: v => ({ EFECTIVO: 'Efectivo', CUENTA_BANCARIA: 'Cta bancaria', TARJETA: 'Tarjeta', BILLETERA_DIGITAL: 'Billetera' })[v] || v },
+              render: v => ({ EFECTIVO: 'Efectivo', TRANSFERENCIA: 'Transferencia', BILLETERA_DIGITAL: 'Billetera', CUENTA_BANCARIA: 'Cta bancaria', TARJETA: 'Tarjeta' })[v] || v },
             { data: 'monto', className: 'text-right font-bold',
               render: (v, t, row) => (row.tipo === 'INGRESO' ? '+ ' : '- ') + 'S/ ' + parseFloat(v || 0).toFixed(2) },
             { data: 'saldo_posterior', className: 'text-right text-xs text-gray-500',
@@ -193,7 +191,7 @@ window.cargarInstrMov = async function () {
     selId.innerHTML = '<option value="">— Selecciona —</option>';
     if (!tipo || tipo === 'EFECTIVO') { selId.classList.add('hidden'); return; }
     selId.classList.remove('hidden');
-    const endpoint = tipo === 'CUENTA_BANCARIA' ? 'cuentas' : tipo === 'TARJETA' ? 'tarjetas' : 'billeteras';
+    const endpoint = tipo === 'TRANSFERENCIA' ? 'cuentas' : 'billeteras';
     const items = await apiGet(`${BASE}/api/pago-instrumento/${endpoint}`);
     items.forEach(it => {
         const id = it.id_cuenta ?? it.id_tarjeta ?? it.id_billetera;

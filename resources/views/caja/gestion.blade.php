@@ -83,19 +83,33 @@
         </x-slot:footer>
     </x-modal>
 
-    {{-- Modal asignar instrumentos --}}
-    <x-modal id="md-instrumentos" title="Asignar Instrumentos" size="max-w-xl">
+    {{-- Modal asignar métodos de pago --}}
+    <x-modal id="md-instrumentos" title="Asignar Métodos de Pago" size="max-w-xl">
         <input type="hidden" id="md-instr-caja-id">
         <div class="space-y-3">
-            <div class="flex gap-2">
-                <select id="md-instr-select" class="field bg-white flex-1">
-                    <option value="">— Selecciona instrumento —</option>
-                </select>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <x-label>Método de pago</x-label>
+                    <select id="md-instr-tipo" class="field bg-white" onchange="onTipoInstrChange()">
+                        <option value="">— Selecciona —</option>
+                        <option value="EFECTIVO">Efectivo</option>
+                        <option value="TRANSFERENCIA">Transferencia</option>
+                        <option value="BILLETERA_DIGITAL">Billetera digital</option>
+                    </select>
+                </div>
+                <div id="md-instr-ref-wrap" class="hidden">
+                    <x-label id="md-instr-ref-label">Cuenta vinculada</x-label>
+                    <select id="md-instr-ref" class="field bg-white">
+                        <option value="">— Selecciona —</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end">
                 <x-btn color="primary" icon="ti ti-plus" onclick="asignarInstrumento()">Agregar</x-btn>
             </div>
-            <x-table id="tblInstr" title="Instrumentos asignados">
+            <x-table id="tblInstr" title="Métodos de pago asignados">
                 <x-slot:thead>
-                    <x-th>Instrumento</x-th>
+                    <x-th>Método de pago</x-th>
                     <x-th align="center">Acción</x-th>
                 </x-slot:thead>
             </x-table>
@@ -111,7 +125,7 @@
 <script>
 const BASE = '{{ config("app.url") }}';
 const g = id => document.getElementById(id);
-let tblPrincipales, tblHijas, tblInstr, idCajaInstr = 0;
+let tblPrincipales, tblHijas, tblInstr, idCajaInstr = 0, dispInstr = {};
 
 function reloadTables() { if (tblPrincipales) tblPrincipales.ajax.reload(null, false); if (tblHijas) tblHijas.ajax.reload(null, false); }
 
@@ -254,19 +268,40 @@ async function abrirInstrumentos(idCaja) {
         order: [[0, 'asc']],
     });
 
-    // Cargar disponibles
-    const disp = await apiGet(BASE + '/api/caja-instrumentos/disponibles/' + idCaja);
-    const sel = g('md-instr-select');
-    sel.innerHTML = '<option value="">— Selecciona instrumento —</option>';
-    disp.forEach(d => { sel.innerHTML += `<option value="${d.tipo}|${d.id ?? ''}">${d.label}</option>`; });
+    // Cargar métodos de pago disponibles (efectivo, cuentas para transferencia, billeteras)
+    dispInstr = await apiGet(BASE + '/api/caja-instrumentos/disponibles/' + idCaja);
+    g('md-instr-tipo').value = '';
+    onTipoInstrChange();
     abrirModal('md-instrumentos');
 }
 
+function onTipoInstrChange() {
+    const tipo = g('md-instr-tipo').value;
+    const wrap = g('md-instr-ref-wrap');
+    const ref = g('md-instr-ref');
+    if (tipo === 'TRANSFERENCIA' || tipo === 'BILLETERA_DIGITAL') {
+        const items = tipo === 'TRANSFERENCIA' ? (dispInstr.cuentas || []) : (dispInstr.billeteras || []);
+        g('md-instr-ref-label').textContent = tipo === 'TRANSFERENCIA' ? 'Cuenta vinculada' : 'Billetera';
+        ref.innerHTML = '<option value="">— Selecciona —</option>' +
+            items.map(it => `<option value="${it.id}">${it.label}</option>`).join('');
+        wrap.classList.remove('hidden');
+    } else {
+        ref.innerHTML = '<option value="">— Selecciona —</option>';
+        wrap.classList.add('hidden');
+    }
+}
+
 async function asignarInstrumento() {
-    const val = g('md-instr-select').value;
-    if (!val) { toastWarn('Selecciona un instrumento.'); return; }
-    const [tipo, id] = val.split('|');
-    const d = await apiPost(BASE + '/api/caja-instrumentos/asignar', { id_caja: idCajaInstr, instrumento_tipo: tipo, instrumento_id: id || null });
+    const tipo = g('md-instr-tipo').value;
+    if (!tipo) { toastWarn('Selecciona un método de pago.'); return; }
+    let id = null;
+    if (tipo === 'EFECTIVO') {
+        if (dispInstr.efectivo_disponible === false) { toastWarn('El efectivo ya está asignado.'); return; }
+    } else {
+        id = g('md-instr-ref').value;
+        if (!id) { toastWarn('Selecciona la cuenta o billetera vinculada.'); return; }
+    }
+    const d = await apiPost(BASE + '/api/caja-instrumentos/asignar', { id_caja: idCajaInstr, instrumento_tipo: tipo, instrumento_id: id });
     if (d.res) { toastOk('Asignado.'); tblInstr.ajax.reload(null, false); abrirInstrumentos(idCajaInstr); }
     else toastErr(d.msg || 'Error.');
 }
@@ -285,7 +320,7 @@ async function cerrarModalInstrumentos() {
             await Swal.fire({
                 icon: 'warning',
                 title: 'Atención',
-                text: 'Esta caja es una caja hija y no tiene instrumentos de pago asignados. Debe agregar al menos uno.',
+                text: 'Esta caja es una caja hija y no tiene métodos de pago asignados. Debe agregar al menos uno.',
                 confirmButtonText: 'Entendido'
             });
         }

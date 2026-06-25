@@ -23,7 +23,7 @@
 @endsection
 @push('scripts')
 <script>
-const BASE='{{ config("app.url") }}';
+const BASE=BASE_URL;
 $(function(){
     $('#tbl').DataTable({processing:true,serverSide:true,
         ajax:{url:BASE+'/api/cotizaciones',headers:{'Accept':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}'}},
@@ -38,7 +38,7 @@ $(function(){
                <a href="${BASE}/r/cotizaciones/reporte/${id}" target="_blank" class="h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600"><i class="ti ti-file-type-pdf text-sm"></i></a>
              </div>`},
         ],
-        order:[[0,'desc']],pageLength:25,language:{url:'//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'},
+        order:[[0,'desc']],pageLength:25,language:{url:'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'},
         dom:'<"flex flex-wrap gap-2 items-center justify-between mb-4"lf>t<"flex flex-wrap gap-2 items-center justify-between mt-4"ip>',});
 });
 </script>

@@ -24,7 +24,7 @@
 @endsection
 @push('scripts')
 <script>
-const BASE='{{ config("app.url") }}';
+const BASE=BASE_URL;
 $(function(){
     $('#tbl').DataTable({processing:true,serverSide:true,
         ajax:{url:BASE+'/api/cobranzas',headers:{'Accept':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}'}},
@@ -37,7 +37,7 @@ $(function(){
             {data:'id',orderable:false,className:'text-center',
              render:id=>`<button onclick="cobrar(${id})" class="h-7 px-3 flex items-center justify-center rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold"><i class="ti ti-cash mr-1"></i>Cobrar</button>`},
         ],
-        order:[[2,'asc']],pageLength:25,language:{url:'//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'},
+        order:[[2,'asc']],pageLength:25,language:{url:'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'},
         dom:'<"flex flex-wrap gap-2 items-center justify-between mb-4"lf>t<"flex flex-wrap gap-2 items-center justify-between mt-4"ip>',});
 });
 function exportarExcel(){ window.open(BASE+'/reporte/cobranzas/xls','_blank'); }

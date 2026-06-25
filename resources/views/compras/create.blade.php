@@ -224,7 +224,7 @@
 
 @push('scripts')
 <script>
-const BASE = '{{ config("app.url") }}';
+const BASE=BASE_URL;
 
 function compraForm() {
     return {

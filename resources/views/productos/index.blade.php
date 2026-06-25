@@ -230,7 +230,7 @@
 
 @push('scripts')
 <script>
-const BASE = '{{ config("app.url") }}';
+const BASE=BASE_URL;
 let tabla;
 const g = id => document.getElementById(id);
 

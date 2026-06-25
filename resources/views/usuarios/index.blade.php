@@ -19,7 +19,7 @@
 @endsection
 @push('scripts')
 <script>
-const BASE='{{ config("app.url") }}';
+const BASE=BASE_URL;
 $(function(){
     $('#tbl').DataTable({processing:true,serverSide:true,
         ajax:{url:BASE+'/api/usuarios/render',type:'POST',headers:{'Accept':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}'},data:d=>JSON.stringify(d),contentType:'application/json'},
@@ -29,7 +29,7 @@ $(function(){
             {data:'sucursal',className:'text-center',defaultContent:'1'},
             {data:'estado',className:'text-center',render:v=>v==='1'?'<span class="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Activo</span>':'<span class="inline-block rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">Inactivo</span>'},
         ],
-        order:[[0,'asc']],pageLength:25,language:{url:'//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'},
+        order:[[0,'asc']],pageLength:25,language:{url:'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'},
         dom:'<"flex flex-wrap gap-2 items-center justify-between mb-4"lf>t<"flex flex-wrap gap-2 items-center justify-between mt-4"ip>',});
 });
 </script>

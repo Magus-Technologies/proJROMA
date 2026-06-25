@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\FlujoApiController;
 use App\Http\Controllers\Api\MiCajaApiController;
 use App\Http\Controllers\Api\PagoInstrumentoApiController;
 use App\Http\Controllers\Api\EmpresaApiController;
+use App\Http\Controllers\Api\CotizacionesApiController;
 use App\Http\Controllers\Api\CajaMaestroApiController;
 use App\Http\Controllers\Api\CajaInstrumentoApiController;
 use App\Http\Controllers\Api\CajaMovimientoApiController;
@@ -102,6 +103,9 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
     Route::get('/compras',         [ComprasApiController::class, 'listar']);
     Route::post('/compras',        [ComprasApiController::class, 'guardar']);
     Route::post('/compras/editar', [ComprasApiController::class, 'editar']);
+
+    // ── Cotizaciones ────────────────────────────────────────────────────
+    Route::get('/cotizaciones', [CotizacionesApiController::class, 'listar']);
 
     // ── Instrumentos de pago (bancos, cuentas, tarjetas, billeteras) ──────
     Route::prefix('pago-instrumento')->group(function () {

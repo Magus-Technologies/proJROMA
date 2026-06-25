@@ -45,7 +45,7 @@
 @endsection
 @push('scripts')
 <script>
-const BASE='{{ config("app.url") }}';let t;
+const BASE=BASE_URL;let t;
 const g=id=>document.getElementById(id);
 function abrir(){g('md').classList.replace('hidden','flex');}
 function cerrar(){g('md').classList.replace('flex','hidden');}
@@ -56,7 +56,7 @@ $(function(){
             {data:'proveedor_id',orderable:false,className:'text-center',render:id=>`<div class="flex justify-center gap-1">
                 <button onclick="editar(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600"><i class="ti ti-pencil text-sm"></i></button>
                 <button onclick="eliminar(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600"><i class="ti ti-trash text-sm"></i></button></div>`}],
-        order:[[1,'asc']],pageLength:25,language:{url:'//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'},
+        order:[[1,'asc']],pageLength:25,language:{url:'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'},
         dom:'<"flex flex-wrap gap-2 items-center justify-between mb-4"lf>t<"flex flex-wrap gap-2 items-center justify-between mt-4"ip>',});
 });
 function abrirModalNuevo(){g('mdT').textContent='Nuevo Proveedor';['i0','i1','i2','i3','i4','i5','i6'].forEach(x=>g(x).value='');abrir();}

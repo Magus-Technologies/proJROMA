@@ -107,7 +107,7 @@
 
 @push('scripts')
 <script>
-const BASE = '{{ config("app.url") }}';
+const BASE=BASE_URL;
 let tabla;
 
 $(function() {
@@ -138,7 +138,7 @@ $(function() {
               </div>` },
         ],
         order: [[1,'asc']], pageLength: 25,
-        language: { url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' },
+        language: { url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' },
         dom: '<"flex flex-wrap gap-2 items-center justify-between mb-4"lf>t<"flex flex-wrap gap-2 items-center justify-between mt-4"ip>',
     });
 });

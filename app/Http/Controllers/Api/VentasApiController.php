@@ -9,6 +9,8 @@ use App\Models\DiasVenta;
 use App\Models\Producto;
 use App\Models\DocumentoEmpresa;
 use App\Models\Cliente;
+use App\Models\MotivoMovimiento;
+use App\Models\InventarioMovimiento;
 use App\Http\Requests\Ventas\GuardarVentaRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +22,22 @@ class VentasApiController extends Controller
 {
     private function empresa(): int  { return (int) session('id_empresa'); }
     private function sucursal(): int { return (int) session('sucursal'); }
+
+    /** id del motivo "Venta" (para el Kardex). */
+    private function motivoVenta(): ?int
+    {
+        return MotivoMovimiento::where('id_empresa', $this->empresa())->where('nombre', 'Venta')->value('id_motivo');
+    }
+
+    /** Registra un movimiento en el Kardex (trazabilidad de stock). */
+    private function kardex(int $idProd, int $cant, string $tipo, int $ant, int $nuevo, ?string $almacen, $costo, ?int $motivo, string $obs): void
+    {
+        InventarioMovimiento::create([
+            'id_empresa' => $this->empresa(), 'almacen' => $almacen ?? '', 'id_producto' => $idProd, 'tipo' => $tipo,
+            'id_motivo' => $motivo, 'cantidad' => $cant, 'stock_anterior' => $ant, 'stock_nuevo' => $nuevo,
+            'costo' => $costo, 'observacion' => $obs, 'id_usuario' => (int) (auth()->user()->usuario_id ?? 0), 'fecha' => now(),
+        ]);
+    }
 
     public function listar(Request $request): mixed
     {
@@ -75,6 +93,9 @@ class VentasApiController extends Controller
 
             $tido->increment('numero');
 
+            $motVenta = $this->motivoVenta();
+            $docVenta = "{$tido->serie}-" . str_pad($numero, 8, '0', STR_PAD_LEFT);
+
             foreach ($data['productos'] as $item) {
                 ProductoVenta::create([
                     'id_venta'    => $venta->id_venta,
@@ -86,8 +107,14 @@ class VentasApiController extends Controller
                     'igv_prod'    => $item['igv_prod'] ?? 0,
                     'descuento'   => $item['descuento'] ?? 0,
                 ]);
-                Producto::where('id_producto', $item['id_producto'])
-                    ->decrement('cantidad', $item['cantidad']);
+
+                $p = Producto::find($item['id_producto']);
+                if ($p) {
+                    $ant  = (int) $p->cantidad;
+                    $cant = (int) $item['cantidad'];
+                    $p->decrement('cantidad', $item['cantidad']);
+                    $this->kardex($p->id_producto, $cant, 'S', $ant, $ant - $cant, $p->almacen, $p->costo, $motVenta, "Venta {$docVenta}");
+                }
             }
 
             foreach ($data['lista_pagos'] ?? [] as $pago) {
@@ -128,8 +155,16 @@ class VentasApiController extends Controller
             if ($venta->estado === '0') {
                 return response()->json(['res' => false, 'msg' => 'La venta ya está anulada.'], 422);
             }
+            $motVenta = $this->motivoVenta();
+            $docVenta = "{$venta->serie}-" . str_pad($venta->numero, 8, '0', STR_PAD_LEFT);
             foreach ($venta->productosVenta as $det) {
-                Producto::where('id_producto', $det->id_producto)->increment('cantidad', $det->cantidad);
+                $p = Producto::find($det->id_producto);
+                if ($p) {
+                    $ant  = (int) $p->cantidad;
+                    $cant = (int) $det->cantidad;
+                    $p->increment('cantidad', $det->cantidad);
+                    $this->kardex($p->id_producto, $cant, 'I', $ant, $ant + $cant, $p->almacen, $p->costo, $motVenta, "Anulación de venta {$docVenta}");
+                }
             }
             $venta->update(['estado' => '0']);
             DB::commit();

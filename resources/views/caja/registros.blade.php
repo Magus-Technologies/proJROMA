@@ -2,64 +2,159 @@
 @section('title','Registro de Caja')
 @section('page-title','Registro de Caja')
 @section('breadcrumb','Cajas / Registro')
+
 @section('content')
-<div class="mb-4 flex gap-2">
-    <button onclick="abrirIngreso()" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-semibold text-white transition"><i class="ti ti-arrow-up"></i> Ingreso</button>
-    <button onclick="abrirEgreso()"  class="inline-flex items-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 px-4 py-2 text-xs font-semibold text-white transition"><i class="ti ti-arrow-down"></i> Egreso</button>
-</div>
-<div class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
-    <div class="border-b border-gray-100 px-5 py-4"><h3 class="text-sm font-semibold text-gray-700">Registros de Caja</h3></div>
-    <div class="overflow-x-auto p-4">
-        <table id="tbl" class="w-full text-xs">
-            <thead class="bg-gray-50 text-gray-500"><tr>
-                <th class="px-3 py-2.5 text-left">Fecha</th><th class="px-3 py-2.5 text-left">Tipo</th>
-                <th class="px-3 py-2.5 text-left">Descripción</th><th class="px-3 py-2.5 text-right">Monto</th>
-            </tr></thead><tbody></tbody>
-        </table>
+<div x-data="{ filtroInstr: '' }">
+    <div class="mb-4 flex flex-wrap gap-2 items-center justify-between">
+        <div class="flex gap-2">
+            <x-btn color="emerald" icon="ti ti-arrow-up" onclick="abrirIngreso()">Ingreso</x-btn>
+            <x-btn color="red" icon="ti ti-arrow-down" onclick="abrirEgreso()">Egreso</x-btn>
+        </div>
+        <select x-model="filtroInstr" @change="window.filtrarTabla && window.filtrarTabla()" class="field bg-white text-xs w-48">
+            <option value="">Todos los métodos</option>
+            <option value="EFECTIVO">Efectivo</option>
+            <option value="CUENTA_BANCARIA">Cuenta bancaria</option>
+            <option value="TARJETA">Tarjeta</option>
+            <option value="BILLETERA_DIGITAL">Billetera digital</option>
+        </select>
     </div>
+
+    <x-table id="tblCaja" title="Registros de Caja">
+        <x-slot:thead>
+            <x-th>Fecha</x-th>
+            <x-th align="center">Tipo</x-th>
+            <x-th>Descripción</x-th>
+            <x-th>Método de pago</x-th>
+            <x-th align="right">Monto</x-th>
+        </x-slot:thead>
+    </x-table>
 </div>
-{{-- Modal ingreso/egreso --}}
-<div id="md" class="fixed inset-0 z-50 hidden items-start justify-center pt-10 px-4">
-    <div class="absolute inset-0 bg-black/50" onclick="cerrar()"></div>
-    <div class="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
-        <div class="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-5 py-4">
-            <h4 class="text-sm font-semibold text-gray-700" id="mdT">Ingreso de Caja</h4>
-            <button onclick="cerrar()" class="text-gray-400"><i class="ti ti-x"></i></button>
-        </div>
-        <div class="p-5 space-y-4">
-            <input type="hidden" id="itipo">
-            <div><label class="block text-xs font-semibold text-gray-600 mb-1">Descripción</label>
-                <input id="idesc" type="text" maxlength="245" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"></div>
-            <div><label class="block text-xs font-semibold text-gray-600 mb-1">Monto (S/)</label>
-                <input id="imonto" type="number" step="0.01" min="0" placeholder="0.00" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"></div>
-        </div>
-        <div class="flex justify-end gap-2 border-t border-gray-100 bg-gray-50 px-5 py-3">
-            <button onclick="cerrar()" class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-600">Cancelar</button>
-            <button onclick="guardar()" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-2 text-xs font-semibold text-white"><i class="ti ti-device-floppy"></i> Guardar</button>
-        </div>
+
+<x-modal id="md-caja" title="Registro de Caja" size="max-w-lg">
+    <input type="hidden" id="caja-tipo">
+    <div class="space-y-4">
+        <x-input-group label="Descripción" :required="true">
+            <x-input id="caja-desc" maxlength="245" placeholder="Descripción del movimiento"
+                     onkeydown="if(event.key==='Enter')guardarCaja()" />
+        </x-input-group>
+        <x-input-group label="Monto (S/)" :required="true">
+            <x-input id="caja-monto" type="number" step="0.01" min="0" placeholder="0.00" />
+        </x-input-group>
+        <x-input-group label="Método de pago">
+            <div class="flex gap-2">
+                <select id="caja-instr-tipo" @change="window.cargarInstrCaja && window.cargarInstrCaja()" class="field bg-white">
+                    <option value="">— Selecciona —</option>
+                    <option value="EFECTIVO">Efectivo</option>
+                    <option value="CUENTA_BANCARIA">Cuenta bancaria</option>
+                    <option value="TARJETA">Tarjeta</option>
+                    <option value="BILLETERA_DIGITAL">Billetera digital</option>
+                </select>
+                <select id="caja-instr-id" x-show="$data.filtroInstrVal" class="field bg-white hidden">
+                    <option value="">— Selecciona —</option>
+                </select>
+            </div>
+        </x-input-group>
     </div>
-</div>
+    <x-slot:footer>
+        <x-btn color="ghost" onclick="cerrarModal('md-caja')">Cancelar</x-btn>
+        <x-btn color="primary" icon="ti ti-device-floppy" onclick="guardarCaja()">Guardar</x-btn>
+    </x-slot:footer>
+</x-modal>
 @endsection
+
 @push('scripts')
 <script>
-const BASE='{{ config("app.url") }}';let t;
-const g=id=>document.getElementById(id);
-function cerrar(){g('md').classList.replace('flex','hidden');}
-$(function(){
-    t=$('#tbl').DataTable({processing:true,serverSide:true,
-        ajax:{url:BASE+'/api/caja/registros',headers:{'Accept':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}'}},
-        columns:[{data:'fecha',defaultContent:'-'},{data:'tipo',defaultContent:'-'},{data:'descripcion',defaultContent:'-'},{data:'monto',className:'text-right',render:v=>'S/ '+parseFloat(v||0).toFixed(2)}],
-        order:[[0,'desc']],pageLength:25,language:{url:'//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'},
-        dom:'<"flex flex-wrap gap-2 items-center justify-between mb-4"lf>t<"flex flex-wrap gap-2 items-center justify-between mt-4"ip>',});
+const BASE = '{{ config("app.url") }}';
+const g = id => document.getElementById(id);
+let tablaCaja;
+
+$(function () {
+    tablaCaja = initDataTable('#tblCaja', {
+        processing: true, serverSide: true,
+        ajax: {
+            url: BASE + '/api/caja/registros',
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+        },
+        columns: [
+            { data: 'fecha', defaultContent: '-' },
+            { data: 'tipo', className: 'text-center', orderable: false, searchable: false,
+              render: v => v === 'INGRESO'
+                  ? '<span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700"><i class="ti ti-arrow-up"></i> Ingreso</span>'
+                  : '<span class="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700"><i class="ti ti-arrow-down"></i> Egreso</span>' },
+            { data: 'descripcion', defaultContent: '-', responsivePriority: 1 },
+            { data: 'instrumento_tipo', defaultContent: 'EFECTIVO',
+              render: v => ({ EFECTIVO: 'Efectivo', CUENTA_BANCARIA: 'Cuenta bancaria', TARJETA: 'Tarjeta', BILLETERA_DIGITAL: 'Billetera digital' })[v] || v },
+            { data: 'monto', className: 'text-right font-bold',
+              render: (v, t, row) => (row.tipo === 'INGRESO' ? '' : '-') + 'S/ ' + parseFloat(v || 0).toFixed(2) },
+        ],
+        order: [[0, 'desc']],
+    });
 });
-function abrirIngreso(){g('mdT').textContent='Ingreso de Caja';g('itipo').value='ingreso';g('idesc').value='';g('imonto').value='';g('md').classList.replace('hidden','flex');}
-function abrirEgreso(){g('mdT').textContent='Egreso de Caja';g('itipo').value='egreso';g('idesc').value='';g('imonto').value='';g('md').classList.replace('hidden','flex');}
-async function guardar(){
-    const monto=parseFloat(g('imonto').value||0);
-    if(!g('idesc').value.trim()||monto<=0){toastWarn('Completa descripción y monto.');return;}
-    const url=g('itipo').value==='ingreso'?BASE+'/api/caja/ingreso':BASE+'/api/caja/egreso';
-    const d=await apiPost(url,{descripcion:g('idesc').value,monto});
-    if(d.res){toastOk('Registrado.');cerrar();t.ajax.reload(null,false);}else toastErr(d.msg||'Error.');
+
+window.filtrarTabla = function () {
+    const val = document.querySelector('[x-data]')?.__x?.$data?.filtroInstr || '';
+    tablaCaja.ajax.url(BASE + '/api/caja/registros' + (val ? '?instrumento=' + val : '')).load();
+};
+
+function abrirIngreso() {
+    g('caja-tipo').value = 'ingreso';
+    g('caja-desc').value = '';
+    g('caja-monto').value = '';
+    g('caja-instr-tipo').value = '';
+    g('caja-instr-id').value = '';
+    g('caja-instr-id').classList.add('hidden');
+    document.querySelector('#md-caja [x-data]')?.__x?.$data?.__x?.$data?.filtroInstrVal;
+    abrirModal('md-caja');
+    setTimeout(() => g('caja-desc').focus(), 100);
+}
+
+function abrirEgreso() {
+    g('caja-tipo').value = 'egreso';
+    g('caja-desc').value = '';
+    g('caja-monto').value = '';
+    g('caja-instr-tipo').value = '';
+    g('caja-instr-id').value = '';
+    g('caja-instr-id').classList.add('hidden');
+    abrirModal('md-caja');
+    setTimeout(() => g('caja-desc').focus(), 100);
+}
+
+window.cargarInstrCaja = async function () {
+    const tipo = g('caja-instr-tipo').value;
+    const selId = g('caja-instr-id');
+    selId.innerHTML = '<option value="">— Selecciona —</option>';
+    if (!tipo || tipo === 'EFECTIVO') { selId.classList.add('hidden'); return; }
+    selId.classList.remove('hidden');
+    const endpoint = tipo === 'CUENTA_BANCARIA' ? 'cuentas' : tipo === 'TARJETA' ? 'tarjetas' : 'billeteras';
+    const items = await apiGet(`${BASE}/api/pago-instrumento/${endpoint}`);
+    items.forEach(it => {
+        const id = it.id_cuenta ?? it.id_tarjeta ?? it.id_billetera;
+        let label;
+        if (it.banco) label = `${it.banco} - ${it.tipo_cuenta ?? it.tipo} ${it.numero_cuenta ?? ('*' + it.ultimos_4)}`;
+        else if (it.cuenta_vinculada && it.cuenta_vinculada !== '-') label = `${it.tipo} - ${it.cuenta_vinculada}`;
+        else label = `${it.tipo} - ${it.titular}`;
+        selId.innerHTML += `<option value="${id}">${label}</option>`;
+    });
+};
+
+async function guardarCaja() {
+    const tipo = g('caja-tipo').value;
+    const desc = g('caja-desc').value.trim();
+    const monto = parseFloat(g('caja-monto').value || 0);
+    if (!desc) { toastWarn('Escribe una descripción.'); return; }
+    if (monto <= 0) { toastWarn('Ingresa un monto válido.'); return; }
+
+    const payload = {
+        descripcion: desc,
+        monto,
+        instrumento_tipo: g('caja-instr-tipo').value || null,
+        instrumento_id: g('caja-instr-id').value || null,
+    };
+
+    const url = tipo === 'ingreso' ? `${BASE}/api/caja/ingreso` : `${BASE}/api/caja/egreso`;
+    const d = await apiPost(url, payload);
+    if (d.res) { toastOk('Registrado.'); cerrarModal('md-caja'); tablaCaja.ajax.reload(null, false); }
+    else toastErr(d.msg || 'Error.');
 }
 </script>
 @endpush

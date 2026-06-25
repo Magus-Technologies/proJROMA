@@ -47,6 +47,24 @@
                     @endforeach
                 </select>
             </div>
+            <div>
+                <x-label :optional="true">Método de pago</x-label>
+                <div class="flex gap-2">
+                    <select x-model="instrTipo" @change="cargarInstrumentos()" class="field bg-white">
+                        <option value="">— Selecciona —</option>
+                        <option value="EFECTIVO">Efectivo</option>
+                        <option value="CUENTA_BANCARIA">Cuenta bancaria</option>
+                        <option value="TARJETA">Tarjeta</option>
+                        <option value="BILLETERA_DIGITAL">Billetera digital</option>
+                    </select>
+                    <select x-show="instrTipo && instrTipo !== 'EFECTIVO'" x-model="instrId" class="field bg-white">
+                        <option value="">— Selecciona —</option>
+                        <template x-for="op in instrOptions" :key="op.id">
+                            <option :value="op.id" x-text="op.label"></option>
+                        </template>
+                    </select>
+                </div>
+            </div>
             <div class="sm:col-span-2 lg:col-span-3">
                 <x-label :optional="true">Observación</x-label>
                 <input x-model="obs" type="text" maxlength="200" placeholder="Opcional" class="field">
@@ -128,6 +146,9 @@ function compraForm() {
         prov: '{{ $compra->id_proveedor ?? '' }}',
         tido: '{{ $compra->id_tido ?? '' }}',
         tipoPago: '{{ $compra->id_tipo_pago ?? ($tiposPago->first()->tipo_pago_id ?? 1) }}',
+        instrTipo: '{{ $compra->instrumento_tipo ?? '' }}',
+        instrId: '{{ $compra->instrumento_id ?? '' }}',
+        instrOptions: [],
         serie: @json($compra->serie ?? ''),
         numero: @json($compra->numero ?? ''),
         fecha: '{{ $compra ? substr($compra->fecha_emision ?? '', 0, 10) : now()->toDateString() }}',
@@ -135,7 +156,20 @@ function compraForm() {
         buscar: '', resultados: [], guardando: false,
         lineas: @json($items),
 
+        init() { if (this.instrTipo) this.cargarInstrumentos(); },
+
         get total() { return this.lineas.reduce((s, l) => s + ((l.cantidad || 0) * (l.costo || 0)), 0); },
+
+        async cargarInstrumentos() {
+            this.instrId = '';
+            if (!this.instrTipo || this.instrTipo === 'EFECTIVO') { this.instrOptions = []; return; }
+            const endpoint = this.instrTipo === 'CUENTA_BANCARIA' ? 'cuentas' : this.instrTipo === 'TARJETA' ? 'tarjetas' : 'billeteras';
+            this.instrOptions = await apiGet(`${BASE}/api/pago-instrumento/${endpoint}`);
+            this.instrOptions = this.instrOptions.map(o => ({
+                id: o.id_cuenta ?? o.id_tarjeta ?? o.id_billetera,
+                label: o.banco ? `${o.banco} - ${o.tipo_cuenta ?? o.tipo} ${o.numero_cuenta ?? ('*' + o.ultimos_4)}` : `${o.tipo} - ${o.titular}`,
+            }));
+        },
 
         async search() {
             if (this.buscar.trim().length < 2) { this.resultados = []; return; }
@@ -160,6 +194,8 @@ function compraForm() {
             this.guardando = true;
             const payload = {
                 id_proveedor: this.prov, id_tido: this.tido, id_tipo_pago: this.tipoPago,
+                instrumento_tipo: this.instrTipo || null,
+                instrumento_id: this.instrId || null,
                 fecha: this.fecha, serie: this.serie, numero: this.numero, observacion: this.obs,
                 total: this.total, productos: this.lineas,
             };

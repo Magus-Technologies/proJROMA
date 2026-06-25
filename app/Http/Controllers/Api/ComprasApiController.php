@@ -34,18 +34,20 @@ class ComprasApiController extends Controller
     public function guardar(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'id_proveedor'           => 'required|integer',
-            'id_tido'                => 'required|integer',
-            'id_tipo_pago'           => 'nullable|integer',
-            'fecha'                  => 'required',
-            'serie'                  => 'nullable|string|max:50',
-            'numero'                 => 'nullable|string|max:50',
-            'observacion'            => 'nullable|string|max:200',
-            'total'                  => 'required|numeric|min:0',
-            'productos'              => 'required|array|min:1',
-            'productos.*.id_producto' => 'required|integer',
-            'productos.*.cantidad'   => 'required|numeric|min:0.01',
-            'productos.*.costo'      => 'nullable|numeric|min:0',
+            'id_proveedor'            => 'required|integer',
+            'id_tido'                 => 'required|integer',
+            'id_tipo_pago'            => 'nullable|integer',
+            'instrumento_tipo'        => 'nullable|in:EFECTIVO,CUENTA_BANCARIA,TARJETA,BILLETERA_DIGITAL',
+            'instrumento_id'          => 'nullable|integer',
+            'fecha'                   => 'required',
+            'serie'                   => 'nullable|string|max:50',
+            'numero'                  => 'nullable|string|max:50',
+            'observacion'             => 'nullable|string|max:200',
+            'total'                   => 'required|numeric|min:0',
+            'productos'               => 'required|array|min:1',
+            'productos.*.id_producto'  => 'required|integer',
+            'productos.*.cantidad'    => 'required|numeric|min:0.01',
+            'productos.*.costo'       => 'nullable|numeric|min:0',
         ]);
 
         DB::beginTransaction();
@@ -54,6 +56,8 @@ class ComprasApiController extends Controller
                 'id_proveedor'      => $data['id_proveedor'],
                 'id_tido'           => $data['id_tido'],
                 'id_tipo_pago'      => $data['id_tipo_pago'] ?? 1,
+                'instrumento_tipo'  => $data['instrumento_tipo'] ?? null,
+                'instrumento_id'    => $data['instrumento_id'] ?? null,
                 'fecha_emision'     => $data['fecha'],
                 'fecha_vencimiento' => $data['fecha'],
                 'direccion'         => $data['observacion'] ?? '',
@@ -89,19 +93,21 @@ class ComprasApiController extends Controller
     public function editar(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'id_compra'              => 'required|integer',
-            'id_proveedor'           => 'required|integer',
-            'id_tido'                => 'required|integer',
-            'id_tipo_pago'           => 'nullable|integer',
-            'fecha'                  => 'required',
-            'serie'                  => 'nullable|string|max:50',
-            'numero'                 => 'nullable|string|max:50',
-            'observacion'            => 'nullable|string|max:200',
-            'total'                  => 'required|numeric|min:0',
-            'productos'              => 'required|array|min:1',
-            'productos.*.id_producto' => 'required|integer',
-            'productos.*.cantidad'   => 'required|numeric|min:0.01',
-            'productos.*.costo'      => 'nullable|numeric|min:0',
+            'id_compra'               => 'required|integer',
+            'id_proveedor'            => 'required|integer',
+            'id_tido'                 => 'required|integer',
+            'id_tipo_pago'            => 'nullable|integer',
+            'instrumento_tipo'        => 'nullable|in:EFECTIVO,CUENTA_BANCARIA,TARJETA,BILLETERA_DIGITAL',
+            'instrumento_id'          => 'nullable|integer',
+            'fecha'                   => 'required',
+            'serie'                   => 'nullable|string|max:50',
+            'numero'                  => 'nullable|string|max:50',
+            'observacion'             => 'nullable|string|max:200',
+            'total'                   => 'required|numeric|min:0',
+            'productos'               => 'required|array|min:1',
+            'productos.*.id_producto'  => 'required|integer',
+            'productos.*.cantidad'    => 'required|numeric|min:0.01',
+            'productos.*.costo'       => 'nullable|numeric|min:0',
         ]);
 
         $compra = Compra::where('id_empresa', $this->empresa())->where('id_compra', $data['id_compra'])->first();
@@ -112,8 +118,11 @@ class ComprasApiController extends Controller
         DB::beginTransaction();
         try {
             $compra->update([
-                'id_proveedor' => $data['id_proveedor'], 'id_tido' => $data['id_tido'],
-                'id_tipo_pago' => $data['id_tipo_pago'] ?? 1, 'fecha_emision' => $data['fecha'],
+                'id_proveedor'      => $data['id_proveedor'], 'id_tido' => $data['id_tido'],
+                'id_tipo_pago'      => $data['id_tipo_pago'] ?? 1,
+                'instrumento_tipo'  => $data['instrumento_tipo'] ?? null,
+                'instrumento_id'    => $data['instrumento_id'] ?? null,
+                'fecha_emision'     => $data['fecha'],
                 'fecha_vencimiento' => $data['fecha'], 'direccion' => $data['observacion'] ?? '',
                 'serie' => $data['serie'] ?? '', 'numero' => $data['numero'] ?? '', 'total' => $data['total'],
             ]);

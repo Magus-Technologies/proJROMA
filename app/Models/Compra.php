@@ -13,6 +13,7 @@ class Compra extends Model
         'id_tido','id_tipo_pago','id_proveedor','fecha_emision',
         'fecha_vencimiento','dias_pagos','direccion','serie',
         'numero','total','id_empresa','moneda','sucursal','recepcionado',
+        'instrumento_tipo','instrumento_id',
     ];
 
     protected $casts = ['total'=>'float'];

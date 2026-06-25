@@ -13,6 +13,10 @@ use App\Http\Controllers\Api\MotivoApiController;
 use App\Http\Controllers\Api\SucursalApiController;
 use App\Http\Controllers\Api\TrasladoApiController;
 use App\Http\Controllers\Api\ArqueoApiController;
+use App\Http\Controllers\Api\CajaApiController;
+use App\Http\Controllers\Api\FlujoApiController;
+use App\Http\Controllers\Api\MiCajaApiController;
+use App\Http\Controllers\Api\PagoInstrumentoApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -84,6 +88,35 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
     Route::post('/compras',        [ComprasApiController::class, 'guardar']);
     Route::post('/compras/editar', [ComprasApiController::class, 'editar']);
 
+    // ── Instrumentos de pago (bancos, cuentas, tarjetas, billeteras) ──────
+    Route::prefix('pago-instrumento')->group(function () {
+        Route::get('/bancos',      [PagoInstrumentoApiController::class, 'bancos']);
+        Route::get('/cuentas',     [PagoInstrumentoApiController::class, 'cuentasBancarias']);
+        Route::get('/tarjetas',    [PagoInstrumentoApiController::class, 'tarjetas']);
+        Route::get('/billeteras',  [PagoInstrumentoApiController::class, 'billeteras']);
+        Route::get('/bancos-dt',   [PagoInstrumentoApiController::class, 'bancosDt']);
+        Route::get('/cuentas-dt',  [PagoInstrumentoApiController::class, 'cuentasDt']);
+        Route::get('/tarjetas-dt', [PagoInstrumentoApiController::class, 'tarjetasDt']);
+        Route::get('/billeteras-dt',[PagoInstrumentoApiController::class, 'billeterasDt']);
+        Route::post('/banco',        [PagoInstrumentoApiController::class, 'guardarBanco']);
+        Route::post('/banco/editar', [PagoInstrumentoApiController::class, 'editarBanco']);
+        Route::post('/banco/toggle', [PagoInstrumentoApiController::class, 'toggleBanco']);
+        Route::post('/cuenta',        [PagoInstrumentoApiController::class, 'guardarCuenta']);
+        Route::post('/cuenta/editar', [PagoInstrumentoApiController::class, 'editarCuenta']);
+        Route::post('/cuenta/toggle', [PagoInstrumentoApiController::class, 'toggleCuenta']);
+        Route::post('/tarjeta',        [PagoInstrumentoApiController::class, 'guardarTarjeta']);
+        Route::post('/tarjeta/editar', [PagoInstrumentoApiController::class, 'editarTarjeta']);
+        Route::post('/tarjeta/toggle', [PagoInstrumentoApiController::class, 'toggleTarjeta']);
+        Route::post('/billetera',        [PagoInstrumentoApiController::class, 'guardarBilletera']);
+        Route::post('/billetera/editar', [PagoInstrumentoApiController::class, 'editarBilletera']);
+        Route::post('/billetera/toggle', [PagoInstrumentoApiController::class, 'toggleBilletera']);
+        Route::get('/billetera-tipos',     [PagoInstrumentoApiController::class, 'billeteraTipos']);
+        Route::get('/billetera-tipos-dt',  [PagoInstrumentoApiController::class, 'billeteraTiposDt']);
+        Route::post('/billetera-tipo',        [PagoInstrumentoApiController::class, 'guardarBilleteraTipo']);
+        Route::post('/billetera-tipo/editar', [PagoInstrumentoApiController::class, 'editarBilleteraTipo']);
+        Route::post('/billetera-tipo/toggle', [PagoInstrumentoApiController::class, 'toggleBilleteraTipo']);
+    });
+
     // ── Almacenes (maestro) ──────────────────────────────────────────────────
     Route::prefix('almacenes')->group(function () {
         Route::get('/',        [AlmacenApiController::class, 'listar']);
@@ -147,6 +180,27 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/editar', [SucursalApiController::class, 'editar']);
         Route::post('/toggle', [SucursalApiController::class, 'toggle']);
         Route::post('/borrar', [SucursalApiController::class, 'borrar']);
+    });
+
+    // ── Caja (Registro de ingresos/egresos) ────────────────────────────────
+    Route::prefix('caja')->group(function () {
+        Route::get('/registros',  [CajaApiController::class, 'registros']);
+        Route::post('/ingreso',   [CajaApiController::class, 'ingreso']);
+        Route::post('/egreso',    [CajaApiController::class, 'egreso']);
+    });
+
+    // ── Caja Chica (Flujo) ─────────────────────────────────────────────────
+    Route::prefix('flujo')->group(function () {
+        Route::get('/registros',  [FlujoApiController::class, 'registros']);
+        Route::post('/ingreso',   [FlujoApiController::class, 'ingreso']);
+        Route::post('/egreso',    [FlujoApiController::class, 'egreso']);
+    });
+
+    // ── Mi Caja (por usuario) ──────────────────────────────────────────────
+    Route::prefix('mi-caja')->group(function () {
+        Route::get('/registros',  [MiCajaApiController::class, 'registros']);
+        Route::post('/ingreso',   [MiCajaApiController::class, 'ingreso']);
+        Route::post('/egreso',    [MiCajaApiController::class, 'egreso']);
     });
 
     // ── Arqueo Diario ─────────────────────────────────────────────────────

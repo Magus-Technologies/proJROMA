@@ -125,6 +125,9 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
     });
 
     // ── Reportes ──────────────────────────────────────────────────────────
+    // ── Métodos de pago (Bancos, Cuentas, Tarjetas, Billeteras) ──────────
+    Route::get('/pago-instrumentos', [\App\Http\Controllers\PagoInstrumentoController::class, 'index'])->name('pago.instrumentos');
+
     Route::prefix('reporte')->name('reporte.')->group(function () {
         Route::get('/ventas',               [ReportesController::class, 'ventasPdf'])->name('ventas');
         Route::get('/ventas/vendedor',      [ReportesController::class, 'ventasVendedor'])->name('ventas.vendedor');

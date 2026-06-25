@@ -108,13 +108,12 @@
             </x-nav-group>
 
             <x-nav-group icon="ti ti-cash" label="Cajas"
-                         :active="request()->routeIs('caja.*')">
+                         :active="request()->routeIs('caja.*','pago.*')">
                 <x-nav-link href="{{ route('caja.registros') }}" icon="ti ti-cash" label="Registro de Caja" />
                 <x-nav-link href="{{ route('caja.flujo') }}"     icon="ti ti-coins"         label="Caja Chica" />
                 <x-nav-link href="{{ route('caja.arqueo') }}"    icon="ti ti-calculator"    label="Arqueo Diario" />
-                @if($rol == 3)
-                    <x-nav-link href="{{ route('caja.micaja') }}" icon="ti ti-wallet" label="Mi Caja" />
-                @endif
+                <x-nav-link href="{{ route('caja.micaja') }}" icon="ti ti-wallet" label="Mi Caja" />
+                <x-nav-link href="{{ route('pago.instrumentos') }}" icon="ti ti-credit-card" label="Métodos de Pago" />
             </x-nav-group>
 
             <x-nav-group icon="ti ti-packages" label="Inventario"

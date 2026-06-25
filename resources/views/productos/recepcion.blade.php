@@ -18,7 +18,7 @@
         <x-th>Almacén</x-th>
         <x-th align="center">Ítems</x-th>
         <x-th>Usuario</x-th>
-        <x-th align="center">Detalle</x-th>
+        <x-th align="center">Acciones</x-th>
     </x-slot:thead>
 </x-table>
 
@@ -54,7 +54,10 @@ $(function () {
             { data: 'items', className: 'text-center font-bold' },
             { data: 'usuario', defaultContent: '-' },
             { data: 'id_recepcion', orderable: false, searchable: false, className: 'text-center no-colvis',
-              render: id => `<button onclick="verDetalle(${id})" class="inline-flex items-center gap-1 rounded-lg bg-blue-50 hover:bg-blue-100 px-3 py-1.5 text-[11px] font-semibold text-blue-600"><i class="ti ti-eye"></i> Ver</button>` },
+              render: id => `<div class="flex justify-center gap-1">
+                  <button onclick="event.stopPropagation(); verDetalle(${id})" class="inline-flex items-center gap-1 rounded-lg bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 text-[11px] font-semibold text-blue-600"><i class="ti ti-eye"></i> Ver</button>
+                  <button onclick="event.stopPropagation(); deshacerRecepcion(${id})" class="inline-flex items-center gap-1 rounded-lg bg-red-50 hover:bg-red-100 px-2.5 py-1.5 text-[11px] font-semibold text-red-600"><i class="ti ti-arrow-back-up"></i> Deshacer</button>
+              </div>` },
         ],
         order: [[0, 'desc']],
         rowCallback: row => { row.style.cursor = 'pointer'; },
@@ -68,6 +71,25 @@ $(function () {
         verDetalle(data.id_recepcion);
     });
 });
+
+async function deshacerRecepcion(id) {
+    const { isConfirmed } = await Swal.fire({
+        title: '¿Deshacer esta recepción?',
+        text: 'Se restará del almacén el stock que ingresó esta recepción y se eliminará el documento. La compra volverá a quedar pendiente/parcial.',
+        icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626',
+        cancelButtonText: 'Cancelar', confirmButtonText: 'Sí, deshacer',
+    });
+    if (!isConfirmed) return;
+
+    const d = await apiPost(`${BASE}/api/recepcion/deshacer`, { id });
+    if (d.res) {
+        toastOk('Recepción deshecha.');
+        tablaRec.ajax.reload(null, false);
+        if (tablaDet) tablaDet.clear().draw();
+    } else {
+        toastErr(d.msg || 'No se pudo deshacer la recepción.');
+    }
+}
 
 function verDetalle(id) {
     const url = `${BASE}/api/recepcion/detalle-recepcion?id=${id}`;

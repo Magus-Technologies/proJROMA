@@ -148,6 +148,7 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::get('/detalle-recepcion', [RecepcionApiController::class, 'detalleRecepcion']);
         Route::get('/historial',   [RecepcionApiController::class, 'historial']);
         Route::post('/recepcionar', [RecepcionApiController::class, 'recepcionar']);
+        Route::post('/deshacer',    [RecepcionApiController::class, 'deshacer']);
         Route::post('/eliminar',    [RecepcionApiController::class, 'eliminar']);
     });
 

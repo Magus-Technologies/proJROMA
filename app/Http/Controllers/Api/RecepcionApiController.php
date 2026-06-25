@@ -157,6 +157,75 @@ class RecepcionApiController extends Controller
         }
     }
 
+    /** Revierte el ingreso al almacén de una línea: resta stock + movimiento de salida (Kardex). */
+    private function revertir(int $emp, string $almacen, int $sourceId, int $cant, string $obs, int $uid): void
+    {
+        $source = Producto::where('id_empresa', $emp)->where('id_producto', $sourceId)->first();
+        if (! $source) return;
+
+        $dest = null;
+        if (! empty($source->codigo)) {
+            $dest = Producto::where('id_empresa', $emp)->where('almacen', $almacen)
+                ->where('codigo', $source->codigo)->lockForUpdate()->first();
+        }
+        // Producto sin código que ya estaba en ese almacén (no se clonó)
+        if (! $dest && (string) $source->almacen === (string) $almacen) {
+            $dest = $source;
+        }
+        if (! $dest) return;
+
+        $ant   = (int) $dest->cantidad;
+        $nuevo = max(0, $ant - $cant);
+        $dest->update(['cantidad' => $nuevo]);
+
+        InventarioMovimiento::create([
+            'id_empresa' => $emp, 'almacen' => $almacen, 'id_producto' => $dest->id_producto,
+            'tipo' => 'S', 'id_motivo' => null, 'cantidad' => $cant,
+            'stock_anterior' => $ant, 'stock_nuevo' => $nuevo, 'costo' => null,
+            'observacion' => $obs, 'id_usuario' => $uid, 'fecha' => now(),
+        ]);
+    }
+
+    /** Deshace una recepción: revierte el stock, elimina el documento y recalcula el estado de la compra. */
+    public function deshacer(Request $request): JsonResponse
+    {
+        $request->validate(['id' => 'required|integer']);
+        $emp = $this->empresa();
+        $uid = (int) (auth()->user()->usuario_id ?? 0);
+
+        DB::beginTransaction();
+        try {
+            $rec = DB::table('recepciones')->where('id_empresa', $emp)->where('id_recepcion', $request->id)->lockForUpdate()->first();
+            if (! $rec) {
+                DB::rollBack();
+                return response()->json(['res' => false, 'msg' => 'Recepción no encontrada.'], 404);
+            }
+
+            $detalles = DB::table('recepcion_detalle')->where('id_recepcion', $rec->id_recepcion)->get();
+            foreach ($detalles as $d) {
+                $this->revertir($emp, $rec->almacen, (int) $d->id_producto, (int) $d->cantidad,
+                    "Deshacer recepción #{$rec->id_recepcion} (compra #{$rec->id_compra})", $uid);
+            }
+
+            DB::table('recepcion_detalle')->where('id_recepcion', $rec->id_recepcion)->delete();
+            DB::table('recepciones')->where('id_recepcion', $rec->id_recepcion)->delete();
+
+            // Recalcular estado: 0 pendiente · 2 parcial · 1 completo
+            $totalPedido   = (int) DB::table('productos_compras')->where('id_compra', $rec->id_compra)->sum('cantidad');
+            $totalRecibido = (int) DB::table('recepcion_detalle as rd')->join('recepciones as rc', 'rc.id_recepcion', '=', 'rd.id_recepcion')
+                ->where('rc.id_compra', $rec->id_compra)->sum('rd.cantidad');
+            $estado = ($totalPedido > 0 && $totalRecibido >= $totalPedido) ? 1 : ($totalRecibido > 0 ? 2 : 0);
+            DB::table('compras')->where('id_compra', $rec->id_compra)->update(['recepcionado' => $estado]);
+
+            DB::commit();
+            return response()->json(['res' => true, 'estado' => $estado]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Log::error('Error deshacer recepción: ' . $e->getMessage());
+            return response()->json(['res' => false, 'msg' => 'Error al deshacer la recepción.'], 500);
+        }
+    }
+
     /** Registro de todas las recepciones (documentos) de la empresa. */
     public function registro(): JsonResponse
     {

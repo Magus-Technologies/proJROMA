@@ -136,6 +136,7 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::get('/motivos',   [MovimientoApiController::class, 'motivos']);
         Route::get('/productos', [MovimientoApiController::class, 'productosAlmacen']);
         Route::post('/',         [MovimientoApiController::class, 'guardar']);
+        Route::post('/batch',    [MovimientoApiController::class, 'guardarBatch']);
         Route::post('/traslado', [MovimientoApiController::class, 'traslado']);
         Route::post('/anular',   [MovimientoApiController::class, 'anular']);
     });

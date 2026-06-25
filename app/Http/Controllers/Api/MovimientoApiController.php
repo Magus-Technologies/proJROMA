@@ -31,16 +31,19 @@ class MovimientoApiController extends Controller
         );
     }
 
-    /** Productos que existen en un almacén (para el selector del modal). */
+    /** Productos del catálogo (todos los almacenes) o filtrados por almacén si se pasa ?almacen= */
     public function productosAlmacen(Request $request): JsonResponse
     {
-        $request->validate(['almacen' => 'required']);
+        $query = Producto::where('id_empresa', $this->empresa())
+            ->where('estado', '1')
+            ->orderBy('descripcion');
+
+        if ($request->filled('almacen') && !$request->boolean('todos')) {
+            $query->where('almacen', $request->almacen);
+        }
+
         return response()->json(
-            Producto::where('id_empresa', $this->empresa())
-                ->where('estado', '1')
-                ->where('almacen', $request->almacen)
-                ->orderBy('descripcion')
-                ->get(['id_producto', 'codigo', 'descripcion', 'cantidad', 'costo'])
+            $query->get(['id_producto', 'codigo', 'descripcion', 'cantidad', 'costo', 'almacen'])
         );
     }
 
@@ -152,6 +155,99 @@ class MovimientoApiController extends Controller
             DB::rollBack();
             \Log::error('Error movimiento inventario: ' . $e->getMessage());
             return response()->json(['res' => false, 'msg' => 'Error al registrar el movimiento.'], 500);
+        }
+    }
+
+    /** Guarda múltiples productos en un solo ajuste (batch). Cada producto especifica su nuevo_stock. */
+    public function guardarBatch(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'almacen'      => 'required',
+            'id_motivo'    => 'nullable|integer',
+            'observacion'  => 'nullable|string|max:255',
+            'productos'    => 'required|array|min:1',
+            'productos.*.id_producto' => 'required|integer',
+            'productos.*.nuevo_stock' => 'required|integer|min:0',
+        ]);
+
+        $emp  = $this->empresa();
+        $uid  = (int) (auth()->user()->usuario_id ?? 0);
+        $obs  = trim($data['observacion'] ?? '');
+        $movs = [];
+
+        DB::beginTransaction();
+        try {
+            foreach ($data['productos'] as $item) {
+                    $idProducto = $item['id_producto'];
+                    $nuevo      = (int) $item['nuevo_stock'];
+
+                    // Buscar producto en el almacén destino
+                    $producto = Producto::where('id_empresa', $emp)
+                        ->where('id_producto', $idProducto)
+                        ->where('almacen', $data['almacen'])
+                        ->lockForUpdate()
+                        ->first();
+
+                    // Si no existe en el almacén destino, clonarlo
+                    if (!$producto) {
+                        $origen = Producto::where('id_empresa', $emp)
+                            ->where('id_producto', $idProducto)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if (!$origen) {
+                            DB::rollBack();
+                            return response()->json(['res' => false, 'msg' => "Producto ID {$idProducto} no encontrado."], 404);
+                        }
+
+                        $producto = $origen->replicate();
+                        $producto->almacen  = $data['almacen'];
+                        $producto->cantidad = 0;
+                        $producto->save();
+                        $idProducto = $producto->id_producto;
+                    }
+
+                    $anterior  = (int) $producto->cantidad;
+                    $diferencia = $nuevo - $anterior;
+
+                if ($diferencia === 0) continue; // sin cambio
+
+                $tipo = $diferencia > 0 ? 'I' : 'S';
+                $cant = abs($diferencia);
+
+                if ($tipo === 'S' && $cant > $anterior) {
+                    DB::rollBack();
+                    return response()->json([
+                        'res' => false,
+                        'msg' => "Stock insuficiente para {$producto->descripcion}. Disponible: {$anterior}.",
+                    ], 409);
+                }
+
+                $producto->update(['cantidad' => $nuevo]);
+
+                $movs[] = InventarioMovimiento::create([
+                    'id_empresa'     => $emp,
+                    'almacen'        => $data['almacen'],
+                    'id_producto'    => $idProducto,
+                    'tipo'           => $tipo,
+                    'id_motivo'      => $data['id_motivo'] ?? null,
+                    'cantidad'       => $cant,
+                    'stock_anterior' => $anterior,
+                    'stock_nuevo'    => $nuevo,
+                    'costo'          => null,
+                    'id_proveedor'   => null,
+                    'observacion'    => $obs,
+                    'id_usuario'     => $uid,
+                    'fecha'          => now(),
+                ]);
+            }
+
+            DB::commit();
+            return response()->json(['res' => true, 'count' => count($movs)]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Log::error('Error guardarBatch: ' . $e->getMessage());
+            return response()->json(['res' => false, 'msg' => 'Error al registrar el ajuste múltiple.'], 500);
         }
     }
 

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\VentasApiController;
 use App\Http\Controllers\Api\ClientesApiController;
 use App\Http\Controllers\Api\ProductosApiController;
+use App\Http\Controllers\Api\CatalogoApiController;
 use App\Http\Controllers\Api\ArqueoApiController;
 use Illuminate\Support\Facades\Route;
 
@@ -58,6 +59,15 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/get-one',      [ProductosApiController::class, 'getOne']);
         Route::get('/razon-social',  [ProductosApiController::class, 'porRazonSocial']);
     });
+
+    // ── Catálogo: Categorías / Subcategorías / Marcas / Submarcas ──────────
+    Route::prefix('catalogo')->group(function () {
+        Route::get('/{tipo}',         [CatalogoApiController::class, 'listar']);
+        Route::post('/{tipo}',        [CatalogoApiController::class, 'guardar']);
+        Route::post('/{tipo}/editar', [CatalogoApiController::class, 'editar']);
+        Route::post('/{tipo}/toggle', [CatalogoApiController::class, 'toggle']);
+        Route::post('/{tipo}/borrar', [CatalogoApiController::class, 'borrar']);
+    })->where('tipo', 'categorias|subcategorias|marcas|submarcas');
 
     // ── Arqueo Diario ─────────────────────────────────────────────────────
     Route::prefix('arqueo')->group(function () {

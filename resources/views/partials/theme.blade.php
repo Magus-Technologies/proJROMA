@@ -76,6 +76,11 @@
     @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     .fade-in{animation:fadeIn .3s ease-out}
 
+    /* Indicadores de campo: obligatorio (asterisco pulsante) / opcional (badge) */
+    .req-star{color:#ef4444;margin-left:2px;font-weight:700;display:inline-block;animation:reqPulse 1.6s ease-in-out infinite}
+    @keyframes reqPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.3)}}
+    .opt-badge{margin-left:6px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:#94a3b8;background:#f1f5f9;padding:1px 6px;border-radius:9999px;vertical-align:middle}
+
     /* ═══ TABLAS (DataTables) ═══════════════════════════════════════════════ */
 
     /* Tamaño fijo: la tabla mantiene altura aunque no tenga datos.

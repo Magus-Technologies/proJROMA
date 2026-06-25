@@ -19,9 +19,11 @@
   </div>
 </div>
 
+@once
 @push('scripts')
 <script>
   function abrirModal(id) { document.getElementById(id)?.classList?.replace('hidden','flex'); }
   function cerrarModal(id) { document.getElementById(id)?.classList?.replace('flex','hidden'); }
 </script>
 @endpush
+@endonce

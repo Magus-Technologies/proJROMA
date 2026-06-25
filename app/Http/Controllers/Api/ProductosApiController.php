@@ -16,9 +16,13 @@ class ProductosApiController extends Controller
 
     public function listar(Request $request): mixed
     {
-        $query = Producto::deEmpresa($this->empresa())
-            ->activos()
-            ->when($request->filled('almacenId'), fn($q) => $q->where('almacen', $request->almacenId));
+        $query = Producto::query()
+            ->leftJoin('categorias as cat', 'cat.id_categoria', '=', 'productos.id_categoria')
+            ->leftJoin('marcas as mar', 'mar.id_marca', '=', 'productos.id_marca')
+            ->where('productos.id_empresa', $this->empresa())
+            ->where('productos.estado', '1')
+            ->when($request->filled('almacenId'), fn($q) => $q->where('productos.almacen', $request->almacenId))
+            ->select('productos.*', 'cat.nombre as categoria_nombre', 'mar.nombre as marca_nombre');
         return DataTables::of($query)->make(true);
     }
 
@@ -40,7 +44,8 @@ class ProductosApiController extends Controller
             $request->only(['descripcion','precio','costo','cantidad','codsunat','almacen',
                            'cod_barra','precio2','precio3','precio4','precio_mayor',
                            'precio_menor','peso_bruto','razon_social','ruc','iscbp',
-                           'usar_barra','codigo','precio_unidad']),
+                           'usar_barra','codigo','precio_unidad',
+                           'id_categoria','id_subcategoria','id_marca','id_submarca']),
             [
                 'id_empresa'    => $this->empresa(),
                 'sucursal'      => $this->sucursal(),
@@ -75,6 +80,7 @@ class ProductosApiController extends Controller
                 'costo','cantidad','codsunat','almacen','cod_barra',
                 'precio_mayor','precio_menor','razon_social','ruc',
                 'iscbp','precio_unidad','codigo',
+                'id_categoria','id_subcategoria','id_marca','id_submarca',
             ]));
 
         return response()->json(['res' => true]);
@@ -83,9 +89,25 @@ class ProductosApiController extends Controller
     public function borrar(Request $request): JsonResponse
     {
         $request->validate(['id_producto' => 'required|integer']);
+        $id = (int) $request->id_producto;
+
+        // Validación de integridad: no borrar si está en uso
+        $enUso = [];
+        if (DB::table('productos_ventas')->where('id_producto', $id)->exists())  $enUso[] = 'ventas';
+        if (DB::table('productos_compras')->where('id_producto', $id)->exists()) $enUso[] = 'compras';
+        if (DB::table('productos_cotis')->where('id_producto', $id)->exists())   $enUso[] = 'cotizaciones';
+
+        if ($enUso) {
+            return response()->json([
+                'res' => false,
+                'msg' => 'No se puede eliminar el producto porque tiene ' . implode(', ', $enUso) . ' registradas.',
+            ], 409);
+        }
+
         Producto::deEmpresa($this->empresa())
-            ->where('id_producto', $request->id_producto)
+            ->where('id_producto', $id)
             ->update(['estado' => '0', 'activo' => 0]);
+
         return response()->json(['res' => true]);
     }
 

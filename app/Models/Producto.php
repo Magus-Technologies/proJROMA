@@ -15,6 +15,7 @@ class Producto extends Model
         'precio_mayor','precio_menor','peso_bruto','razon_social','ruc',
         'estado','almacen','precio2','precio3','precio4','precio_unidad',
         'codigo','activo',
+        'id_categoria','id_subcategoria','id_marca','id_submarca',
     ];
 
     protected $casts = [

@@ -100,11 +100,15 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/add',  [ComprasController::class, 'create'])->name('create');
     });
 
-    // ── Almacén / Productos ───────────────────────────────────────────────
+    // ── Inventario ────────────────────────────────────────────────────────
     Route::prefix('almacen')->name('almacen.')->group(function () {
-        Route::get('/productos',            [ProductosController::class, 'index'])->name('index');
-        Route::get('/productos/add',        [ProductosController::class, 'create'])->name('create');
-        Route::get('/intercambio/productos',[ProductosController::class, 'intercambio'])->name('intercambio');
+        Route::get('/productos',     [ProductosController::class, 'index'])->name('index');      // Registro de Productos
+        Route::get('/productos/add', [ProductosController::class, 'create'])->name('create');
+        Route::get('/recepcion',     [ProductosController::class, 'recepcion'])->name('recepcion');// Recepción
+        Route::get('/existencias',   [ProductosController::class, 'almacen'])->name('almacen');   // Almacén
+        Route::get('/kardex',        [ProductosController::class, 'kardex'])->name('kardex');     // Kardex
+        Route::get('/traslado',      [ProductosController::class, 'traslado'])->name('traslado'); // Traslado de Stock
+        Route::get('/prestamos',     [ProductosController::class, 'prestamos'])->name('prestamos');// Préstamos de Productos
     });
 
     // ── Maestros ──────────────────────────────────────────────────────────

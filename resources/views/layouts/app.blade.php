@@ -102,15 +102,15 @@
                 @endif
             </x-nav-group>
 
-            <x-nav-group icon="ti ti-shopping-cart" label="Compras"
-                         :active="request()->routeIs('compras.*')">
-                <x-nav-link href="{{ route('compras.index') }}" icon="ti ti-shopping-cart" label="Compras" />
-            </x-nav-group>
-
-            <x-nav-group icon="ti ti-packages" label="Almacén"
-                         :active="request()->routeIs('almacen.*')">
-                <x-nav-link href="{{ route('almacen.index') }}"       icon="ti ti-packages"        label="Kardex / Productos" />
-                <x-nav-link href="{{ route('almacen.intercambio') }}" icon="ti ti-arrows-exchange" label="Intercambio" />
+            <x-nav-group icon="ti ti-packages" label="Inventario"
+                         :active="request()->routeIs('almacen.*','compras.*')">
+                <x-nav-link href="{{ route('almacen.index') }}"     icon="ti ti-box"              label="Registro de Productos" />
+                <x-nav-link href="{{ route('compras.index') }}"     icon="ti ti-shopping-cart"   label="Compras" />
+                <x-nav-link href="{{ route('almacen.recepcion') }}" icon="ti ti-package-import"  label="Recepción" />
+                <x-nav-link href="{{ route('almacen.almacen') }}"   icon="ti ti-archive"         label="Almacén" />
+                <x-nav-link href="{{ route('almacen.kardex') }}"    icon="ti ti-history"         label="Kardex" />
+                <x-nav-link href="{{ route('almacen.traslado') }}"  icon="ti ti-arrows-exchange" label="Traslado de Stock" />
+                <x-nav-link href="{{ route('almacen.prestamos') }}" icon="ti ti-arrows-left-right" label="Préstamos de Productos" />
             </x-nav-group>
 
             <x-nav-group icon="ti ti-users" label="Maestros"

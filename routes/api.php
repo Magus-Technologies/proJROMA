@@ -80,7 +80,8 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
     })->where('tipo', 'categorias|subcategorias|marcas|submarcas');
 
     // ── Compras ────────────────────────────────────────────────────────────
-    Route::get('/compras', [ComprasApiController::class, 'listar']);
+    Route::get('/compras',  [ComprasApiController::class, 'listar']);
+    Route::post('/compras', [ComprasApiController::class, 'guardar']);
 
     // ── Almacenes (maestro) ──────────────────────────────────────────────────
     Route::prefix('almacenes')->group(function () {

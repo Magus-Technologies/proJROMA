@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Compra;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Facades\DataTables;
 
 class ComprasApiController extends Controller
 {
-    private function empresa(): int { return (int) session('id_empresa'); }
+    private function empresa(): int  { return (int) session('id_empresa'); }
+    private function sucursal(): int { return (int) session('sucursal'); }
 
     public function listar(Request $request): mixed
     {
@@ -25,5 +28,60 @@ class ComprasApiController extends Controller
             ->addColumn('tipo_doc',         fn ($c) => $c->tipoDocumento?->tipo_doc ?? '-')
             ->addColumn('acciones',         fn ($c) => $c->id_compra)
             ->make(true);
+    }
+
+    /** Registra una compra (cabecera + ítems). Queda pendiente de recepción (recepcionado=0). */
+    public function guardar(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'id_proveedor'           => 'required|integer',
+            'id_tido'                => 'required|integer',
+            'id_tipo_pago'           => 'nullable|integer',
+            'fecha'                  => 'required',
+            'serie'                  => 'nullable|string|max:50',
+            'numero'                 => 'nullable|string|max:50',
+            'observacion'            => 'nullable|string|max:200',
+            'total'                  => 'required|numeric|min:0',
+            'productos'              => 'required|array|min:1',
+            'productos.*.id_producto' => 'required|integer',
+            'productos.*.cantidad'   => 'required|numeric|min:0.01',
+            'productos.*.costo'      => 'nullable|numeric|min:0',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $compra = Compra::create([
+                'id_proveedor'      => $data['id_proveedor'],
+                'id_tido'           => $data['id_tido'],
+                'id_tipo_pago'      => $data['id_tipo_pago'] ?? 1,
+                'fecha_emision'     => $data['fecha'],
+                'fecha_vencimiento' => $data['fecha'],
+                'direccion'         => $data['observacion'] ?? '',
+                'serie'             => $data['serie'] ?? '',
+                'numero'            => $data['numero'] ?? '',
+                'total'             => $data['total'],
+                'id_empresa'        => $this->empresa(),
+                'sucursal'          => $this->sucursal(),
+                'moneda'            => 'S',
+                'recepcionado'      => 0,
+            ]);
+
+            foreach ($data['productos'] as $p) {
+                DB::table('productos_compras')->insert([
+                    'id_compra'   => $compra->id_compra,
+                    'id_producto' => $p['id_producto'],
+                    'cantidad'    => $p['cantidad'],
+                    'costo'       => $p['costo'] ?? 0,
+                    'precio'      => $p['costo'] ?? 0,
+                ]);
+            }
+
+            DB::commit();
+            return response()->json(['res' => true, 'id' => $compra->id_compra]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Log::error('Error guardar compra: ' . $e->getMessage());
+            return response()->json(['res' => false, 'msg' => 'Error al registrar la compra.'], 500);
+        }
     }
 }

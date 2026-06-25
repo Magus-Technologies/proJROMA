@@ -12,7 +12,7 @@ class Compra extends Model
     protected $fillable = [
         'id_tido','id_tipo_pago','id_proveedor','fecha_emision',
         'fecha_vencimiento','dias_pagos','direccion','serie',
-        'numero','total','id_empresa','moneda','sucursal',
+        'numero','total','id_empresa','moneda','sucursal','recepcionado',
     ];
 
     protected $casts = ['total'=>'float'];

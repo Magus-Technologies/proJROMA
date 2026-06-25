@@ -10,7 +10,7 @@
             <x-btn color="emerald" icon="ti ti-arrow-up" onclick="abrirIngreso()">Ingreso</x-btn>
             <x-btn color="red" icon="ti ti-arrow-down" onclick="abrirEgreso()">Egreso</x-btn>
         </div>
-        <select x-model="filtroInstr" @change="window.filtrarTabla && window.filtrarTabla()" class="field bg-white text-xs w-48">
+        <select x-model="filtroInstr" @change="window.filtrarTabla && window.filtrarTabla(filtroInstr)" class="field bg-white text-xs w-48">
             <option value="">Todos los métodos</option>
             <option value="EFECTIVO">Efectivo</option>
             <option value="CUENTA_BANCARIA">Cuenta bancaria</option>
@@ -91,8 +91,7 @@ $(function () {
     });
 });
 
-window.filtrarTabla = function () {
-    const val = document.querySelector('[x-data]')?.__x?.$data?.filtroInstr || '';
+window.filtrarTabla = function (val = '') {
     tablaFlujo.ajax.url(BASE + '/api/flujo/registros' + (val ? '?instrumento=' + val : '')).load();
 };
 

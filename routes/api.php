@@ -17,6 +17,10 @@ use App\Http\Controllers\Api\CajaApiController;
 use App\Http\Controllers\Api\FlujoApiController;
 use App\Http\Controllers\Api\MiCajaApiController;
 use App\Http\Controllers\Api\PagoInstrumentoApiController;
+use App\Http\Controllers\Api\CajaMaestroApiController;
+use App\Http\Controllers\Api\CajaInstrumentoApiController;
+use App\Http\Controllers\Api\CajaMovimientoApiController;
+use App\Http\Controllers\Api\RendicionApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -182,25 +186,37 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/borrar', [SucursalApiController::class, 'borrar']);
     });
 
-    // ── Caja (Registro de ingresos/egresos) ────────────────────────────────
-    Route::prefix('caja')->group(function () {
-        Route::get('/registros',  [CajaApiController::class, 'registros']);
-        Route::post('/ingreso',   [CajaApiController::class, 'ingreso']);
-        Route::post('/egreso',    [CajaApiController::class, 'egreso']);
+    // ── Cajas (nuevo maestro) ─────────────────────────────────────────────
+    Route::prefix('cajas')->group(function () {
+        Route::get('/',               [CajaMaestroApiController::class, 'listar']);
+        Route::post('/',              [CajaMaestroApiController::class, 'guardar']);
+        Route::post('/editar',        [CajaMaestroApiController::class, 'editar']);
+        Route::post('/toggle',        [CajaMaestroApiController::class, 'toggle']);
+        Route::get('/opciones',       [CajaMaestroApiController::class, 'opciones']);
     });
 
-    // ── Caja Chica (Flujo) ─────────────────────────────────────────────────
-    Route::prefix('flujo')->group(function () {
-        Route::get('/registros',  [FlujoApiController::class, 'registros']);
-        Route::post('/ingreso',   [FlujoApiController::class, 'ingreso']);
-        Route::post('/egreso',    [FlujoApiController::class, 'egreso']);
+    // ── Caja Movimientos (unificado) ─────────────────────────────────────
+    Route::prefix('caja-movimientos')->group(function () {
+        Route::get('/{idCaja}',       [CajaMovimientoApiController::class, 'listar']);
+        Route::post('/',              [CajaMovimientoApiController::class, 'guardar']);
+        Route::post('/anular',        [CajaMovimientoApiController::class, 'anular']);
     });
 
-    // ── Mi Caja (por usuario) ──────────────────────────────────────────────
-    Route::prefix('mi-caja')->group(function () {
-        Route::get('/registros',  [MiCajaApiController::class, 'registros']);
-        Route::post('/ingreso',   [MiCajaApiController::class, 'ingreso']);
-        Route::post('/egreso',    [MiCajaApiController::class, 'egreso']);
+    // ── Caja Instrumentos ─────────────────────────────────────────────────
+    Route::prefix('caja-instrumentos')->group(function () {
+        Route::get('/{idCaja}',              [CajaInstrumentoApiController::class, 'listar']);
+        Route::get('/disponibles/{idCaja}',  [CajaInstrumentoApiController::class, 'disponibles']);
+        Route::get('/por-caja/{idCaja}',     [CajaInstrumentoApiController::class, 'porCaja']);
+        Route::post('/asignar',              [CajaInstrumentoApiController::class, 'asignar']);
+        Route::post('/quitar',               [CajaInstrumentoApiController::class, 'quitar']);
+    });
+
+    // ── Rendiciones Caja Chica ────────────────────────────────────────────
+    Route::prefix('rendiciones')->group(function () {
+        Route::get('/activa/{idCaja}',    [RendicionApiController::class, 'activa']);
+        Route::post('/solicitar',         [RendicionApiController::class, 'solicitarAprobacion']);
+        Route::post('/aprobar',           [RendicionApiController::class, 'aprobar']);
+        Route::get('/historial/{idCaja}', [RendicionApiController::class, 'historial']);
     });
 
     // ── Arqueo Diario ─────────────────────────────────────────────────────

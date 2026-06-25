@@ -20,7 +20,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
     {{-- Extensiones DataTables: ColReorder · Buttons(colVis) · Responsive --}}
     <link rel="stylesheet" href="https://cdn.datatables.net/colreorder/1.7.0/css/colReorder.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
@@ -109,11 +109,12 @@
 
             <x-nav-group icon="ti ti-cash" label="Cajas"
                          :active="request()->routeIs('caja.*','pago.*')">
-                <x-nav-link href="{{ route('caja.registros') }}" icon="ti ti-cash" label="Registro de Caja" />
-                <x-nav-link href="{{ route('caja.flujo') }}"     icon="ti ti-coins"         label="Caja Chica" />
-                <x-nav-link href="{{ route('caja.arqueo') }}"    icon="ti ti-calculator"    label="Arqueo Diario" />
-                <x-nav-link href="{{ route('caja.micaja') }}" icon="ti ti-wallet" label="Mi Caja" />
-                <x-nav-link href="{{ route('pago.instrumentos') }}" icon="ti ti-credit-card" label="Métodos de Pago" />
+                <x-nav-link href="{{ route('caja.gestion') }}"     icon="ti ti-building-bank" label="Gestión de Cajas" />
+                <x-nav-link href="{{ route('caja.movimientos') }}" icon="ti ti-arrows-exchange" label="Movimientos" />
+                <x-nav-link href="{{ route('caja.rendiciones') }}" icon="ti ti-coins"           label="Caja Chica" />
+                <x-nav-link href="{{ route('caja.arqueo') }}"      icon="ti ti-calculator"      label="Arqueo Diario" />
+                <x-nav-link href="{{ route('caja.micaja') }}"      icon="ti ti-wallet"          label="Mi Caja" />
+                <x-nav-link href="{{ route('pago.instrumentos') }}" icon="ti ti-credit-card"    label="Métodos de Pago" />
             </x-nav-group>
 
             <x-nav-group icon="ti ti-packages" label="Inventario"

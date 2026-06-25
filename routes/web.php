@@ -89,10 +89,11 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
 
     // ── Cajas ─────────────────────────────────────────────────────────────
     Route::prefix('caja')->name('caja.')->group(function () {
-        Route::get('/registros',    [CajaController::class,       'registros'])->name('registros');
-        Route::get('/flujo',        [CajaController::class,       'flujo'])->name('flujo');
-        Route::get('/mi-caja',      [CajaController::class,       'miCaja'])->name('micaja');
-        Route::get('/arqueo-diario',[ArqueoDiarioController::class,'index'])->name('arqueo');
+        Route::get('/gestion',      [\App\Http\Controllers\CajaController::class, 'gestion'])->name('gestion');
+        Route::get('/movimientos/{idCaja?}', [\App\Http\Controllers\CajaController::class, 'movimientos'])->name('movimientos');
+        Route::get('/rendiciones',  [\App\Http\Controllers\CajaController::class, 'rendiciones'])->name('rendiciones');
+        Route::get('/arqueo-diario',[\App\Http\Controllers\ArqueoDiarioController::class,'index'])->name('arqueo');
+        Route::get('/mi-caja',      [\App\Http\Controllers\CajaController::class, 'miCaja'])->name('micaja');
     });
 
     // ── Compras ───────────────────────────────────────────────────────────

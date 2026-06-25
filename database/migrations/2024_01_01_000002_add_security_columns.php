@@ -28,6 +28,8 @@ return new class extends Migration
             }
             if (!Schema::hasColumn('usuarios', 'created_at')) {
                 $table->timestamp('created_at')->nullable();
+            }
+            if (!Schema::hasColumn('usuarios', 'updated_at')) {
                 $table->timestamp('updated_at')->nullable();
             }
         });

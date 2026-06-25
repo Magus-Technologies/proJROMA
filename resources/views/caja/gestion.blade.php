@@ -84,11 +84,19 @@
     </x-modal>
 
     {{-- Modal asignar métodos de pago --}}
+    <style>
+        #md-instrumentos .card { box-shadow: none; border: 1px solid #f1f5f9; }
+        #md-instrumentos .card-header { display: none; }
+        #md-instrumentos .card > div:last-child { padding: .25rem .5rem !important; }
+        #md-instrumentos table.dataTable { font-size: 11px; }
+        #md-instrumentos table.dataTable thead th { padding: 4px 8px; font-size: 10px; }
+        #md-instrumentos table.dataTable tbody td { padding: 4px 8px; }
+    </style>
     <x-modal id="md-instrumentos" title="Asignar Métodos de Pago" size="max-w-xl">
         <input type="hidden" id="md-instr-caja-id">
-        <div class="space-y-3">
-            <div class="grid grid-cols-2 gap-2">
-                <div>
+        <div class="space-y-4">
+            <div class="flex items-end gap-2">
+                <div class="flex-1">
                     <x-label>Método de pago</x-label>
                     <select id="md-instr-tipo" class="field bg-white" onchange="onTipoInstrChange()">
                         <option value="">— Selecciona —</option>
@@ -97,17 +105,15 @@
                         <option value="BILLETERA_DIGITAL">Billetera digital</option>
                     </select>
                 </div>
-                <div id="md-instr-ref-wrap" class="hidden">
+                <div id="md-instr-ref-wrap" class="flex-1 hidden">
                     <x-label id="md-instr-ref-label">Cuenta vinculada</x-label>
                     <select id="md-instr-ref" class="field bg-white">
                         <option value="">— Selecciona —</option>
                     </select>
                 </div>
-            </div>
-            <div class="flex justify-end">
                 <x-btn color="primary" icon="ti ti-plus" onclick="asignarInstrumento()">Agregar</x-btn>
             </div>
-            <x-table id="tblInstr" title="Métodos de pago asignados">
+            <x-table id="tblInstr" :search="false">
                 <x-slot:thead>
                     <x-th>Método de pago</x-th>
                     <x-th align="center">Acción</x-th>
@@ -258,14 +264,15 @@ async function abrirInstrumentos(idCaja) {
 
     if (tblInstr) tblInstr.destroy();
     tblInstr = initDataTable('#tblInstr', {
-        processing: true, serverSide: true,
-        ajax: { url: BASE + '/api/caja-instrumentos/' + idCaja, headers: { 'Accept': 'application/json' } },
+        processing: false, serverSide: false,
+        searching: false, paging: false, info: false, ordering: false,
+        dom: 'rt',
+        ajax: { url: BASE + '/api/caja-instrumentos/' + idCaja, headers: { 'Accept': 'application/json' }, dataSrc: 'data' },
         columns: [
-            { data: 'instrumento_label', defaultContent: '-', searchable: false },
-            { data: 'id', orderable: false, className: 'text-center',
-              render: id => `<button onclick="quitarInstrumento(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600"><i class="ti ti-trash text-sm"></i></button>` },
+            { data: 'instrumento_label', defaultContent: '-' },
+            { data: 'id', className: 'text-center w-12',
+              render: id => `<button onclick="quitarInstrumento(${id})" class="h-6 w-6 inline-flex items-center justify-center rounded-md bg-red-50 hover:bg-red-100 text-red-600"><i class="ti ti-trash text-xs"></i></button>` },
         ],
-        order: [[0, 'asc']],
     });
 
     // Cargar métodos de pago disponibles (efectivo, cuentas para transferencia, billeteras)

@@ -10,8 +10,9 @@ class Empresa extends Model
 
     protected $fillable = [
         'ruc','razon_social','comercial','cod_sucursal','direccion',
-        'email','telefono','estado','password','user_sol','clave_sol',
-        'logo','ubigeo','distrito',
+        'email','telefono','telefono2','telefono3','estado','password',
+        'user_sol','clave_sol','logo','ubigeo','distrito','provincia',
+        'departamento','tipo_impresion','modo','igv','propaganda',
     ];
 
     public function usuarios() { return $this->hasMany(User::class,'id_empresa','id_empresa'); }

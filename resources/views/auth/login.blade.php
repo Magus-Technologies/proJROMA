@@ -154,6 +154,7 @@
     </div>
 
     <script>
+        const BASE_URL = '{{ rtrim(config("app.url"), "/") }}';
         function loginApp() {
             return {
                 form: { user:'', clave:'', sucursal:'1' },
@@ -171,7 +172,7 @@ async submit() {
         // Obtener CSRF token fresco del meta tag
         const token = document.querySelector('meta[name="csrf-token"]')?.content;
 
-	const res = await fetch('{{ config("app.url") }}/login', {
+	const res = await fetch(BASE_URL + '/login', {
 	method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -246,6 +246,9 @@
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
 
 <script>
+    // ── URL base global (sin trailing slash, funciona con subcarpetas) ────
+    const BASE_URL = '{{ rtrim(config("app.url"), "/") }}';
+
     // CSRF global para jQuery AJAX
     $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } });
 

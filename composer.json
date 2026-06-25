@@ -17,7 +17,6 @@
         "spatie/laravel-permission": "^6.10",
         "barryvdh/laravel-dompdf": "^3.1",
         "maatwebsite/excel": "^3.1",
-        "greenter/greenter": "^4.0",
         "guzzlehttp/guzzle": "^7.9",
         "yajra/laravel-datatables-oracle": "^12.0",
         "intervention/image-laravel": "^1.4"

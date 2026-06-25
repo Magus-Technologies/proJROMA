@@ -38,3 +38,7 @@ pnpm-debug.log*
 /public/js
 /public/manifest.json
 /public/env.js
+# Local tooling state
+.atl/
+.pi/
+CODE_GRAPH.md

@@ -155,6 +155,46 @@ class MovimientoApiController extends Controller
         }
     }
 
+    /** Deshace un ajuste manual: revierte el stock y elimina el movimiento. */
+    public function anular(Request $request): JsonResponse
+    {
+        $request->validate(['id' => 'required|integer']);
+        $emp = $this->empresa();
+
+        DB::beginTransaction();
+        try {
+            $mov = InventarioMovimiento::where('id_empresa', $emp)->where('id_movimiento', $request->id)->lockForUpdate()->firstOrFail();
+
+            $motNombre = $mov->id_motivo ? MotivoMovimiento::where('id_motivo', $mov->id_motivo)->value('nombre') : null;
+            if ($motNombre && in_array($motNombre, self::AUTOMATIZADOS)) {
+                DB::rollBack();
+                return response()->json(['res' => false, 'msg' => 'Solo se pueden deshacer ajustes manuales (no compras, ventas ni traslados).'], 409);
+            }
+
+            $p = Producto::where('id_empresa', $emp)->where('id_producto', $mov->id_producto)->lockForUpdate()->firstOrFail();
+            $ant = (int) $p->cantidad;
+            $cant = (int) $mov->cantidad;
+
+            if ($mov->tipo === 'I') {
+                if ($ant < $cant) {
+                    DB::rollBack();
+                    return response()->json(['res' => false, 'msg' => "No se puede deshacer: el stock ya fue utilizado (actual: {$ant})."], 409);
+                }
+                $p->update(['cantidad' => $ant - $cant]);
+            } else {
+                $p->update(['cantidad' => $ant + $cant]);
+            }
+
+            $mov->delete();
+            DB::commit();
+            return response()->json(['res' => true]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Log::error('Error anular ajuste: ' . $e->getMessage());
+            return response()->json(['res' => false, 'msg' => 'Error al deshacer el ajuste.'], 500);
+        }
+    }
+
     /** Traslado entre almacenes: salida del origen + ingreso al destino. */
     public function traslado(Request $request): JsonResponse
     {

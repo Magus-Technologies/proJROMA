@@ -8,6 +8,26 @@
     <i class="ti ti-info-circle"></i> Aquí se registran <strong>ajustes manuales</strong> de stock (cuadres tras conteo físico, mermas, etc.). No son compras, ventas ni traslados.
 </div>
 
+{{-- Tarjetas informativas --}}
+<div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Ajustes</div>
+        <div id="cardTotal" class="mt-1 text-2xl font-bold text-gray-700">0</div>
+    </div>
+    <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Ingresos (+)</div>
+        <div id="cardIng" class="mt-1 text-2xl font-bold text-emerald-600">0</div>
+    </div>
+    <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Salidas (−)</div>
+        <div id="cardSal" class="mt-1 text-2xl font-bold text-red-600">0</div>
+    </div>
+    <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Unidades netas</div>
+        <div id="cardNeto" class="mt-1 text-2xl font-bold text-brand-600">0</div>
+    </div>
+</div>
+
 <x-table id="tblAjustes" title="Ajustes de inventario">
     <x-slot:filters>
         <x-btn color="emerald" icon="ti ti-plus" onclick="abrirAjuste('I')">Ingreso (+)</x-btn>
@@ -23,6 +43,7 @@
         <x-th align="center">Stock ant.</x-th>
         <x-th align="center">Stock nuevo</x-th>
         <x-th>Observación</x-th>
+        <x-th align="center">Acción</x-th>
     </x-slot:thead>
 </x-table>
 
@@ -89,10 +110,32 @@ $(function () {
             { data: 'stock_anterior', className: 'text-center text-gray-500' },
             { data: 'stock_nuevo', className: 'text-center font-semibold' },
             { data: 'observacion', defaultContent: '-', orderable: false },
+            { data: 'id_movimiento', orderable: false, searchable: false, className: 'text-center no-colvis',
+              render: id => `<button onclick="deshacerAjuste(${id})" title="Deshacer ajuste" class="h-7 w-7 flex items-center justify-center rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600"><i class="ti ti-arrow-back-up text-sm"></i></button>` },
         ],
         order: [[0, 'desc']],
+        drawCallback: function () {
+            const data = this.api().rows({ search: 'applied' }).data().toArray();
+            let ing = 0, sal = 0, uIn = 0, uOut = 0;
+            data.forEach(r => {
+                if (r.tipo === 'I') { ing++; uIn += parseInt(r.cantidad || 0); }
+                else { sal++; uOut += parseInt(r.cantidad || 0); }
+            });
+            g('cardTotal').textContent = data.length;
+            g('cardIng').textContent   = ing;
+            g('cardSal').textContent   = sal;
+            g('cardNeto').textContent  = (uIn - uOut);
+        },
     });
 });
+
+async function deshacerAjuste(id) {
+    const { isConfirmed } = await Swal.fire({ title: '¿Deshacer este ajuste?', text: 'Se revertirá el stock.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d97706', confirmButtonText: 'Sí, deshacer', cancelButtonText: 'Cancelar' });
+    if (!isConfirmed) return;
+    const d = await apiPost(`${BASE}/api/movimientos/anular`, { id });
+    if (d.res) { toastOk('Ajuste deshecho.'); tablaAj.ajax.reload(null, false); }
+    else Swal.fire({ icon: 'warning', title: 'No se pudo deshacer', text: d.msg || 'Error.', confirmButtonColor: '#1d4ed8' });
+}
 
 async function abrirAjuste(tipo) {
     g('aj-tipo').value = tipo;

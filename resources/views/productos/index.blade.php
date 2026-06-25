@@ -109,14 +109,14 @@
 {{-- ══ Modal Producto ══ --}}
 <div id="mdProducto" class="fixed inset-0 z-50 hidden items-start justify-center pt-10 px-4">
     <div class="absolute inset-0 bg-black/50" onclick="cerrarModalProd()"></div>
-    <div class="relative z-10 w-full max-w-2xl rounded-2xl bg-white shadow-2xl overflow-hidden">
+    <div class="relative z-10 w-full max-w-4xl rounded-2xl bg-white shadow-2xl overflow-hidden">
         <div class="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-5 py-4">
             <h4 class="text-sm font-semibold text-gray-700" id="mdTitulo">Nuevo Producto</h4>
             <button onclick="cerrarModalProd()" class="text-gray-400 hover:text-gray-600"><i class="ti ti-x"></i></button>
         </div>
-        <div class="p-5 grid grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto">
+        <div class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[75vh] overflow-y-auto">
             <input type="hidden" id="pid">
-            <div class="col-span-2">
+            <div class="col-span-full">
                 <x-label :required="true">Descripción</x-label>
                 <input id="pdesc" type="text" maxlength="245" placeholder="Nombre del producto" class="field">
             </div>

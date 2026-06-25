@@ -97,6 +97,7 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::get('/productos', [MovimientoApiController::class, 'productosAlmacen']);
         Route::post('/',         [MovimientoApiController::class, 'guardar']);
         Route::post('/traslado', [MovimientoApiController::class, 'traslado']);
+        Route::post('/anular',   [MovimientoApiController::class, 'anular']);
     });
 
     // ── Recepción de compras ─────────────────────────────────────────────────

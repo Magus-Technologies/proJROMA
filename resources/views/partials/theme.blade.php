@@ -83,10 +83,8 @@
 
     /* ═══ TABLAS (DataTables) ═══════════════════════════════════════════════ */
 
-    /* Tamaño fijo: la tabla mantiene altura aunque no tenga datos.
-       La paginación (.dt-foot) siempre queda pegada abajo. */
-    .dataTables_wrapper{min-height:480px;display:flex;flex-direction:column}
-    .dataTables_wrapper>.dt-foot{margin-top:auto;padding-top:.5rem;border-top:1px solid #f1f5f9}
+    /* La paginación va justo debajo de las filas (sin bloque blanco extra). */
+    .dataTables_wrapper>.dt-foot{margin-top:.75rem;padding-top:.75rem;border-top:1px solid #f1f5f9}
 
     /* ---- Encabezado y filas (fondo de columnas + filas alternas) ---------- */
     table.dataTable{border-collapse:separate!important;border-spacing:0}

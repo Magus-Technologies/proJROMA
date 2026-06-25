@@ -7,8 +7,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Obtener empresa/sucursal desde caja_empresa_old_schema
-        $combos = DB::table('caja_empresa_old_schema')
+        // Obtener empresa/sucursal desde caja_empresa
+        $combos = DB::table('caja_empresa')
             ->select('id_empresa', 'sucursal')
             ->whereNotNull('id_empresa')
             ->distinct()
@@ -45,8 +45,8 @@ return new class extends Migration
                 'estado'        => 'ACTIVA',
             ]);
 
-            // Migrar caja_empresa_old_schema -> caja_movimientos (Caja Principal)
-            $rows = DB::table('caja_empresa_old_schema')
+            // Migrar caja_empresa -> caja_movimientos (Caja Principal)
+            $rows = DB::table('caja_empresa')
                 ->where('id_empresa', $c->id_empresa)
                 ->where('sucursal', $c->sucursal)
                 ->orderBy('caja_id')

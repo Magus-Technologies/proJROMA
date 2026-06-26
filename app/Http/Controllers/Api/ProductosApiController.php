@@ -57,9 +57,25 @@ class ProductosApiController extends Controller
         $query = DB::query()->fromSub($sub, 'p')
             ->leftJoin('categorias as cat', 'cat.id_categoria', '=', 'p.id_categoria')
             ->leftJoin('marcas as mar', 'mar.id_marca', '=', 'p.id_marca')
-            ->select('p.*', 'cat.nombre as categoria_nombre', 'mar.nombre as marca_nombre');
+            ->select(
+                'p.id_producto',
+                'p.codigo',
+                'p.descripcion',
+                'p.precio',
+                'p.id_categoria',
+                'p.id_marca',
+                'p.medida',
+                'p.imagen',
+                'p.stock_total',
+                'cat.nombre as categoria_nombre',
+                'mar.nombre as marca_nombre'
+            );
 
-        return DataTables::of($query)->make(true);
+        return DataTables::of($query)
+            ->filterColumn('codigo', function ($q, $kw) { $q->where('p.codigo', 'like', "%{$kw}%"); })
+            ->filterColumn('descripcion', function ($q, $kw) { $q->where('p.descripcion', 'like', "%{$kw}%"); })
+            ->filterColumn('precio', function ($q, $kw) { $q->where('p.precio', 'like', "%{$kw}%"); })
+            ->make(true);
     }
 
     public function guardar(Request $request): JsonResponse
@@ -188,6 +204,42 @@ class ProductosApiController extends Controller
         $path = 'uploads/productos/' . $name;
 
         return response()->json(['res' => true, 'path' => $path, 'url' => asset($path)]);
+    }
+
+    public function stockPorAlmacen(string $codigo): JsonResponse
+    {
+        if (str_starts_with($codigo, 'ID-')) {
+            $id = (int) substr($codigo, 3);
+            $ids = collect([$id]);
+        } else {
+            $ids = DB::table('productos')
+                ->where('codigo', $codigo)
+                ->where('id_empresa', $this->empresa())
+                ->pluck('id_producto');
+        }
+
+        if ($ids->isEmpty()) {
+            return response()->json([]);
+        }
+
+        $empresaId = $this->empresa();
+
+        $latest = DB::table('inventario_movimientos as m2')
+            ->select('m2.id_producto', 'm2.almacen', DB::raw('MAX(m2.id_movimiento) as max_id'))
+            ->whereIn('m2.id_producto', $ids)
+            ->where('m2.id_empresa', $empresaId)
+            ->groupBy('m2.id_producto', 'm2.almacen');
+
+        $rows = DB::table('inventario_movimientos as m')
+            ->joinSub($latest, 'latest', fn($j) => $j->on('m.id_movimiento', '=', 'latest.max_id'))
+            ->join('almacenes as a', fn($j) => $j->on('a.codigo', '=', 'm.almacen')->on('a.id_empresa', '=', 'm.id_empresa'))
+            ->where('m.id_empresa', $empresaId)
+            ->select('a.nombre as almacen', DB::raw('SUM(m.stock_nuevo) as stock'))
+            ->groupBy('a.nombre', 'm.almacen')
+            ->orderBy('a.nombre')
+            ->get();
+
+        return response()->json($rows);
     }
 
     public function porRazonSocial(Request $request): JsonResponse

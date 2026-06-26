@@ -4,9 +4,9 @@
 @section('breadcrumb','Cajas / Mi Caja')
 
 @section('content')
-<div x-data="{
+<div id="mc-app" x-data="{
     idCaja: 0, nombre: 'Mi Caja', saldo: 0, cargando: true,
-    esHija: false, balanceCierre: null
+    esHija: false
 }" x-init="cargarMiCaja()">
 
     <template x-if="cargando">
@@ -107,27 +107,7 @@
 
 {{-- Modal Cierre --}}
 <x-modal id="md-cierre" title="Cierre de Caja" size="max-w-md">
-    <div class="space-y-4">
-        <template x-if="balanceCierre">
-            <div>
-                <div class="mb-3 space-y-2 text-xs" x-show="balanceCierre.desglose">
-                    <template x-for="item in balanceCierre.desglose" :key="item.label">
-                        <div class="flex justify-between py-1 border-b border-gray-100">
-                            <span class="text-gray-600" x-text="item.label"></span>
-                            <span class="font-bold" x-text="'S/ ' + item.monto.toFixed(2)"></span>
-                        </div>
-                    </template>
-                    <div class="flex justify-between py-1 text-sm font-bold border-t border-gray-300 mt-2">
-                        <span>Saldo según sistema</span>
-                        <span x-text="'S/ ' + balanceCierre.saldo_sistema.toFixed(2)"></span>
-                    </div>
-                </div>
-                <x-input-group label="Saldo declarado (físico)" :required="true">
-                    <x-input id="mc-saldo-declarado" type="number" step="0.01" min="0" placeholder="0.00" />
-                </x-input-group>
-            </div>
-        </template>
-    </div>
+    <div class="space-y-4" id="md-cierre-body"></div>
     <x-slot:footer>
         <x-btn color="ghost" onclick="cerrarModal('md-cierre')">Cancelar</x-btn>
         <x-btn color="primary" icon="ti ti-lock" onclick="confirmarCierre()">Cerrar caja</x-btn>
@@ -143,8 +123,9 @@ let tblMC, tblCierresMC, miCajaId = 0;
 let alpineCaja;
 
 function cargarMiCaja() {
-    alpineCaja = document.querySelector('[x-data]')?.__x;
-    if (!alpineCaja) return;
+    const el = document.querySelector('#mc-app');
+    if (!el) return;
+    alpineCaja = Alpine.$data(el);
     apiGet(BASE + '/api/cajas/opciones').then(opts => {
         const cajas = opts.cajas || [];
         const usuarioId = {{ auth()->user()->usuario_id ?? 0 }};
@@ -155,11 +136,13 @@ function cargarMiCaja() {
             miCajaId = miCaja.id;
             alpineCaja.idCaja = miCaja.id;
             alpineCaja.nombre = miCaja.nombre;
+            alpineCaja.saldo = parseFloat(miCaja.saldo_actual || 0);
             alpineCaja.esHija = !!miCaja.id_caja_padre;
         }
         alpineCaja.cargando = false;
 
         if (miCajaId) {
+            Alpine.nextTick(() => {
             tblMC = initDataTable('#tblMiCaja', {
                 processing: true, serverSide: true,
                 ajax: { url: BASE + '/api/caja-movimientos/' + miCajaId, headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' } },
@@ -197,6 +180,7 @@ function cargarMiCaja() {
                     { data: 'observaciones', defaultContent: '-', className: 'text-xs' },
                 ],
                 order: [[0, 'desc']],
+            });
             });
         }
     });
@@ -293,13 +277,27 @@ function editarMiMovimiento(id) {
 async function abrirCierre() {
     if (!miCajaId) return;
     const d = await apiGet(BASE + '/api/cierres/balance/' + miCajaId);
-    if (d.res) {
-        alpineCaja.balanceCierre = d;
-        g('mc-saldo-declarado').value = '';
-        abrirModal('md-cierre');
-    } else {
-        toastErr(d.msg || 'Error al obtener balance.');
+    if (!d.res) { toastErr(d.msg || 'Error al obtener balance.'); return; }
+
+    let html = '';
+    if (d.desglose && d.desglose.length) {
+        html += '<div class="mb-3 space-y-2 text-xs">';
+        d.desglose.forEach(item => {
+            html += '<div class="flex justify-between py-1 border-b border-gray-100">' +
+                '<span class="text-gray-600">' + (item.label || '') + '</span>' +
+                '<span class="font-bold">S/ ' + parseFloat(item.monto || 0).toFixed(2) + '</span></div>';
+        });
+        html += '<div class="flex justify-between py-1 text-sm font-bold border-t border-gray-300 mt-2">' +
+            '<span>Saldo según sistema</span>' +
+            '<span>S/ ' + parseFloat(d.saldo_sistema || 0).toFixed(2) + '</span></div>';
+        html += '</div>';
     }
+    html += '<label class="mb-1.5 block text-xs font-semibold text-gray-500">Saldo declarado (físico) <span class="text-red-400">*</span></label>' +
+        '<input id="mc-saldo-declarado" type="number" step="0.01" min="0" placeholder="0.00" class="field w-full" />';
+
+    g('md-cierre-body').innerHTML = html;
+    g('mc-saldo-declarado').value = '';
+    abrirModal('md-cierre');
 }
 
 async function confirmarCierre() {

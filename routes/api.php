@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\ProveedoresApiController;
 use App\Http\Controllers\Api\CajaMaestroApiController;
 use App\Http\Controllers\Api\CajaInstrumentoApiController;
 use App\Http\Controllers\Api\CajaMovimientoApiController;
+use App\Http\Controllers\Api\PagosApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -98,6 +99,7 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/get-one',      [ProductosApiController::class, 'getOne']);
         Route::post('/imagen',       [ProductosApiController::class, 'subirImagen']);
         Route::get('/razon-social',  [ProductosApiController::class, 'porRazonSocial']);
+        Route::get('/stock-almacenes/{codigo}',  [ProductosApiController::class, 'stockPorAlmacen']);
     });
 
     // ── Catálogo: Categorías / Subcategorías / Marcas / Submarcas ──────────
@@ -113,6 +115,15 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
     Route::get('/compras',         [ComprasApiController::class, 'listar']);
     Route::post('/compras',        [ComprasApiController::class, 'guardar']);
     Route::post('/compras/editar', [ComprasApiController::class, 'editar']);
+
+    // ── Pagos / Cuentas por Pagar ──────────────────────────────────────────
+    Route::prefix('pagos')->group(function () {
+        Route::get('/',               [PagosApiController::class, 'listar']);
+        Route::get('/historial',      [PagosApiController::class, 'historial']);
+        Route::post('/registrar',     [PagosApiController::class, 'registrarPago']);
+        Route::post('/editar',        [PagosApiController::class, 'editarPago']);
+        Route::post('/eliminar',      [PagosApiController::class, 'eliminarPago']);
+    });
 
     // ── Cotizaciones ────────────────────────────────────────────────────
     Route::prefix('cotizaciones')->group(function () {

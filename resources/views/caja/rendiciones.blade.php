@@ -4,7 +4,7 @@
 @section('breadcrumb','Cajas / Cierres y Cuadre')
 
 @section('content')
-<div x-data="{
+<div id="vueRendiciones" x-data="{
     modo: 'cuadre',
     idCaja: 0,
     idCajaPadre: 0,
@@ -14,29 +14,23 @@
     consolidado: null,
     balance: null,
     loading: false
-}" x-init="ctrl.alpine = this; cargarCajasPadres()">
+}">
 
-    <div class="mb-4 flex flex-wrap gap-2 items-center">
+    <div class="mb-4 flex flex-nowrap gap-2 items-center">
         <select x-model="modo" @change="cambiarModo()" class="field bg-white text-xs w-40">
             <option value="cuadre">Cuadre (Principal)</option>
             <option value="cierre">Cierre (Hija)</option>
         </select>
 
         <template x-if="modo === 'cuadre'">
-            <select x-model="idCajaPadre" class="field bg-white text-xs min-w-[220px]">
+            <select x-model="idCajaPadre" id="slCajaPadre" class="field bg-white text-xs w-44">
                 <option value="0">— Selecciona caja principal —</option>
-                <template x-for="c in cajasPadres" :key="c.id">
-                    <option :value="c.id" x-text="c.nombre"></option>
-                </template>
             </select>
         </template>
 
         <template x-if="modo === 'cierre'">
-            <select x-model="idCaja" class="field bg-white text-xs min-w-[220px]">
+            <select x-model="idCaja" id="slCajaHija" class="field bg-white text-xs w-44">
                 <option value="0">— Selecciona caja hija —</option>
-                <template x-for="c in cajasHijas" :key="c.id">
-                    <option :value="c.id" x-text="c.nombre"></option>
-                </template>
             </select>
         </template>
 
@@ -169,25 +163,32 @@ let tblCierres;
 function cargarCajasPadres() {
     apiGet(BASE + '/api/cajas/opciones').then(opts => {
         const cajas = opts.cajas || [];
-        const alpine = document.querySelector('[x-data]')?.__x;
-        if (!alpine) return;
-        alpine.cajasPadres = cajas.filter(c => {
-            // Es principal si NO tiene id_caja_padre (y existe al menos una que sí tiene)
-            const tieneHijas = cajas.some(h => h.id_caja_padre == c.id);
-            return !c.id_caja_padre || tieneHijas;
-        });
-        // Si no hay cajas sin padre, mostrar todas como disponibles
-        if (!alpine.cajasPadres.length) alpine.cajasPadres = cajas;
-
-        // Para cierre: todas las que tienen id_caja_padre
-        alpine.cajasHijas = cajas.filter(c => c.id_caja_padre);
-        // Si no hay hijas, mostrar todas
-        if (!alpine.cajasHijas.length) alpine.cajasHijas = cajas;
+        const a = ctrl.alpine;
+        if (!a) return;
+        a.cajasPadres = (() => {
+            const f = cajas.filter(c => {
+                const tieneHijas = cajas.some(h => h.id_caja_padre == c.id);
+                return !c.id_caja_padre || tieneHijas;
+            });
+            return f.length ? f : cajas;
+        })();
+        a.cajasHijas = (() => {
+            const f = cajas.filter(c => c.id_caja_padre);
+            return f.length ? f : cajas;
+        })();
+        poblarSelect('slCajaPadre', a.cajasPadres, '— Selecciona caja principal —');
+        poblarSelect('slCajaHija', a.cajasHijas, '— Selecciona caja hija —');
     });
+}
+function poblarSelect(id, items, placeholder) {
+    const sl = document.getElementById(id);
+    if (!sl) return;
+    sl.innerHTML = '<option value="0">' + placeholder + '</option>'
+        + items.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
 }
 
 const ctrl = {
-    get alpine() { const el = document.querySelector('[x-data]'); return el ? Alpine.$data(el) : null; },
+    get alpine() { const el = document.getElementById('vueRendiciones'); return el ? Alpine.$data(el) : null; },
 
     cambiarModo() {
         const a = this.alpine;
@@ -196,6 +197,10 @@ const ctrl = {
         a.idCajaPadre = 0;
         a.consolidado = null;
         a.balance = null;
+        setTimeout(() => {
+            poblarSelect('slCajaPadre', a.cajasPadres, '— Selecciona caja principal —');
+            poblarSelect('slCajaHija', a.cajasHijas, '— Selecciona caja hija —');
+        }, 200);
     },
 
     async consultar() {
@@ -282,7 +287,8 @@ const ctrl = {
 };
 
 // Exponer funciones al DOM
-window.cargarCajasPadres = ctrl.cargarCajasPadres.bind(ctrl);
+setTimeout(cargarCajasPadres, 100);
+
 window.cambiarModo = ctrl.cambiarModo.bind(ctrl);
 window.consultar = ctrl.consultar.bind(ctrl);
 window.cerrarCaja = ctrl.cerrarCaja.bind(ctrl);

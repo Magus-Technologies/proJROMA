@@ -26,7 +26,7 @@ class ArqueoApiController extends Controller
             ->where('v.id_empresa', $empresa)->where('v.sucursal', $sucursal)->where('dv.estado', '1')
             ->whereDate(DB::raw('IFNULL(dv.fecha_pago_real, dv.fecha)'), $fecha)
             ->selectRaw('IFNULL(dv.id_usuario, v.id_vendedor) as id_usuario, u.usuario, dv.tipo_pago, SUM(dv.monto) as total')
-            ->groupBy('id_usuario', 'u.usuario', 'dv.tipo_pago')->get();
+            ->groupBy(DB::raw('IFNULL(dv.id_usuario, v.id_vendedor)'), 'u.usuario', 'dv.tipo_pago')->get();
 
         $cobrosCC = DB::table('cuotas_cotizacion as cc')
             ->join('cotizaciones as co', 'co.cotizacion_id', '=', 'cc.id_coti')
@@ -34,7 +34,40 @@ class ArqueoApiController extends Controller
             ->where('co.id_empresa', $empresa)->where('co.sucursal', $sucursal)->where('cc.estado', '1')
             ->whereDate(DB::raw('IFNULL(cc.fecha_pago_real, cc.fecha)'), $fecha)
             ->selectRaw('IFNULL(cc.id_usuario, co.id_usuario) as id_usuario, u.usuario, cc.tipo_pago, SUM(cc.monto) as total')
-            ->groupBy('id_usuario', 'u.usuario', 'cc.tipo_pago')->get();
+            ->groupBy(DB::raw('IFNULL(cc.id_usuario, co.id_usuario)'), 'u.usuario', 'cc.tipo_pago')->get();
+
+        $detalleDV = DB::table('dias_ventas as dv')
+            ->join('ventas as v', 'v.id_venta', '=', 'dv.id_venta')
+            ->leftJoin('clientes as c', 'c.id_cliente', '=', 'v.id_cliente')
+            ->leftJoin('usuarios as u', 'u.usuario_id', '=', DB::raw('IFNULL(dv.id_usuario, v.id_vendedor)'))
+            ->where('v.id_empresa', $empresa)->where('v.sucursal', $sucursal)->where('dv.estado', '1')
+            ->whereDate(DB::raw('IFNULL(dv.fecha_pago_real, dv.fecha)'), $fecha)
+            ->selectRaw('IFNULL(dv.id_usuario, v.id_vendedor) as id_usuario, c.datos as cliente, CONCAT(v.serie, \'-\', LPAD(v.numero, 8, \'0\')) as documento, dv.tipo_pago, dv.monto, "Venta" as fuente')
+            ->get();
+
+        $detalleCC = DB::table('cuotas_cotizacion as cc')
+            ->join('cotizaciones as co', 'co.cotizacion_id', '=', 'cc.id_coti')
+            ->leftJoin('clientes as c', 'c.id_cliente', '=', 'co.id_cliente')
+            ->leftJoin('usuarios as u', 'u.usuario_id', '=', DB::raw('IFNULL(cc.id_usuario, co.id_usuario)'))
+            ->where('co.id_empresa', $empresa)->where('co.sucursal', $sucursal)->where('cc.estado', '1')
+            ->whereDate(DB::raw('IFNULL(cc.fecha_pago_real, cc.fecha)'), $fecha)
+            ->selectRaw('IFNULL(cc.id_usuario, co.id_usuario) as id_usuario, c.datos as cliente, co.numero as documento, cc.tipo_pago, cc.monto, "Cotización" as fuente')
+            ->get();
+
+        $detalle = [];
+        foreach ([$detalleDV, $detalleCC] as $col) {
+            foreach ($col as $row) {
+                $uid = $row->id_usuario;
+                if (!isset($detalle[$uid])) $detalle[$uid] = [];
+                $detalle[$uid][] = [
+                    'cliente'   => $row->cliente ?? '-',
+                    'documento' => $row->documento ?? '-',
+                    'tipo_pago' => $row->tipo_pago ?? 'Efectivo',
+                    'monto'     => (float) $row->monto,
+                    'fuente'    => $row->fuente,
+                ];
+            }
+        }
 
         $vendedores = [];
         foreach ([$cobrosDV, $cobrosCC] as $col) {
@@ -44,7 +77,7 @@ class ArqueoApiController extends Controller
                     $vendedores[$uid] = [
                         'usuario_id' => $uid, 'usuario' => $row->usuario ?? 'Sin nombre',
                         'efectivo' => 0.0, 'bancos' => 0.0, 'total' => 0.0,
-                        'pagos_digitales_sistema' => [],
+                        'detalle' => $detalle[$uid] ?? [],
                     ];
                 }
                 $tp = $row->tipo_pago ?? 'Efectivo';

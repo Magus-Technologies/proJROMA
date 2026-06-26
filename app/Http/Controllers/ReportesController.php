@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cotizacion;
 use App\Models\Venta;
 use App\Models\Empresa;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\DocumentoEmpresa;
+use App\Services\PdfService;
 
 class ReportesController extends Controller
 {
@@ -26,21 +28,8 @@ class ReportesController extends Controller
 
         $empresa = $this->getEmpresa() ?? Empresa::find($v->id_empresa);
 
-        // A4 en puntos: 595.28 x 841.89
-        $pdf = Pdf::loadView('pdf.comprobante', compact('v', 'empresa'))
-            ->setPaper([0, 0, 595.28, 841.89], 'portrait')
-            ->setOptions([
-                'isHtml5ParserEnabled' => true,
-                'isRemoteEnabled'      => false,
-                'defaultFont'          => 'sans-serif',
-                'dpi'                  => 96,
-                'margin_top'           => 15,
-                'margin_bottom'        => 15,
-                'margin_left'          => 15,
-                'margin_right'         => 15,
-            ]);
-
-        return $pdf->stream("comprobante-{$v->documento_completo}.pdf");
+        return PdfService::a4()
+            ->generar('pdf.comprobante', compact('v', 'empresa'), "comprobante-{$v->documento_completo}.pdf");
     }
 
     public function comprobanteVentaMa4(int $venta): \Illuminate\Http\Response
@@ -60,20 +49,9 @@ class ReportesController extends Controller
 
         $empresa = $this->getEmpresa() ?? Empresa::find($v->id_empresa);
 
-        $pdf = Pdf::loadView('pdf.voucher8cm', compact('v', 'empresa'))
-            ->setPaper([0, 0, 226.77, 900], 'portrait')
-            ->setOptions([
-                'isHtml5ParserEnabled' => true,
-                'isRemoteEnabled'      => false,
-                'defaultFont'          => 'monospace',
-                'dpi'                  => 96,
-                'margin_top'           => 5,
-                'margin_bottom'        => 5,
-                'margin_left'          => 5,
-                'margin_right'         => 5,
-            ]);
-
-        return $pdf->stream("voucher-{$v->documento_completo}.pdf");
+        return PdfService::ticket()
+            ->setOption('defaultFont', 'monospace')
+            ->generar('pdf.voucher8cm', compact('v', 'empresa'), "voucher-{$v->documento_completo}.pdf");
     }
 
     public function voucher56cm(int $voucher): \Illuminate\Http\Response
@@ -91,7 +69,25 @@ class ReportesController extends Controller
     }
     public function comprobanteCotizacion(int $coti): \Illuminate\Http\Response
     {
-        return response('<h2 style="font-family:Arial;padding:40px">Cotización PDF — En desarrollo</h2>', 200)->header('Content-Type','text/html');
+        $coti = Cotizacion::with([
+            'cliente',
+            'productos.producto',
+            'usuario',
+        ])->findOrFail($coti);
+
+        $empresa = $this->getEmpresa();
+
+        $doc = DocumentoEmpresa::where('id_empresa', session('id_empresa'))
+            ->where('sucursal', session('sucursal'))
+            ->where('id_tido', 6)
+            ->first();
+
+        $documentoCompleto = $doc
+            ? $doc->serie . '-' . str_pad($coti->numero, 8, '0', STR_PAD_LEFT)
+            : 'NV-' . str_pad($coti->numero, 8, '0', STR_PAD_LEFT);
+
+        return PdfService::a4()
+            ->generar('pdf.cotizacion', compact('coti', 'empresa', 'documentoCompleto'), "cotizacion-{$coti->numero}.pdf");
     }
     public function comprobanteCotizacionA4(int $coti): \Illuminate\Http\Response  { return $this->comprobanteCotizacion($coti); }
     public function comprobantePedidos(int $coti): \Illuminate\Http\Response        { return $this->comprobanteCotizacion($coti); }

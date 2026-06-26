@@ -33,6 +33,16 @@ class CotizacionesApiController extends Controller
                 'c.estado',
             ]);
 
+        if ($request->filled('estado')) {
+            $query->where('c.estado', $request->estado);
+        }
+        if ($request->filled('fecha_desde')) {
+            $query->whereDate('c.fecha', '>=', $request->fecha_desde);
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->whereDate('c.fecha', '<=', $request->fecha_hasta);
+        }
+
         return DataTables::of($query)
             ->addColumn('estado', fn ($r) => $r->estado ?? '0')
             ->make(true);
@@ -243,5 +253,90 @@ class CotizacionesApiController extends Controller
         $cuotas = CuotaCotizacion::where('id_coti', $request->id_cotizacion)
             ->with('usuario')->get();
         return response()->json($cuotas);
+    }
+
+    public function convertir(Request $request): JsonResponse
+    {
+        $request->validate([
+            'id_cotizacion' => 'required|integer',
+            'id_tido'       => 'required|integer',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $coti = Cotizacion::with(['productos'])
+                ->deEmpresa($this->empresa())
+                ->findOrFail($request->id_cotizacion);
+
+            if ($coti->estado !== '1') {
+                return response()->json(['res' => false, 'msg' => 'Solo se pueden convertir cotizaciones activas.'], 422);
+            }
+            if ($coti->id_venta) {
+                return response()->json(['res' => false, 'msg' => 'Esta cotización ya fue convertida a venta.'], 422);
+            }
+
+            $tido = DocumentoEmpresa::where('id_empresa', $this->empresa())
+                ->where('sucursal', $this->sucursal())
+                ->where('id_tido', $request->id_tido)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $numero = $tido->numero + 1;
+            $serie = $tido->serie;
+
+            $idVenta = DB::table('ventas')->insertGetId([
+                'id_tido'           => $request->id_tido,
+                'id_tipo_pago'      => $coti->id_tipo_pago,
+                'fecha_emision'     => now()->toDateString(),
+                'fecha_vencimiento' => now()->toDateString(),
+                'dias_pagos'        => $coti->dias_pagos,
+                'direccion'         => $coti->direccion ?? '-',
+                'serie'             => $serie,
+                'numero'            => $numero,
+                'id_cliente'        => $coti->id_cliente,
+                'total'             => $coti->total,
+                'igv'               => round($coti->total - ($coti->total / 1.18), 2),
+                'apli_igv'          => '1',
+                'estado'            => '1',
+                'enviado_sunat'     => '0',
+                'id_empresa'        => $this->empresa(),
+                'sucursal'          => $this->sucursal(),
+                'id_vendedor'       => auth()->id(),
+                'observacion'       => 'Convertido de cotización N° ' . $coti->numero,
+                'pagado'            => '0',
+                'id_coti'           => $coti->cotizacion_id,
+            ]);
+
+            $tido->increment('numero');
+
+            foreach ($coti->productos as $prod) {
+                DB::table('productos_ventas')->insert([
+                    'id_venta'     => $idVenta,
+                    'id_producto'  => $prod->id_producto,
+                    'cantidad'     => $prod->cantidad,
+                    'precio'       => $prod->precio,
+                    'costo'        => $prod->costo ?? 0,
+                    'medida'       => $prod->medida ?? '',
+                    'presenta'     => $prod->presenta ?? '',
+                    'presenta_cnt' => $prod->presenta_cnt ?? 0,
+                ]);
+            }
+
+            $coti->update(['estado' => '3', 'id_venta' => $idVenta]);
+
+            DB::commit();
+
+            $doc = "{$serie}-" . str_pad($numero, 8, '0', STR_PAD_LEFT);
+            return response()->json([
+                'res' => true,
+                'id_venta' => $idVenta,
+                'msg' => "Venta {$doc} generada desde la cotización N° {$coti->numero}.",
+            ]);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Error convertir cotización: ' . $e->getMessage());
+            return response()->json(['res' => false, 'msg' => 'Error al convertir la cotización.'], 500);
+        }
     }
 }

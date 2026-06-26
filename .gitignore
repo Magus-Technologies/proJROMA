@@ -42,3 +42,4 @@ pnpm-debug.log*
 .atl/
 .pi/
 CODE_GRAPH.md
+.specstory

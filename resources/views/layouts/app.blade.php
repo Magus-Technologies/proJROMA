@@ -333,6 +333,72 @@
     });
 </script>
 
+{{-- ══ MODAL PDF GLOBAL ═════════════════════════════════════════════════ --}}
+<div x-data x-show="$store.pdfModal.open" x-cloak
+     class="fixed inset-0 z-50 flex items-center justify-center p-4"
+     style="background:rgba(0,0,0,.6);backdrop-filter:blur(4px)"
+     @keydown.escape.window="$store.pdfModal.close()">
+
+    <div @click.away="$store.pdfModal.close()"
+         class="flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+         style="height:90vh">
+
+        <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3">
+            <div class="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <i class="ti ti-file-text text-blue-600"></i>
+                <span x-text="$store.pdfModal.titulo || 'Documento'"></span>
+            </div>
+            <button @click="$store.pdfModal.close()"
+                    class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
+                <i class="ti ti-x text-lg"></i>
+            </button>
+        </div>
+
+        <div x-show="$store.pdfModal.cargando" class="flex flex-1 items-center justify-center text-sm text-gray-500">
+            <div class="flex items-center gap-3">
+                <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <span>Cargando documento...</span>
+            </div>
+        </div>
+
+        <iframe x-show="!$store.pdfModal.cargando"
+                :src="$store.pdfModal.url"
+                class="flex-1 w-full border-0"
+                style="min-height:0"
+                @load="$store.pdfModal.cargando=false"></iframe>
+    </div>
+</div>
+
 @stack('scripts')
+
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.store('pdfModal', {
+        open: false,
+        url: '',
+        titulo: '',
+        cargando: false,
+        show(url, titulo) {
+            this.url = url;
+            this.titulo = titulo || 'Documento PDF';
+            this.cargando = true;
+            this.open = true;
+        },
+        close() {
+            this.open = false;
+            this.url = '';
+            this.titulo = '';
+        }
+    });
+});
+
+function openPdfModal(url, titulo) {
+    Alpine.store('pdfModal').show(url, titulo);
+}
+</script>
+
 </body>
 </html>

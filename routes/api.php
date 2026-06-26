@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\MiCajaApiController;
 use App\Http\Controllers\Api\PagoInstrumentoApiController;
 use App\Http\Controllers\Api\EmpresaApiController;
 use App\Http\Controllers\Api\CotizacionesApiController;
+use App\Http\Controllers\Api\ProveedoresApiController;
 use App\Http\Controllers\Api\CajaMaestroApiController;
 use App\Http\Controllers\Api\CajaInstrumentoApiController;
 use App\Http\Controllers\Api\CajaMovimientoApiController;
@@ -63,6 +64,15 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/editar',       [ClientesApiController::class, 'editar']);
         Route::post('/borrar',       [ClientesApiController::class, 'borrar']);
         Route::get('/buscar/datos',  [ClientesApiController::class, 'buscarDatos']);
+    });
+
+    // ── Proveedores ──────────────────────────────────────────────────────
+    Route::prefix('proveedores')->group(function () {
+        Route::get('/',              [ProveedoresApiController::class, 'listar']);
+        Route::post('/add',          [ProveedoresApiController::class, 'guardar']);
+        Route::post('/update',       [ProveedoresApiController::class, 'actualizar']);
+        Route::post('/get',          [ProveedoresApiController::class, 'getOne']);
+        Route::post('/delete',       [ProveedoresApiController::class, 'eliminar']);
     });
 
     // ── Empresas (admin) ──────────────────────────────────────────────────
@@ -114,6 +124,7 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/anular',           [CotizacionesApiController::class, 'anular']);
         Route::post('/detalle',          [CotizacionesApiController::class, 'detalle']);
         Route::post('/cuotas',           [CotizacionesApiController::class, 'cuotas']);
+        Route::post('/convertir',        [CotizacionesApiController::class, 'convertir']);
     });
 
     // ── Instrumentos de pago (bancos, cuentas, tarjetas, billeteras) ──────

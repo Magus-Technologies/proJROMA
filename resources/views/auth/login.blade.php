@@ -38,13 +38,10 @@
         {{-- Panel izquierdo (desktop) --}}
         <div class="hidden lg:flex lg:w-1/2 flex-col items-center justify-center px-16">
             <div class="floating mb-10">
-                <div class="flex h-28 w-28 items-center justify-center rounded-3xl bg-white/10 shadow-2xl ring-1 ring-white/20">
-                    <i class="ti ti-ship text-6xl text-white"></i>
+                <div class="flex items-center justify-center rounded-3xl bg-white/95 shadow-2xl ring-1 ring-white/20 px-6 py-4">
+                    <img src="{{ asset('logos/logo.svg') }}" alt="Logo" class="h-20 w-auto">
                 </div>
             </div>
-            <h1 class="text-5xl font-extrabold text-white text-center leading-tight mb-3">
-                Titanic<span class="text-blue-300">SAC</span>
-            </h1>
             <p class="text-blue-200 text-sm text-center max-w-xs mb-10 leading-relaxed">
                 Sistema integrado de ventas, facturación electrónica SUNAT y gestión de almacén.
             </p>

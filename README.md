@@ -1,4 +1,4 @@
-# TitanicSAC — Laravel 13 + PHP 8.3
+# Molitalia — Laravel 13 + PHP 8.3
 
 Sistema de facturación electrónica, ventas y almacén para abarrotes.
 Migrado de PHP 7.4 puro → **Laravel 13 / PHP 8.3** con Tailwind CSS + Alpine.js.
@@ -36,12 +36,12 @@ sudo apt install -y php8.3 php8.3-fpm php8.3-mysql php8.3-mbstring \
 ```bash
 # Opción A: git clone
 cd /var/www/
-git clone https://tu-repo/titanicsac-l13.git titanicsac
-cd titanicsac
+git clone https://tu-repo/molitalia-l13.git molitalia
+cd molitalia
 
 # Opción B: subir ZIP via SFTP y extraer
-unzip titanicsac-l13.zip -d /var/www/titanicsac
-cd /var/www/titanicsac
+unzip molitalia-l13.zip -d /var/www/molitalia
+cd /var/www/molitalia
 ```
 
 ### 3. Instalar dependencias
@@ -60,7 +60,7 @@ php artisan key:generate
 Edita `.env` con tus datos reales:
 
 ```dotenv
-APP_URL=https://titanicsac.com
+APP_URL=https://molitalia.com
 
 DB_DATABASE=magusqao_titanic
 DB_USERNAME=tu_usuario_db
@@ -86,10 +86,10 @@ Si preguntan si deseas crear la tabla `sessions`, responde `yes`.
 ### 6. Permisos de directorios
 
 ```bash
-chown -R www-data:www-data /var/www/titanicsac
-chmod -R 755 /var/www/titanicsac
-chmod -R 775 /var/www/titanicsac/storage
-chmod -R 775 /var/www/titanicsac/bootstrap/cache
+chown -R www-data:www-data /var/www/molitalia
+chmod -R 755 /var/www/molitalia
+chmod -R 775 /var/www/molitalia/storage
+chmod -R 775 /var/www/molitalia/bootstrap/cache
 ```
 
 ### 7. Optimizar para producción
@@ -106,24 +106,24 @@ php artisan optimize
 ```nginx
 server {
     listen 80;
-    server_name titanicsac.com www.titanicsac.com;
+    server_name molitalia.com www.molitalia.com;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name titanicsac.com www.titanicsac.com;
+    server_name molitalia.com www.molitalia.com;
 
-    root /var/www/titanicsac/public;
+    root /var/www/molitalia/public;
     index index.php;
 
-    ssl_certificate     /etc/letsencrypt/live/titanicsac.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/titanicsac.com/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/molitalia.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/molitalia.com/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
     # Logs
-    access_log /var/log/nginx/titanicsac.access.log;
-    error_log  /var/log/nginx/titanicsac.error.log;
+    access_log /var/log/nginx/molitalia.access.log;
+    error_log  /var/log/nginx/molitalia.error.log;
 
     location / {
         try_files $uri $uri/ /index.php?$query_string;
@@ -188,7 +188,7 @@ sudo nginx -t && sudo systemctl reload nginx
 ## 📁 Estructura del proyecto
 
 ```
-titanicsac-l13/
+molitalia-l13/
 ├── app/
 │   ├── Http/
 │   │   ├── Controllers/
@@ -237,7 +237,7 @@ tail -f storage/logs/laravel.log
 
 # Migrar contraseñas sha1 → bcrypt de un usuario específico
 php artisan tinker
->>> $u = \App\Models\User::where('email','admin@titanicsac.com')->first();
+>>> $u = \App\Models\User::where('email','admin@molitalia.com')->first();
 >>> $u->update(['clave' => \Illuminate\Support\Facades\Hash::make('nueva_clave_segura')]);
 
 # Verificar configuración de BD
@@ -253,6 +253,6 @@ php artisan queue:table && php artisan migrate
 
 1. **Cambiar contraseña de BD** — la del sistema original estaba expuesta en config.php
 2. **Cambiar contraseñas SMTP** — igual que arriba
-3. **Configurar SSL** con Let's Encrypt: `certbot --nginx -d titanicsac.com`
+3. **Configurar SSL** con Let's Encrypt: `certbot --nginx -d molitalia.com`
 4. **Verificar PHP 8.3-FPM** esté corriendo: `systemctl status php8.3-fpm`
 5. **Backup automático de BD** — configura un cron diario para `mysqldump`

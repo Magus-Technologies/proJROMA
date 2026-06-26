@@ -32,7 +32,7 @@
                 <div class="flex gap-2">
                     <input id="i1" type="text" maxlength="11" placeholder="8 (DNI) u 11 (RUC) dígitos"
                            class="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                           onkeydown="if(event.key==='Enter'){event.preventDefault();buscarDoc();}"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();buscarDoc();}">
                     <button id="btnBuscar" onclick="buscarDoc()"
                             class="rounded-lg bg-blue-50 hover:bg-blue-100 px-3 text-blue-600 transition" title="Consultar RENIEC / SUNAT">
                         <i id="iconBuscar" class="ti ti-search"></i>

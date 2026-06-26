@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\CajaMaestroApiController;
 use App\Http\Controllers\Api\CajaInstrumentoApiController;
 use App\Http\Controllers\Api\CajaMovimientoApiController;
 use App\Http\Controllers\Api\PagosApiController;
+use App\Http\Controllers\Api\GuiaRemisionApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -77,6 +78,9 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/delete',       [ProveedoresApiController::class, 'eliminar']);
     });
 
+    // ── Consulta RENIEC / SUNAT (compartida entre módulos) ───────────────────
+    Route::get('/consulta/documento', [ProveedoresApiController::class, 'consultarDocumento']);
+
     // ── Empresas (admin) ──────────────────────────────────────────────────
     Route::prefix('empresas')->group(function () {
         Route::get('/',          [EmpresaApiController::class, 'listar']);
@@ -85,7 +89,8 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/editar',   [EmpresaApiController::class, 'editar']);
         Route::post('/toggle',   [EmpresaApiController::class, 'toggle']);
         Route::post('/eliminar', [EmpresaApiController::class, 'eliminar']);
-        Route::post('/buscar-ruc', [EmpresaApiController::class, 'buscarRuc']);
+        Route::post('/buscar-ruc',       [EmpresaApiController::class, 'buscarRuc']);
+        Route::post('/subir-certificado',[EmpresaApiController::class, 'subirCertificado']);
     });
 
     // ── Productos ─────────────────────────────────────────────────────────
@@ -199,6 +204,16 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/recepcionar', [RecepcionApiController::class, 'recepcionar']);
         Route::post('/deshacer',    [RecepcionApiController::class, 'deshacer']);
         Route::post('/eliminar',    [RecepcionApiController::class, 'eliminar']);
+    });
+
+    // ── Guías de Remisión ────────────────────────────────────────────────────
+    Route::prefix('guias')->group(function () {
+        Route::get('/',                [GuiaRemisionApiController::class, 'listar']);
+        Route::get('/buscar-venta',    [GuiaRemisionApiController::class, 'buscarVenta']);
+        Route::post('/cargar-venta',   [GuiaRemisionApiController::class, 'cargarVenta']);
+        Route::post('/add',            [GuiaRemisionApiController::class, 'guardar']);
+        Route::post('/detalle',        [GuiaRemisionApiController::class, 'detalle']);
+        Route::post('/anular',         [GuiaRemisionApiController::class, 'anular']);
     });
 
     // ── Préstamos de productos ───────────────────────────────────────────────

@@ -155,14 +155,17 @@ function abrirModalNuevo() {
 
 async function consultarDoc() {
     const doc = g('cdoc').value.trim();
-    if (doc.length < 8) { toastWarn('Ingresa RUC (11 dígitos) o DNI (8 dígitos).'); return; }
+    if (doc.length !== 8 && doc.length !== 11) { toastWarn('Ingresa RUC (11 dígitos) o DNI (8 dígitos).'); return; }
     try {
-        const data = await apiPost(BASE + '/api/consulta/sn', { doc });
-        if (data.nombre || data.razonSocial) {
-            g('cdatos').value = data.nombre || data.razonSocial || '';
+        const resp = await fetch(`${BASE}/api/consulta/documento?doc=${doc}`, {
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+        });
+        const data = await resp.json();
+        if (data.res) {
+            g('cdatos').value = data.nombre || '';
             g('cdir').value   = data.direccion || '';
-            toastOk('Datos encontrados');
-        } else { toastWarn('No se encontraron datos.'); }
+            toastOk('Datos cargados desde ' + (data.tipo === 'dni' ? 'RENIEC' : 'SUNAT'));
+        } else { toastWarn(data.msg || 'No se encontraron datos.'); }
     } catch { toastWarn('Error al consultar.'); }
 }
 

@@ -102,9 +102,8 @@
             </x-nav-group>
 
             <x-nav-group icon="ti ti-building-bank" label="Pagos"
-                         :active="request()->routeIs('pagos.*','devoluciones.*')">
+                         :active="request()->routeIs('pagos.*')">
                 <x-nav-link href="{{ route('pagos.index') }}"        icon="ti ti-building-bank" label="Cuentas por Pagar" />
-                <x-nav-link href="{{ route('devoluciones.index') }}" icon="ti ti-arrow-back-up" label="Devoluciones" />
             </x-nav-group>
 
             <x-nav-group icon="ti ti-cash" label="Cajas"
@@ -298,6 +297,17 @@
             colReorder: true,
             stateSave: true,
             stateDuration: 60 * 60 * 24 * 30,   // 30 días
+            // Persiste orden/columnas/paginación, pero NO el filtro de búsqueda:
+            // evita volver a una vista con resultados filtrados y el buscador (x-search) vacío.
+            stateLoadParams: function (settings, data) {
+                if (data.search) data.search.search = '';
+                (data.columns || []).forEach(c => { if (c.search) c.search.search = ''; });
+                data.start = 0;
+            },
+            stateSaveParams: function (settings, data) {
+                if (data.search) data.search.search = '';
+                (data.columns || []).forEach(c => { if (c.search) c.search.search = ''; });
+            },
             deferRender: true,
             autoWidth: false,
             pageLength: 25,

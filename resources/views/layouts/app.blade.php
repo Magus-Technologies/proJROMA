@@ -49,7 +49,7 @@
     <aside id="sidebar"
            :class="{
              'w-16': collapsed,
-             'w-64': !collapsed,
+             'w-52': !collapsed,
              '-translate-x-full': !sidebar,
              'translate-x-0': sidebar
            }"

@@ -108,6 +108,25 @@
     </x-modal>
 @endforeach
 
+<style>
+.prod-tab-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    cursor: pointer;
+}
+.prod-tab-btn:hover { color: #374151; }
+.prod-tab-btn.active {
+    color: #7c3aed;
+    border-bottom-color: #7c3aed;
+}
+.prod-tab-content { display: none; }
+.prod-tab-content.active { display: grid; }
+</style>
+
 {{-- ══ Modal Producto ══ --}}
 <div id="mdProducto" class="fixed inset-0 z-50 hidden items-start justify-center pt-10 px-4">
     <div class="absolute inset-0 bg-black/50" onclick="cerrarModalProd()"></div>
@@ -116,105 +135,115 @@
             <h4 class="text-sm font-semibold text-gray-700" id="mdTitulo">Nuevo Producto</h4>
             <button onclick="cerrarModalProd()" class="text-gray-400 hover:text-gray-600"><i class="ti ti-x"></i></button>
         </div>
-        <div class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[75vh] overflow-y-auto">
+        {{-- Tabs internos del modal --}}
+        <div class="flex border-b border-gray-200 bg-gray-50 px-5">
+            <button type="button" class="prod-tab-btn active" data-tab="basica">Información básica</button>
+            <button type="button" class="prod-tab-btn" data-tab="precios">Precios</button>
+            <button type="button" class="prod-tab-btn" data-tab="detalles">Detalles</button>
+            <button type="button" class="prod-tab-btn" data-tab="config">Config. fiscal</button>
+        </div>
+        <div class="p-5 max-h-[65vh] overflow-y-auto">
             <input type="hidden" id="pid">
-            <div class="col-span-full">
-                <x-label :required="true">Descripción</x-label>
-                <input id="pdesc" type="text" maxlength="245" placeholder="Nombre del producto" class="field">
+
+            {{-- ═══ TAB: Información básica ═══ --}}
+            <div class="prod-tab-content active grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" data-tab="basica">
+                <div class="col-span-full">
+                    <x-label :required="true">Descripción</x-label>
+                    <input id="pdesc" type="text" maxlength="245" placeholder="Nombre del producto" class="field">
+                </div>
+                <div>
+                    <x-label :optional="true">Código</x-label>
+                    <input id="pcod" type="text" maxlength="50" class="field">
+                </div>
+                <div>
+                    <x-label :optional="true">Código de Barra</x-label>
+                    <input id="pbarra" type="text" maxlength="100" class="field">
+                </div>
+                <div>
+                    <x-label :optional="true">Categoría</x-label>
+                    <select id="p_categoria" onchange="onProdCatChange()" class="field bg-white"></select>
+                </div>
+                <div>
+                    <x-label :optional="true">Subcategoría</x-label>
+                    <select id="p_subcategoria" class="field bg-white"></select>
+                </div>
+                <div>
+                    <x-label :optional="true">Marca</x-label>
+                    <select id="p_marca" onchange="onProdMarcaChange()" class="field bg-white"></select>
+                </div>
+                <div>
+                    <x-label :optional="true">Submarca</x-label>
+                    <select id="p_submarca" class="field bg-white"></select>
+                </div>
             </div>
 
-            {{-- Clasificación --}}
-            <div>
-                <x-label :optional="true">Categoría</x-label>
-                <select id="p_categoria" onchange="onProdCatChange()" class="field bg-white"></select>
-            </div>
-            <div>
-                <x-label :optional="true">Subcategoría</x-label>
-                <select id="p_subcategoria" class="field bg-white"></select>
-            </div>
-            <div>
-                <x-label :optional="true">Marca</x-label>
-                <select id="p_marca" onchange="onProdMarcaChange()" class="field bg-white"></select>
-            </div>
-            <div>
-                <x-label :optional="true">Submarca</x-label>
-                <select id="p_submarca" class="field bg-white"></select>
-            </div>
-
-            <div>
-                <x-label :optional="true">Código</x-label>
-                <input id="pcod" type="text" maxlength="50" class="field">
-            </div>
-            <div>
-                <x-label :optional="true">Código de Barra</x-label>
-                <input id="pbarra" type="text" maxlength="100" class="field">
-            </div>
-            <div>
-                <x-label :required="true">Precio Venta</x-label>
-                <input id="pprecio" type="number" step="0.01" min="0" placeholder="0.00" class="field">
-            </div>
-            <div>
-                <x-label :optional="true">Costo</x-label>
-                <input id="pcosto" type="number" step="0.01" min="0" placeholder="0.00" class="field">
-            </div>
-            <div>
-                <x-label :optional="true">Precio 2</x-label>
-                <input id="pprecio2" type="number" step="0.01" min="0" placeholder="0.00" class="field">
-            </div>
-            <div>
-                <x-label :optional="true">Precio 3</x-label>
-                <input id="pprecio3" type="number" step="0.01" min="0" placeholder="0.00" class="field">
-            </div>
-            <div>
-                <x-label :optional="true">Stock</x-label>
-                <input id="pcantidad" type="number" step="1" min="0" placeholder="0" class="field">
-            </div>
-            <div>
-                <x-label :optional="true">Almacén</x-label>
-                <select id="palmacen" class="field bg-white"></select>
-            </div>
-            <div>
-                <x-label :optional="true">Unidad de medida</x-label>
-                <input id="pmedida" type="text" maxlength="100" placeholder="UND, KG, LT…" class="field">
-            </div>
-            <div>
-                <x-label :optional="true">Precio por unidad</x-label>
-                <input id="ppreciounidad" type="number" step="0.01" min="0" placeholder="0.00" class="field">
-            </div>
-            <div>
-                <x-label :optional="true">Peso bruto</x-label>
-                <input id="ppeso" type="number" step="0.01" min="0" placeholder="0.00" class="field">
-            </div>
-            <div>
-                <x-label :optional="true">Presentación</x-label>
-                <input id="ppresent" type="text" maxlength="100" placeholder="Caja, Docena…" class="field">
-            </div>
-            <div>
-                <x-label :optional="true">Cant. por presentación</x-label>
-                <input id="pcntpres" type="number" step="0.01" min="0" placeholder="0" class="field">
-            </div>
-            <div>
-                <x-label :optional="true">Código SUNAT</x-label>
-                <input id="psunat" type="text" maxlength="20" placeholder="ZZ" class="field">
-            </div>
-            <div>
-                <x-label :optional="true">Afectación IGV</x-label>
-                <select id="piscbp" class="field bg-white">
-                    <option value="0">Gravado</option>
-                    <option value="1">Exonerado</option>
-                    <option value="2">Inafecto</option>
-                </select>
+            {{-- ═══ TAB: Precios ═══ --}}
+            <div class="prod-tab-content grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" data-tab="precios">
+                <div>
+                    <x-label :required="true">Precio Venta</x-label>
+                    <input id="pprecio" type="number" step="0.01" min="0" placeholder="0.00" class="field">
+                </div>
+                <div>
+                    <x-label :optional="true">Costo</x-label>
+                    <input id="pcosto" type="number" step="0.01" min="0" placeholder="0.00" class="field">
+                </div>
+                <div>
+                    <x-label :optional="true">Precio 2</x-label>
+                    <input id="pprecio2" type="number" step="0.01" min="0" placeholder="0.00" class="field">
+                </div>
+                <div>
+                    <x-label :optional="true">Precio 3</x-label>
+                    <input id="pprecio3" type="number" step="0.01" min="0" placeholder="0.00" class="field">
+                </div>
             </div>
 
-            {{-- Imagen --}}
-            <div class="col-span-full">
-                <x-label :optional="true">Imagen del producto</x-label>
-                <div class="flex items-center gap-3">
-                    <img id="pimg-preview" src="" class="hidden h-16 w-16 rounded-lg border border-gray-200 object-cover">
-                    <input type="file" id="pimg-file" accept="image/*" onchange="subirImagenProd(this)"
-                           class="text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-brand-600 hover:file:bg-brand-100">
-                    <input type="hidden" id="pimagen">
-                    <span id="pimg-status" class="text-[10px] text-gray-400"></span>
+            {{-- ═══ TAB: Detalles ═══ --}}
+            <div class="prod-tab-content grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" data-tab="detalles">
+                <div>
+                    <x-label :optional="true">Unidad de medida</x-label>
+                    <input id="pmedida" type="text" maxlength="100" placeholder="UND, KG, LT…" class="field">
+                </div>
+                <div>
+                    <x-label :optional="true">Precio por unidad</x-label>
+                    <input id="ppreciounidad" type="number" step="0.01" min="0" placeholder="0.00" class="field">
+                </div>
+                <div>
+                    <x-label :optional="true">Peso bruto</x-label>
+                    <input id="ppeso" type="number" step="0.01" min="0" placeholder="0.00" class="field">
+                </div>
+                <div>
+                    <x-label :optional="true">Presentación</x-label>
+                    <input id="ppresent" type="text" maxlength="100" placeholder="Caja, Docena…" class="field">
+                </div>
+                <div>
+                    <x-label :optional="true">Cant. por presentación</x-label>
+                    <input id="pcntpres" type="number" step="0.01" min="0" placeholder="0" class="field">
+                </div>
+            </div>
+
+            {{-- ═══ TAB: Config. fiscal ═══ --}}
+            <div class="prod-tab-content grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" data-tab="config">
+                <div>
+                    <x-label :optional="true">Código SUNAT</x-label>
+                    <input id="psunat" type="text" maxlength="20" placeholder="ZZ" class="field">
+                </div>
+                <div>
+                    <x-label :optional="true">Afectación IGV</x-label>
+                    <select id="piscbp" class="field bg-white">
+                        <option value="0">Gravado</option>
+                        <option value="1">Exonerado</option>
+                        <option value="2">Inafecto</option>
+                    </select>
+                </div>
+                <div class="col-span-full">
+                    <x-label :optional="true">Imagen del producto</x-label>
+                    <div class="flex items-center gap-3">
+                        <img id="pimg-preview" src="" class="hidden h-16 w-16 rounded-lg border border-gray-200 object-cover">
+                        <input type="file" id="pimg-file" accept="image/*" onchange="subirImagenProd(this)"
+                               class="text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-brand-600 hover:file:bg-brand-100">
+                        <input type="hidden" id="pimagen">
+                        <span id="pimg-status" class="text-[10px] text-gray-400"></span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -236,16 +265,8 @@ const g = id => document.getElementById(id);
 
 /* ════════ CATÁLOGO DE PRODUCTOS ════════ */
 $(async function () {
-    await loadAlmacenes();   // solo para el select del modal
     cargarTabla();
 });
-
-// Llena el select de almacén del modal desde el maestro de Almacenes
-async function loadAlmacenes() {
-    const alms = await apiGet(`${BASE}/api/almacenes`, { activos: 1 });
-    g('palmacen').innerHTML = alms.map(a => `<option value="${a.codigo ?? a.id_almacen}">${a.nombre}</option>`).join('')
-                              || '<option value="1">Almacén 1</option>';
-}
 
 function cargarTabla() {
     if (tabla) { tabla.destroy(); $('#tblProductos tbody').empty(); }
@@ -281,6 +302,18 @@ function cargarTabla() {
 }
 
 /* ════════ MODAL PRODUCTO ════════ */
+/* ════════ Tabs internos ════════ */
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.prod-tab-btn');
+    if (!btn) return;
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.prod-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.prod-tab-content').forEach(c => c.classList.remove('active'));
+    const pane = document.querySelector(`.prod-tab-content[data-tab="${tab}"]`);
+    if (pane) pane.classList.add('active');
+});
+
 function abrirModalProd()  { g('mdProducto').classList.replace('hidden','flex'); }
 function cerrarModalProd() { g('mdProducto').classList.replace('flex','hidden'); }
 
@@ -312,9 +345,9 @@ async function onProdMarcaChange(mid = null) {
 
 async function abrirModalNuevo() {
     g('mdTitulo').textContent = 'Nuevo Producto';
-    ['pid','pdesc','pcod','pbarra','pprecio','pcosto','pprecio2','pprecio3','pcantidad','psunat',
+    ['pid','pdesc','pcod','pbarra','pprecio','pcosto','pprecio2','pprecio3','psunat',
      'pmedida','ppreciounidad','ppeso','ppresent','pcntpres','pimagen'].forEach(id => g(id).value = '');
-    g('palmacen').selectedIndex = 0; g('piscbp').value = '0';
+    g('piscbp').value = '0';
     g('pimg-file').value = ''; g('pimg-status').textContent = '';
     g('pimg-preview').classList.add('hidden'); g('pimg-preview').src = '';
     await loadProdClasif();
@@ -326,8 +359,8 @@ async function editarProducto(id) {
     g('mdTitulo').textContent = 'Editar Producto';
     g('pid').value = d.id_producto; g('pdesc').value = d.descripcion || ''; g('pcod').value = d.codigo || '';
     g('pbarra').value = d.cod_barra || ''; g('pprecio').value = d.precio || 0; g('pcosto').value = d.costo || 0;
-    g('pprecio2').value = d.precio2 || 0; g('pprecio3').value = d.precio3 || 0; g('pcantidad').value = d.cantidad || 0;
-    g('palmacen').value = d.almacen || '1'; g('psunat').value = d.codsunat || ''; g('piscbp').value = d.iscbp || 0;
+    g('pprecio2').value = d.precio2 || 0; g('pprecio3').value = d.precio3 || 0;
+    g('psunat').value = d.codsunat || ''; g('piscbp').value = d.iscbp || 0;
 
     await loadProdClasif();
     g('p_categoria').value = d.id_categoria || '';
@@ -353,9 +386,9 @@ async function guardarProducto() {
     const payload = {
         descripcion: desc, precio: parseFloat(prec),
         costo: parseFloat(g('pcosto').value||0), precio2: parseFloat(g('pprecio2').value||0),
-        precio3: parseFloat(g('pprecio3').value||0), cantidad: parseInt(g('pcantidad').value||0),
+        precio3: parseFloat(g('pprecio3').value||0),
         codigo: g('pcod').value, cod_barra: g('pbarra').value,
-        almacen: g('palmacen').value, codsunat: g('psunat').value, iscbp: parseInt(g('piscbp').value),
+        codsunat: g('psunat').value, iscbp: parseInt(g('piscbp').value),
         id_categoria:    g('p_categoria').value    || null,
         id_subcategoria: g('p_subcategoria').value || null,
         id_marca:        g('p_marca').value        || null,

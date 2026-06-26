@@ -311,7 +311,29 @@
             deferRender: true,
             autoWidth: false,
             pageLength: 25,
-            language: { url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' },
+            language: {
+                decimal: ',',
+                thousands: '.',
+                lengthMenu: 'Mostrar _MENU_ registros',
+                zeroRecords: 'No se encontraron resultados',
+                info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+                infoEmpty: 'Mostrando 0 a 0 de 0 registros',
+                infoFiltered: '(filtrado de _MAX_ registros totales)',
+                search: 'Buscar:',
+                paginate: {
+                    first: 'Primero',
+                    last: 'Último',
+                    next: 'Siguiente',
+                    previous: 'Anterior'
+                },
+                loadingRecords: 'Cargando...',
+                processing: 'Procesando...',
+                emptyTable: 'No hay datos disponibles en la tabla',
+                aria: {
+                    sortAscending: ': activar para ordenar ascendente',
+                    sortDescending: ': activar para ordenar descendente'
+                }
+            },
             // El buscador es el componente x-search. Aquí solo: tabla(t) + Show(l)+info(i)+paginación(p)
             dom: 'rt<"dt-foot flex flex-wrap items-center justify-between gap-3 mt-4"<"flex items-center gap-3"li>p>',
         };

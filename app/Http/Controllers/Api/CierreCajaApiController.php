@@ -143,11 +143,13 @@ class CierreCajaApiController extends Controller
         $q = DB::table('cierre_caja as cc')
             ->leftJoin('usuarios as uc', 'uc.usuario_id', '=', 'cc.id_usuario_cierra')
             ->leftJoin('usuarios as ua', 'ua.usuario_id', '=', 'cc.id_usuario_aprueba')
+            ->leftJoin('cajas as c', 'c.id', '=', 'cc.id_caja')
             ->where('cc.id_caja', $idCaja)
             ->select(
                 'cc.*',
-                DB::raw('CONCAT(uc.nombres, " ", uc.apellidos) as usuario_cierra'),
-                DB::raw('COALESCE(CONCAT(ua.nombres, " ", ua.apellidos), "-") as usuario_aprueba')
+                'c.nombre as caja_nombre',
+                DB::raw("COALESCE(NULLIF(CONCAT_WS(' ', uc.nombres, uc.apellidos), ''), '-') as usuario_cierra"),
+                DB::raw("COALESCE(NULLIF(CONCAT_WS(' ', ua.nombres, ua.apellidos), ''), '-') as usuario_aprueba")
             );
 
         return DataTables::of($q->orderByDesc('cc.id'))->make(true);

@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\EmpresaApiController;
 use App\Http\Controllers\Api\CajaMaestroApiController;
 use App\Http\Controllers\Api\CajaInstrumentoApiController;
 use App\Http\Controllers\Api\CajaMovimientoApiController;
+use App\Http\Controllers\Api\PagosApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -102,6 +103,13 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
     Route::get('/compras',         [ComprasApiController::class, 'listar']);
     Route::post('/compras',        [ComprasApiController::class, 'guardar']);
     Route::post('/compras/editar', [ComprasApiController::class, 'editar']);
+
+    // ── Pagos / Cuentas por Pagar ──────────────────────────────────────────
+    Route::prefix('pagos')->group(function () {
+        Route::get('/',               [PagosApiController::class, 'listar']);
+        Route::get('/historial',      [PagosApiController::class, 'historial']);
+        Route::post('/registrar',     [PagosApiController::class, 'registrarPago']);
+    });
 
     // ── Instrumentos de pago (bancos, cuentas, tarjetas, billeteras) ──────
     Route::prefix('pago-instrumento')->group(function () {

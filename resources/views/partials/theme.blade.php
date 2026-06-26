@@ -105,6 +105,7 @@
     .dataTables_wrapper .dataTables_filter input{
         margin:0;border:1px solid #e5e7eb;border-radius:.6rem;
         padding:.45rem .8rem;font-size:12px;min-width:220px;background:#fff;
+        color:#374151!important;-webkit-text-fill-color:#374151!important;
     }
     .dataTables_wrapper .dataTables_filter input::placeholder{color:#9ca3af}
     .dataTables_wrapper .dataTables_filter input:focus{

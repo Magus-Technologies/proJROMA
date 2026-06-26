@@ -137,7 +137,7 @@ $(async function () {
               render: id => `<button onclick="verHistorial(${id})" title="Historial" class="h-7 w-7 inline-flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600"><i class="ti ti-history text-sm"></i></button>
                              <button onclick="registrarPago(${id})" title="Pagar" class="h-7 w-7 inline-flex items-center justify-center rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600"><i class="ti ti-cash text-sm"></i></button>` },
         ],
-        order: [[3, 'asc']],
+        order: [[4, 'desc']],
         pageLength: 25,
         language: { url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' },
         dom: '<"flex flex-wrap gap-2 items-center justify-between mb-4"lf>t<"flex flex-wrap gap-2 items-center justify-between mt-4"ip>',

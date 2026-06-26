@@ -255,6 +255,28 @@
         </div>
     </div>
 </div>
+
+{{-- ══ Modal: Stock por almacén ══ --}}
+<div id="mdStockAlmacen" class="fixed inset-0 z-50 hidden items-center justify-center px-4">
+    <div class="absolute inset-0 bg-black/50" onclick="cerrarModal('mdStockAlmacen')"></div>
+    <div class="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-5 py-4">
+            <h4 class="text-sm font-semibold text-gray-700">Stock por almacén</h4>
+            <button onclick="cerrarModal('mdStockAlmacen')" class="text-gray-400 hover:text-gray-600"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="p-5 max-h-[60vh] overflow-y-auto">
+            <div id="stockAlmacenLoading" class="text-center py-8 text-gray-400 text-sm">Cargando…</div>
+            <div id="stockAlmacenEmpty" class="hidden text-center py-8 text-gray-400 text-sm">Sin movimientos de stock.</div>
+            <table id="tblStockAlmacen" class="hidden w-full text-left text-xs">
+                <thead><tr class="border-b border-gray-100 text-gray-500"><th class="pb-2 font-semibold">Almacén</th><th class="pb-2 font-semibold text-right">Stock</th></tr></thead>
+                <tbody id="stockAlmacenBody"></tbody>
+            </table>
+        </div>
+        <div class="flex justify-end border-t border-gray-100 bg-gray-50 px-5 py-3">
+            <button onclick="cerrarModal('mdStockAlmacen')" class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50">Cerrar</button>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -283,14 +305,21 @@ function cargarTabla() {
               render: v => v
                   ? `<img src="${BASE}/${v}" class="inline-block h-9 w-9 rounded object-cover">`
                   : '<span class="text-gray-300"><i class="ti ti-photo text-lg"></i></span>' },
-            { data:'codigo', defaultContent:'-' },
-            { data:'descripcion', responsivePriority:1 },
+            { data:'codigo', name:'p.codigo', defaultContent:'-' },
+            { data:'descripcion', name:'p.descripcion', responsivePriority:1 },
             { data:'medida', defaultContent:'-', orderable:false, searchable:false, className:'text-center' },
             { data:'categoria_nombre', defaultContent:'-', orderable:false, searchable:false },
             { data:'marca_nombre', defaultContent:'-', orderable:false, searchable:false },
-            { data:'precio', className:'text-right', render: v => 'S/ ' + parseFloat(v||0).toFixed(2) },
+            { data:'precio', name:'p.precio', className:'text-right', render: v => 'S/ ' + parseFloat(v||0).toFixed(2) },
             { data:'stock_total', className:'text-center font-bold', searchable:false,
-              render: v => `<span class="${parseInt(v)<=5?'text-red-600':'text-emerald-600'}">${v ?? 0}</span>` },
+              render: (v, t, row) => {
+                const cls = parseInt(v)<=5 ? 'text-red-600' : 'text-emerald-600';
+                return `<span class="${cls}">${v ?? 0}</span>
+                  <button onclick="verStockAlmacenes('${row.codigo||row.id_producto}')" title="Ver stock por almacén"
+                    class="ml-1.5 inline-flex h-5 w-5 items-center justify-center rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                    <i class="ti ti-building-warehouse text-xs"></i>
+                  </button>`;
+              }},
             { data:'id_producto', orderable:false, searchable:false, responsivePriority:2, className:'text-center no-colvis',
               render: id => `<div class="flex justify-center gap-1">
                 <button onclick="editarProducto(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600"><i class="ti ti-pencil text-sm"></i></button>
@@ -299,6 +328,23 @@ function cargarTabla() {
         ],
         order:[[1,'asc']],
     });
+}
+
+/* ════════ STOCK POR ALMACÉN ════════ */
+async function verStockAlmacenes(idProducto) {
+    const loading = g('stockAlmacenLoading'), empty = g('stockAlmacenEmpty'), table = g('tblStockAlmacen'), body = g('stockAlmacenBody');
+    loading.classList.remove('hidden'); empty.classList.add('hidden'); table.classList.add('hidden'); body.innerHTML = '';
+    abrirModal('mdStockAlmacen');
+    const rows = await apiGet(`${BASE}/api/productos/stock-almacenes/${idProducto}`);
+    loading.classList.add('hidden');
+    if (!rows.length) { empty.classList.remove('hidden'); return; }
+    rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-gray-50';
+        tr.innerHTML = `<td class="py-2.5 text-gray-700">${r.almacen}</td><td class="py-2.5 text-right font-bold text-gray-800">${r.stock}</td>`;
+        body.appendChild(tr);
+    });
+    table.classList.remove('hidden');
 }
 
 /* ════════ MODAL PRODUCTO ════════ */

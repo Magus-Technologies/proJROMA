@@ -89,6 +89,7 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/get-one',      [ProductosApiController::class, 'getOne']);
         Route::post('/imagen',       [ProductosApiController::class, 'subirImagen']);
         Route::get('/razon-social',  [ProductosApiController::class, 'porRazonSocial']);
+        Route::get('/stock-almacenes/{codigo}',  [ProductosApiController::class, 'stockPorAlmacen']);
     });
 
     // ── Catálogo: Categorías / Subcategorías / Marcas / Submarcas ──────────

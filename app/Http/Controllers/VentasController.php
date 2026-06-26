@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Empresa;
 use App\Models\Venta;
 use App\Models\DocumentoEmpresa;
 
@@ -42,6 +43,10 @@ class VentasController extends Controller
         return view('ventas.editar-servicio', compact('venta'));
     }
 
-    public function notaElectronica(): \Illuminate\View\View     { return view('ventas.nota-electronica'); }
+    public function notaElectronica(): \Illuminate\View\View
+    {
+        $empresa = Empresa::find($this->empresa());
+        return view('ventas.nota-electronica', compact('empresa'));
+    }
     public function notaElectronicaLista(): \Illuminate\View\View{ return view('ventas.nota-electronica-lista'); }
 }

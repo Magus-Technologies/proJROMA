@@ -54,7 +54,7 @@ class PdfService
 
     public function generar(string $view, array $data, string $filename): Response
     {
-        $pdf = Pdf::loadView($view, $data)
+        $pdf = Pdf::loadView($view, $data + ['logoBase64' => $this->logoBase64()])
             ->setPaper($this->paper, $this->orientation)
             ->setOptions($this->options);
 
@@ -63,11 +63,18 @@ class PdfService
 
     public function descargar(string $view, array $data, string $filename): Response
     {
-        $pdf = Pdf::loadView($view, $data)
+        $pdf = Pdf::loadView($view, $data + ['logoBase64' => $this->logoBase64()])
             ->setPaper($this->paper, $this->orientation)
             ->setOptions($this->options);
 
         return $pdf->download($filename);
+    }
+
+    private function logoBase64(): string
+    {
+        $path = public_path('logos/logo.svg');
+        if (!file_exists($path)) return '';
+        return 'data:image/svg+xml;base64,' . base64_encode(file_get_contents($path));
     }
 
     public static function a4(): static

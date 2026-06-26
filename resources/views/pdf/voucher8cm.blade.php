@@ -23,6 +23,9 @@
 </head>
 <body>
 
+@if(!empty($logoBase64))
+<div style="text-align:center;margin-bottom:4px"><img src="{{ $logoBase64 }}" style="max-height:40px;max-width:160px;"></div>
+@endif
 <div class="empresa-nom">{{ $empresa?->razon_social ?? 'EMPRESA' }}</div>
 <div class="center" style="font-size:8px">RUC: {{ $empresa?->ruc ?? '-' }}</div>
 <div class="center" style="font-size:8px">{{ $empresa?->direccion ?? '' }}</div>

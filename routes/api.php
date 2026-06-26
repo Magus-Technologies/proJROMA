@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\CajaInstrumentoApiController;
 use App\Http\Controllers\Api\CajaMovimientoApiController;
 use App\Http\Controllers\Api\PagosApiController;
 use App\Http\Controllers\Api\GuiaRemisionApiController;
+use App\Http\Controllers\Api\NotaElectronicaApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -204,6 +205,16 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/recepcionar', [RecepcionApiController::class, 'recepcionar']);
         Route::post('/deshacer',    [RecepcionApiController::class, 'deshacer']);
         Route::post('/eliminar',    [RecepcionApiController::class, 'eliminar']);
+    });
+
+    // ── Notas Electrónicas (Crédito / Débito) ───────────────────────────────
+    Route::prefix('notas')->group(function () {
+        Route::get('/',                [NotaElectronicaApiController::class, 'listar']);
+        Route::get('/buscar-venta',    [NotaElectronicaApiController::class, 'buscarVenta']);
+        Route::post('/cargar-venta',   [NotaElectronicaApiController::class, 'cargarVenta']);
+        Route::post('/add',            [NotaElectronicaApiController::class, 'guardar']);
+        Route::post('/enviar-sunat',   [NotaElectronicaApiController::class, 'enviarSunat']);
+        Route::post('/anular',         [NotaElectronicaApiController::class, 'anular']);
     });
 
     // ── Guías de Remisión ────────────────────────────────────────────────────

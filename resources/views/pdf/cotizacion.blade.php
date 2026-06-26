@@ -39,17 +39,16 @@
         <table style="width: 100%; margin-bottom: 20px; border-collapse: collapse;">
             <tr>
                 <td style="width: 63%; vertical-align: top; text-align: left; padding-right: 15px;">
-                    <div style="font-size: 15pt; font-weight: bold; color: #dc2626; line-height: 1.1; margin-top: 5px;">
+                    @if(!empty($logoBase64))
+                    <img src="{{ $logoBase64 }}" style="max-height:65px;max-width:200px;margin-bottom:6px;display:block;">
+                    @endif
+                    <div style="font-size: 14pt; font-weight: bold; color: #dc2626; line-height: 1.1;">
                         {{ $empresa->razon_social ?? 'EMPRESA' }}
                     </div>
-                    <div style="font-size: 8pt; color: #000; margin-bottom: 2px; font-weight: bold; margin-top: 8px;">
-                        {{ $empresa->direccion ?? '' }}
-                    </div>
-                    <div style="font-size: 8pt; color: #000; margin-bottom: 2px;">
-                        <span style="font-weight: bold;">TELEF.:</span> {{ $empresa->telefono ?? '' }}
-                    </div>
-                    <div style="font-size: 8pt; color: #000;">
-                        <span style="font-weight: bold;">Correo:</span> {{ $empresa->email ?? '' }}
+                    <div style="font-size: 8pt; color: #555; margin-top: 5px; line-height: 1.6;">
+                        {{ $empresa->direccion ?? '' }}<br>
+                        @if($empresa->telefono ?? '')<span style="font-weight:bold;">TELEF.:</span> {{ $empresa->telefono }}<br>@endif
+                        @if($empresa->email ?? '')<span style="font-weight:bold;">Correo:</span> {{ $empresa->email }}@endif
                     </div>
                 </td>
                 <td style="width: 37%; vertical-align: top; text-align: right; padding: 0;">
@@ -195,15 +194,7 @@
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
             <tr>
                 <!-- Left side: Info -->
-                <td style="width: 55%; vertical-align: top; padding-right: 10px;">
-                    @if($coti->estado === '0')
-                        <span class="badge-estado badge-anulada" style="margin-bottom: 8px;">ANULADA</span><br>
-                    @elseif($coti->estado === '3')
-                        <span class="badge-estado badge-facturada" style="margin-bottom: 8px;">FACTURADA</span><br>
-                    @else
-                        <span class="badge-estado badge-activa" style="margin-bottom: 8px;">ACTIVA</span><br>
-                    @endif
-                </td>
+                <td style="width: 55%; vertical-align: top; padding-right: 10px;"></td>
 
                 <!-- Right side: Totals -->
                 <td style="width: 45%; vertical-align: top;">

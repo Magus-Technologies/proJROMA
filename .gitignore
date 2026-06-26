@@ -43,3 +43,5 @@ pnpm-debug.log*
 .pi/
 CODE_GRAPH.md
 .specstory
+.codegraph
+.cursor

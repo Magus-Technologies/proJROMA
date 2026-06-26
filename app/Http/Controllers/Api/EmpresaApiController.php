@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Yajra\DataTables\Facades\DataTables;
 
 class EmpresaApiController extends Controller
@@ -122,6 +123,36 @@ class EmpresaApiController extends Controller
 
         $empresa->delete();
         return response()->json(['res' => true]);
+    }
+
+    public function subirCertificado(Request $request): JsonResponse
+    {
+        $request->validate([
+            'id_empresa'  => 'required|integer',
+            'certificado' => 'required|file|max:512',
+        ]);
+
+        $empresa = Empresa::findOrFail($request->id_empresa);
+        $apiUrl  = config('sunat.api_url');
+
+        try {
+            $response = Http::attach(
+                'certificado',
+                $request->file('certificado')->getContent(),
+                $empresa->ruc . '.pem'
+            )->post("{$apiUrl}/v1/guardar/certificado/{$empresa->ruc}");
+
+            $body = $response->json();
+
+            if ($response->successful() && ($body['estado'] ?? false)) {
+                return response()->json(['res' => true, 'msg' => 'Certificado subido correctamente.']);
+            }
+
+            return response()->json(['res' => false, 'msg' => $body['mensaje'] ?? 'Error al subir el certificado.'], 422);
+
+        } catch (\Throwable $e) {
+            return response()->json(['res' => false, 'msg' => 'No se pudo conectar con el servicio SUNAT.'], 500);
+        }
     }
 
     public function buscarRuc(Request $request): JsonResponse

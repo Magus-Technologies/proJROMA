@@ -9,10 +9,13 @@
 <x-alert type="error" />
 
 <div class="mb-4 flex flex-wrap gap-2">
-    <button onclick="abrirModalNuevo()"
-            class="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition">
+    <button id="btnNuevaEmpresa" onclick="abrirModalNuevo()"
+            class="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2 text-xs font-semibold text-white shadow-sm transition">
         <i class="ti ti-plus"></i> Nueva Empresa
     </button>
+    <span id="btnNuevaEmpresaHint" class="hidden items-center text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+        <i class="ti ti-info-circle mr-1"></i> Solo puede existir una empresa registrada.
+    </span>
 </div>
 
 <x-table id="tblEmpresas" title="Lista de Empresas">
@@ -124,6 +127,23 @@
             </div>
         </fieldset>
 
+        {{-- Certificado Digital (solo al editar) --}}
+        <fieldset id="fsCertificado" class="hidden">
+            <legend class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Certificado Digital (.pem)</legend>
+            <div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 space-y-3">
+                <p class="text-xs text-gray-500">Subí el certificado digital en formato <strong>.pem</strong> para habilitar la firma electrónica de comprobantes SUNAT.</p>
+                <div class="flex items-center gap-3">
+                    <input type="file" id="f_certificado" accept=".pem,.pfx,.p12"
+                           class="flex-1 text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    <button type="button" onclick="subirCertificado()"
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3 py-2 text-xs font-semibold text-white transition">
+                        <i class="ti ti-upload"></i> Subir
+                    </button>
+                </div>
+                <p id="certEstado" class="text-xs text-gray-400 hidden"></p>
+            </div>
+        </fieldset>
+
         {{-- Configuración --}}
         <fieldset>
             <legend class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Configuración</legend>
@@ -183,6 +203,20 @@ $(function () {
         ajax: {
             url: BASE + '/api/empresas',
             headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+            dataSrc: function(json) {
+                const btn  = document.getElementById('btnNuevaEmpresa');
+                const hint = document.getElementById('btnNuevaEmpresaHint');
+                if (json.recordsTotal >= 1) {
+                    btn.disabled = true;
+                    hint.classList.remove('hidden');
+                    hint.classList.add('inline-flex');
+                } else {
+                    btn.disabled = false;
+                    hint.classList.add('hidden');
+                    hint.classList.remove('inline-flex');
+                }
+                return json.data;
+            },
         },
         columns: [
             { data: 'ruc' },
@@ -211,6 +245,7 @@ function abrirModalNuevo() {
     document.getElementById('f_tipo_impresion').value = '1';
     const estado = document.getElementById('f_estado');
     if (estado) estado.checked = true;
+    document.getElementById('fsCertificado').classList.add('hidden');
     abrirModal('mdEmpresa');
 }
 
@@ -301,6 +336,9 @@ async function editar(id) {
     document.getElementById('f_propaganda').value = d.propaganda || '';
     const estado = document.getElementById('f_estado');
     if (estado) estado.checked = d.estado === '1';
+    document.getElementById('fsCertificado').classList.remove('hidden');
+    document.getElementById('f_certificado').value = '';
+    document.getElementById('certEstado').classList.add('hidden');
     abrirModal('mdEmpresa');
 }
 
@@ -310,6 +348,40 @@ async function toggle(id) {
         toastOk(d.estado === '1' ? 'Empresa activada.' : 'Empresa desactivada.');
         t.ajax.reload(null, false);
     } else { toastErr(d.msg || 'Error.'); }
+}
+
+async function subirCertificado() {
+    const id   = document.getElementById('f_id').value;
+    const file = document.getElementById('f_certificado').files[0];
+    const statusEl = document.getElementById('certEstado');
+
+    if (!id)   { toastWarn('Guardá la empresa primero.'); return; }
+    if (!file) { toastWarn('Seleccioná un archivo .pem.'); return; }
+
+    statusEl.textContent = 'Subiendo certificado...';
+    statusEl.className   = 'text-xs text-blue-500';
+    statusEl.classList.remove('hidden');
+
+    const form = new FormData();
+    form.append('id_empresa',  id);
+    form.append('certificado', file);
+    form.append('_token',      '{{ csrf_token() }}');
+
+    try {
+        const resp = await fetch(BASE + '/api/empresas/subir-certificado', { method: 'POST', body: form });
+        const d    = await resp.json();
+        if (d.res) {
+            statusEl.textContent = '✓ ' + d.msg;
+            statusEl.className   = 'text-xs text-emerald-600';
+            document.getElementById('f_certificado').value = '';
+        } else {
+            statusEl.textContent = '✗ ' + (d.msg || 'Error al subir.');
+            statusEl.className   = 'text-xs text-red-500';
+        }
+    } catch {
+        statusEl.textContent = '✗ Error de conexión.';
+        statusEl.className   = 'text-xs text-red-500';
+    }
 }
 
 async function eliminar(id) {

@@ -6,11 +6,92 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Yajra\DataTables\Facades\DataTables;
 
 class ProveedoresApiController extends Controller
 {
     private function empresa(): int { return (int) session('id_empresa'); }
+
+    public function consultarDocumento(Request $request): JsonResponse
+    {
+        $doc = trim($request->query('doc', ''));
+
+        if (strlen($doc) === 8) {
+            return $this->consultarDni($doc);
+        }
+
+        if (strlen($doc) === 11) {
+            return $this->consultarRuc($doc);
+        }
+
+        return response()->json(['res' => false, 'msg' => 'Ingresá 8 dígitos (DNI) o 11 dígitos (RUC).'], 422);
+    }
+
+    private function consultarDni(string $dni): JsonResponse
+    {
+        $url   = config('apisperu.url');
+        $token = config('apisperu.token');
+
+        try {
+            $resp = Http::timeout(8)->get("{$url}/dni/{$dni}", ['token' => $token]);
+            $data = $resp->json();
+
+            if (!($data['success'] ?? true) && isset($data['message'])) {
+                return response()->json(['res' => false, 'msg' => $data['message']], 422);
+            }
+
+            $nombres = trim(($data['nombres'] ?? '') . ' ' . ($data['apellidoPaterno'] ?? '') . ' ' . ($data['apellidoMaterno'] ?? ''));
+
+            if (!$nombres) {
+                return response()->json(['res' => false, 'msg' => 'DNI no encontrado.'], 404);
+            }
+
+            return response()->json([
+                'res'    => true,
+                'tipo'   => 'dni',
+                'nombre' => $nombres,
+                'nombre_comercial' => '',
+                'direccion' => '',
+            ]);
+        } catch (\Throwable) {
+            return response()->json(['res' => false, 'msg' => 'Error al consultar RENIEC. Intentá de nuevo.'], 503);
+        }
+    }
+
+    private function consultarRuc(string $ruc): JsonResponse
+    {
+        $url   = config('apisperu.url');
+        $token = config('apisperu.token');
+
+        try {
+            $resp = Http::timeout(8)->get("{$url}/ruc/{$ruc}", ['token' => $token]);
+            $data = $resp->json();
+
+            if (empty($data['razonSocial'])) {
+                return response()->json(['res' => false, 'msg' => 'RUC no encontrado.'], 404);
+            }
+
+            $dir = collect([
+                $data['direccion'] ?? '',
+                $data['distrito']  ?? '',
+                $data['provincia'] ?? '',
+                $data['departamento'] ?? '',
+            ])->filter()->implode(', ');
+
+            return response()->json([
+                'res'    => true,
+                'tipo'   => 'ruc',
+                'nombre' => $data['razonSocial'],
+                'nombre_comercial' => $data['nombreComercial'] ?? '',
+                'direccion' => $dir,
+                'estado'   => $data['estado'] ?? '',
+                'condicion'=> $data['condicion'] ?? '',
+            ]);
+        } catch (\Throwable) {
+            return response()->json(['res' => false, 'msg' => 'Error al consultar SUNAT. Intentá de nuevo.'], 503);
+        }
+    }
 
     public function listar(Request $request): mixed
     {

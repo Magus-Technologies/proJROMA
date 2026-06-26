@@ -27,9 +27,19 @@
         </div>
         <div class="p-5 grid grid-cols-2 gap-4">
             <input type="hidden" id="i0">
-            <div><label class="block text-xs font-semibold text-gray-600 mb-1">RUC/Doc *</label>
-                <div class="flex gap-2"><input id="i1" type="text" maxlength="11" class="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <button onclick="buscarRuc()" class="rounded-lg bg-blue-50 px-3 text-blue-600"><i class="ti ti-search"></i></button></div></div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">RUC / DNI *</label>
+                <div class="flex gap-2">
+                    <input id="i1" type="text" maxlength="11" placeholder="8 (DNI) u 11 (RUC) dígitos"
+                           class="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();buscarDoc();}"
+                    <button id="btnBuscar" onclick="buscarDoc()"
+                            class="rounded-lg bg-blue-50 hover:bg-blue-100 px-3 text-blue-600 transition" title="Consultar RENIEC / SUNAT">
+                        <i id="iconBuscar" class="ti ti-search"></i>
+                    </button>
+                </div>
+                <p id="docEstado" class="mt-1 text-[10px] hidden"></p>
+            </div>
             <div><label class="block text-xs font-semibold text-gray-600 mb-1">Nombre *</label><input id="i2" type="text" maxlength="245" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"></div>
             <div class="col-span-2"><label class="block text-xs font-semibold text-gray-600 mb-1">Nombre Comercial</label><input id="i3" type="text" maxlength="245" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"></div>
             <div class="col-span-2"><label class="block text-xs font-semibold text-gray-600 mb-1">Dirección</label><input id="i4" type="text" maxlength="245" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"></div>
@@ -60,11 +70,53 @@ $(function(){
         dom:'<"flex flex-wrap gap-2 items-center justify-between mb-4"lf>t<"flex flex-wrap gap-2 items-center justify-between mt-4"ip>',});
 });
 function abrirModalNuevo(){g('mdT').textContent='Nuevo Proveedor';['i0','i1','i2','i3','i4','i5','i6'].forEach(x=>g(x).value='');abrir();}
-async function buscarRuc(){
-    const doc=g('i1').value.trim();if(doc.length<8){toastWarn('RUC o DNI inválido.');return;}
-    try{const d=await apiPost(BASE+'/api/consulta/sn',{doc});
-        if(d.nombre||d.razonSocial){g('i2').value=d.nombre||d.razonSocial||'';g('i4').value=d.direccion||'';toastOk('Datos encontrados');}
-        else toastWarn('No se encontraron datos.');}catch{toastWarn('Error al consultar.');}
+async function buscarDoc(){
+    const doc = g('i1').value.trim();
+    const status = g('docEstado');
+    const icon   = g('iconBuscar');
+    const btn    = g('btnBuscar');
+
+    if (doc.length !== 8 && doc.length !== 11) {
+        status.textContent = 'Ingresá 8 dígitos (DNI) o 11 dígitos (RUC).';
+        status.className   = 'mt-1 text-[10px] text-amber-600';
+        status.classList.remove('hidden');
+        return;
+    }
+
+    icon.className = 'ti ti-loader-2 animate-spin';
+    btn.disabled   = true;
+    status.classList.add('hidden');
+
+    try {
+        const resp = await fetch(`${BASE}/api/consulta/documento?doc=${doc}`, {
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+        });
+        const d = await resp.json();
+
+        if (!d.res) {
+            status.textContent = d.msg || 'No encontrado.';
+            status.className   = 'mt-1 text-[10px] text-red-500';
+            status.classList.remove('hidden');
+            return;
+        }
+
+        g('i2').value = d.nombre || '';
+        g('i3').value = d.nombre_comercial || g('i3').value;
+        g('i4').value = d.direccion || '';
+
+        const etiqueta = d.tipo === 'dni' ? 'RENIEC' : 'SUNAT';
+        status.textContent = `✓ Datos cargados desde ${etiqueta}.`;
+        status.className   = 'mt-1 text-[10px] text-emerald-600';
+        status.classList.remove('hidden');
+
+    } catch {
+        status.textContent = 'Error de conexión al consultar.';
+        status.className   = 'mt-1 text-[10px] text-red-500';
+        status.classList.remove('hidden');
+    } finally {
+        icon.className = 'ti ti-search';
+        btn.disabled   = false;
+    }
 }
 async function guardar(){
     const id=g('i0').value,doc=g('i1').value.trim(),nom=g('i2').value.trim();

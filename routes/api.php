@@ -46,7 +46,7 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/add',                   [VentasApiController::class, 'guardar']);
         Route::post('/anular',                [VentasApiController::class, 'anular']);
         Route::post('/detalle',               [VentasApiController::class, 'detalle']);
-        Route::post('/tipo',                  [VentasApiController::class, 'tipoVenta']);
+        Route::get('/tipo',                   [VentasApiController::class, 'tipoVenta']);
         Route::post('/productos/edit',        [VentasApiController::class, 'editProducto']);
         Route::post('/servicios/edit',        [VentasApiController::class, 'editServicio']);
         Route::post('/ingreso/almacen',       [VentasApiController::class, 'ingresoAlmacen']);

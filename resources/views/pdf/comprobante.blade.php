@@ -206,11 +206,6 @@
                     <div style="font-size: 8pt; font-weight: bold; margin-bottom: 5px;">
                         SALDO PENDIENTE: {{ $simbolo }} {{ number_format($saldo, 2) }}
                     </div>
-                    @if($v->estado == '0')
-                        <span class="badge-estado badge-anulada">ANULADA</span>
-                    @else
-                        <span class="badge-estado badge-activa">ACTIVA</span>
-                    @endif
                 </td>
 
                 <!-- Right side: Totals -->

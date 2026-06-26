@@ -1,7 +1,9 @@
 @extends('layouts.app')
 @section('title','Nueva Nota Electrónica')
 @section('page-title','Nueva Nota Electrónica')
-@section('breadcrumb')Ventas / <a href="{{ route('nota.electronica.lista') }}" class="hover:underline">Notas Electrónicas</a> / Nueva@endsection
+@section('breadcrumb')
+Ventas / <a href="{{ route('nota.electronica.lista') }}" class="hover:underline">Notas Electrónicas</a> / Nueva
+@endsection
 @section('content')
 
 <div x-data="notaApp()" x-init="init()">

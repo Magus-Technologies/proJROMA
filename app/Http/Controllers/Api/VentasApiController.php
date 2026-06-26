@@ -185,9 +185,17 @@ class VentasApiController extends Controller
 
     public function tipoVenta(): JsonResponse
     {
+        $map  = [1 => 'Boleta', 2 => 'Factura', 6 => 'Nota de Venta'];
         $docs = DocumentoEmpresa::where('id_empresa', $this->empresa())
-            ->where('sucursal', $this->sucursal())->get();
-        return response()->json($docs);
+            ->where('sucursal', $this->sucursal())
+            ->whereIn('id_tido', [1, 2, 6])
+            ->get();
+        return response()->json($docs->map(fn($d) => [
+            'id_tido'  => $d->id_tido,
+            'tipo_doc' => $map[$d->id_tido] ?? "Tipo {$d->id_tido}",
+            'serie'    => $d->serie,
+            'numero'   => $d->numero,
+        ]));
     }
 
     public function buscarProducto(Request $request, int $id): JsonResponse

@@ -42,10 +42,7 @@
                     <div style="font-size: 15pt; font-weight: bold; color: #dc2626; line-height: 1.1; margin-top: 5px;">
                         {{ $empresa->razon_social ?? 'EMPRESA' }}
                     </div>
-                    <div style="font-weight: bold; font-size: 9pt; color: #000; margin-bottom: 3px; text-transform: uppercase; margin-top: 8px;">
-                        {{ $empresa->razon_social ?? 'EMPRESA' }}
-                    </div>
-                    <div style="font-size: 8pt; color: #000; margin-bottom: 2px; font-weight: bold;">
+                    <div style="font-size: 8pt; color: #000; margin-bottom: 2px; font-weight: bold; margin-top: 8px;">
                         {{ $empresa->direccion ?? '' }}
                     </div>
                     <div style="font-size: 8pt; color: #000; margin-bottom: 2px;">
@@ -66,26 +63,6 @@
                         <div style="text-align: center; padding: 10px; font-size: 17px; font-weight: bold; color: #000;">
                             {{ $documentoCompleto }}
                         </div>
-                    </div>
-                </td>
-            </tr>
-        </table>
-
-        <!-- Company Details -->
-        <table style="width: 100%; border-collapse: collapse; margin-top: -5px; margin-bottom: 10px;">
-            <tr>
-                <td style="text-align: left; padding: 0;">
-                    <div style="font-weight: bold; font-size: 9pt; color: #000; margin-bottom: 3px; text-transform: uppercase;">
-                        {{ $empresa->razon_social ?? 'EMPRESA' }}
-                    </div>
-                    <div style="font-size: 8pt; color: #000; margin-bottom: 2px; font-weight: bold;">
-                        {{ $empresa->direccion ?? '' }}
-                    </div>
-                    <div style="font-size: 8pt; color: #000; margin-bottom: 2px;">
-                        <span style="font-weight: bold;">TELEF.:</span> {{ $empresa->telefono ?? '' }}
-                    </div>
-                    <div style="font-size: 8pt; color: #000;">
-                        <span style="font-weight: bold;">Correo:</span> {{ $empresa->email ?? '' }}
                     </div>
                 </td>
             </tr>

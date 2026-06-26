@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\FlujoApiController;
 use App\Http\Controllers\Api\MiCajaApiController;
 use App\Http\Controllers\Api\PagoInstrumentoApiController;
 use App\Http\Controllers\Api\EmpresaApiController;
+use App\Http\Controllers\Api\UsuariosApiController;
 use App\Http\Controllers\Api\CotizacionesApiController;
 use App\Http\Controllers\Api\ProveedoresApiController;
 use App\Http\Controllers\Api\CajaMaestroApiController;
@@ -278,4 +279,9 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
 
     // ── TXT Libro Ventas ──────────────────────────────────────────────────
     Route::post('/generar/txt/ventareporte', [VentasApiController::class, 'generarTextLibroVentas']);
+
+    // ── Usuarios ───────────────────────────────────────────────────────────
+    Route::prefix('usuarios')->group(function () {
+        Route::post('/render', [UsuariosApiController::class, 'render']);
+    });
 });

@@ -117,9 +117,11 @@ class PagosApiController extends Controller
     public function registrarPago(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'id_compra' => 'required|integer',
-            'monto'     => 'required|numeric|min:0.01',
-            'fecha'     => 'required|date',
+            'id_compra'          => 'required|integer',
+            'monto'              => 'required|numeric|min:0.01',
+            'fecha'              => 'required|date',
+            'instrumento_tipo'   => 'nullable|string|max:30',
+            'instrumento_id'     => 'nullable|integer',
         ]);
 
         $empresa = $this->empresa();
@@ -145,12 +147,59 @@ class PagosApiController extends Controller
         }
 
         DB::table('dias_compras')->insert([
-            'id_compra' => $data['id_compra'],
-            'monto'     => $data['monto'],
-            'fecha'     => $data['fecha'],
-            'estado'    => '1',
+            'id_compra'        => $data['id_compra'],
+            'monto'            => $data['monto'],
+            'fecha'            => $data['fecha'],
+            'estado'           => '1',
+            'instrumento_tipo' => $data['instrumento_tipo'] ?? null,
+            'instrumento_id'   => $data['instrumento_id'] ?? null,
         ]);
 
         return response()->json(['res' => true, 'msg' => 'Pago registrado correctamente.']);
+    }
+
+    public function editarPago(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'dias_compra_id'     => 'required|integer',
+            'monto'              => 'required|numeric|min:0.01',
+            'fecha'              => 'required|date',
+            'instrumento_tipo'   => 'nullable|string|max:30',
+            'instrumento_id'     => 'nullable|integer',
+        ]);
+
+        $pago = DB::table('dias_compras')->where('dias_compra_id', $data['dias_compra_id'])->first();
+        if (!$pago) {
+            return response()->json(['res' => false, 'msg' => 'Pago no encontrado.'], 404);
+        }
+
+        DB::table('dias_compras')
+            ->where('dias_compra_id', $data['dias_compra_id'])
+            ->update([
+                'monto'            => $data['monto'],
+                'fecha'            => $data['fecha'],
+                'instrumento_tipo' => $data['instrumento_tipo'] ?? null,
+                'instrumento_id'   => $data['instrumento_id'] ?? null,
+            ]);
+
+        return response()->json(['res' => true, 'msg' => 'Pago actualizado correctamente.']);
+    }
+
+    public function eliminarPago(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'dias_compra_id' => 'required|integer',
+        ]);
+
+        $pago = DB::table('dias_compras')->where('dias_compra_id', $data['dias_compra_id'])->first();
+        if (!$pago) {
+            return response()->json(['res' => false, 'msg' => 'Pago no encontrado.'], 404);
+        }
+
+        DB::table('dias_compras')
+            ->where('dias_compra_id', $data['dias_compra_id'])
+            ->update(['estado' => '0']);
+
+        return response()->json(['res' => true, 'msg' => 'Pago anulado correctamente.']);
     }
 }

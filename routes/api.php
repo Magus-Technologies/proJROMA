@@ -110,6 +110,10 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::get('/',               [PagosApiController::class, 'listar']);
         Route::get('/historial',      [PagosApiController::class, 'historial']);
         Route::post('/registrar',     [PagosApiController::class, 'registrarPago']);
+        Route::post('/editar',        [PagosApiController::class, 'editarPago']);
+        Route::post('/eliminar',      [PagosApiController::class, 'eliminarPago']);
+    });
+
     // ── Cotizaciones ────────────────────────────────────────────────────
     Route::prefix('cotizaciones')->group(function () {
         Route::get('/',                  [CotizacionesApiController::class, 'listar']);

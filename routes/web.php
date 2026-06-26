@@ -14,7 +14,6 @@ use App\Http\Controllers\UsuariosController;
 use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\ProveedoresController;
 use App\Http\Controllers\GuiaRemisionController;
-use App\Http\Controllers\DevolucionesController;
 use App\Http\Controllers\ArqueoDiarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -84,9 +83,6 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
     // ── Pagos ─────────────────────────────────────────────────────────────
     Route::get('/pagos',            [ComprasController::class, 'pagos'])->name('pagos.index');
 
-    // ── Devoluciones ──────────────────────────────────────────────────────
-    Route::get('/devoluciones',     [DevolucionesController::class, 'index'])->name('devoluciones.index');
-
     // ── Cajas ─────────────────────────────────────────────────────────────
     Route::prefix('caja')->name('caja.')->group(function () {
         Route::get('/gestion',      [\App\Http\Controllers\CajaController::class, 'gestion'])->name('gestion');
@@ -143,7 +139,6 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/clientes/diavisita/pdf',[ClientesController::class,'exportarClientesVisitaPdf'])->name('clientes.visita');
         Route::get('/cobranzas/xls',        [CobranzasController::class,'exportarExcel'])->name('cobranzas.xls');
         Route::get('/clientes/xls',         [ClientesController::class, 'exportarExcel'])->name('clientes.xls');
-        Route::get('/devoluciones/xls',     [DevolucionesController::class,'exportarExcel'])->name('devoluciones.xls');
         Route::get('/pedidos/camion',        [ReportesController::class,'pedidoCamion'])->name('pedidos.camion');
         Route::get('/pedido/{numero}',       [ReportesController::class,'comprobantePedido'])->name('pedido');
         Route::get('/pedido/logistico',      [ReportesController::class,'reporteLogistico'])->name('logistico');

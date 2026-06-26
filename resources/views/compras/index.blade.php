@@ -4,7 +4,7 @@
 @section('breadcrumb','Inventario / Compras')
 @section('content')
 <div class="mb-4 flex gap-2">
-    <a href="{{ config('app.url') }}/compras/add" class="inline-flex items-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition"><i class="ti ti-plus"></i> Nueva Compra</a>
+    <a href="{{ route('compras.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition"><i class="ti ti-plus"></i> Nueva Compra</a>
 </div>
 <div class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
     <div class="border-b border-gray-100 px-5 py-4"><h3 class="text-sm font-semibold text-gray-700">Lista de Compras</h3></div>
@@ -56,7 +56,7 @@
 
 @push('scripts')
 <script>
-const BASE = '{{ config("app.url") }}';
+const BASE=BASE_URL;
 const g = id => document.getElementById(id);
 let tabla, almacenesRec = [];
 
@@ -93,7 +93,7 @@ $(async function () {
               } },
         ],
         order:[[0,'desc']], pageLength:25,
-        language:{ url:'//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' },
+        language:{ url:'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' },
         dom:'<"flex flex-wrap gap-2 items-center justify-between mb-4"lf>t<"flex flex-wrap gap-2 items-center justify-between mt-4"ip>',
     });
 });

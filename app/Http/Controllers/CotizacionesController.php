@@ -1,5 +1,6 @@
 <?php
 namespace App\Http\Controllers;
+
 class CotizacionesController extends Controller
 {
     public function index(): \Illuminate\View\View  { return view('cotizaciones.index'); }

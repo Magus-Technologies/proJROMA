@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\FlujoApiController;
 use App\Http\Controllers\Api\MiCajaApiController;
 use App\Http\Controllers\Api\PagoInstrumentoApiController;
 use App\Http\Controllers\Api\EmpresaApiController;
+use App\Http\Controllers\Api\CotizacionesApiController;
 use App\Http\Controllers\Api\CajaMaestroApiController;
 use App\Http\Controllers\Api\CajaInstrumentoApiController;
 use App\Http\Controllers\Api\CajaMovimientoApiController;
@@ -104,11 +105,24 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
     Route::post('/compras',        [ComprasApiController::class, 'guardar']);
     Route::post('/compras/editar', [ComprasApiController::class, 'editar']);
 
+<<<<<<< HEAD
     // ── Pagos / Cuentas por Pagar ──────────────────────────────────────────
     Route::prefix('pagos')->group(function () {
         Route::get('/',               [PagosApiController::class, 'listar']);
         Route::get('/historial',      [PagosApiController::class, 'historial']);
         Route::post('/registrar',     [PagosApiController::class, 'registrarPago']);
+=======
+    // ── Cotizaciones ────────────────────────────────────────────────────
+    Route::prefix('cotizaciones')->group(function () {
+        Route::get('/',                  [CotizacionesApiController::class, 'listar']);
+        Route::get('/tipo',              [CotizacionesApiController::class, 'tipoDocumento']);
+        Route::get('/buscar/producto',   [CotizacionesApiController::class, 'buscarProducto']);
+        Route::post('/add',              [CotizacionesApiController::class, 'guardar']);
+        Route::post('/editar',           [CotizacionesApiController::class, 'editar']);
+        Route::post('/anular',           [CotizacionesApiController::class, 'anular']);
+        Route::post('/detalle',          [CotizacionesApiController::class, 'detalle']);
+        Route::post('/cuotas',           [CotizacionesApiController::class, 'cuotas']);
+>>>>>>> 8c2b8bad9da02b69d6690bfaf31b9c7802a0b7b5
     });
 
     // ── Instrumentos de pago (bancos, cuentas, tarjetas, billeteras) ──────

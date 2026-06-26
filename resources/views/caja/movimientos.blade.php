@@ -93,7 +93,7 @@
 
 @push('scripts')
 <script>
-const BASE = '{{ config("app.url") }}';
+const BASE=BASE_URL;
 const g = id => document.getElementById(id);
 let tblMov, currentCaja = {{ $idCaja ?? 0 }};
 

@@ -23,7 +23,7 @@
 @endsection
 @push('scripts')
 <script>
-const BASE='{{ config("app.url") }}';
+const BASE=BASE_URL;
 async function cargarArqueo(){
     const fecha=document.getElementById('fechaArqueo').value;
     if(!fecha){toastWarn('Selecciona una fecha.');return;}

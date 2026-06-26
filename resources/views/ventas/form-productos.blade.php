@@ -113,7 +113,7 @@
                     <i class="ti ti-device-floppy" :class="{'spin':guardando}"></i>
                     <span x-text="guardando?'Guardando...':'Guardar Venta'"></span>
                 </button>
-                <a href="{{ config('app.url') }}/ventas"
+                <a href="{{ route('ventas.index') }}"
                    class="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 px-4 py-2.5 text-xs font-medium text-gray-600 transition">
                     <i class="ti ti-arrow-left text-xs"></i> Volver a Ventas
                 </a>
@@ -232,7 +232,7 @@
 <script>
 function ventaApp() {
     return {
-        BASE: '{{ config("app.url") }}',
+        BASE: BASE_URL,
         documentos: [], venta: {
             id_tido:'', serie:'', numero:'',
             fecha: new Date().toISOString().slice(0,10),

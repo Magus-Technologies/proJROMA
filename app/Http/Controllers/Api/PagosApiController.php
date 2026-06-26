@@ -23,7 +23,7 @@ class PagosApiController extends Controller
             ->join('proveedores as p', 'p.proveedor_id', '=', 'c.id_proveedor')
             ->join('documentos_sunat as ds', 'ds.id_tido', '=', 'c.id_tido')
             ->leftJoin('tipo_pago as tp', 'tp.tipo_pago_id', '=', 'c.id_tipo_pago')
-            ->leftJoin(DB::raw('(SELECT id_compra, COALESCE(SUM(monto), 0) as total_pagado FROM dias_compras GROUP BY id_compra) as dc'), 'dc.id_compra', '=', 'c.id_compra')
+            ->leftJoin(DB::raw("(SELECT id_compra, COALESCE(SUM(monto), 0) as total_pagado FROM dias_compras WHERE estado = '1' GROUP BY id_compra) as dc"), 'dc.id_compra', '=', 'c.id_compra')
             ->where('c.id_empresa', $empresa)
             ->where('c.id_tipo_pago', 2)
             ->select(
@@ -101,7 +101,7 @@ class PagosApiController extends Controller
             )
             ->first();
 
-        $totalPagado = DB::table('dias_compras')->where('id_compra', $idCompra)->sum('monto');
+        $totalPagado = DB::table('dias_compras')->where('id_compra', $idCompra)->where('estado', '1')->sum('monto');
         $total = (float) ($compra->total ?? 0);
         $saldo = max(0, $total - (float) $totalPagado);
 
@@ -135,7 +135,7 @@ class PagosApiController extends Controller
             return response()->json(['res' => false, 'msg' => 'Compra no encontrada.'], 404);
         }
 
-        $totalPagado = (float) DB::table('dias_compras')->where('id_compra', $data['id_compra'])->sum('monto');
+        $totalPagado = (float) DB::table('dias_compras')->where('id_compra', $data['id_compra'])->where('estado', '1')->sum('monto');
         $total = (float) $compra->total;
         $saldo = max(0, $total - $totalPagado);
 

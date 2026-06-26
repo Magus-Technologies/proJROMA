@@ -47,6 +47,7 @@
                 <th class="px-3 py-2 text-left">Fecha</th>
                 <th class="px-3 py-2 text-right">Monto</th>
                 <th class="px-3 py-2 text-center">Método</th>
+                <th class="px-3 py-2 text-center">Estado</th>
                 <th class="px-3 py-2 text-center">Acciones</th>
             </tr></thead>
             <tbody id="hist-pagos-body"></tbody>
@@ -127,7 +128,7 @@ $(async function () {
             { data: 'fecha_vencimiento', defaultContent: '-' },
             { data: 'total', className: 'text-right', render: v => 'S/ ' + parseFloat(v || 0).toFixed(2) },
             { data: 'total_pagado', className: 'text-right', render: v => 'S/ ' + parseFloat(v || 0).toFixed(2) },
-            { data: 'saldo_pendiente', className: 'text-right', render: v => 'S/ ' + parseFloat(v || 0).toFixed(2) },
+            { data: 'saldo_pendiente', className: 'text-right', searchable: false, orderable: false, render: v => 'S/ ' + parseFloat(v || 0).toFixed(2) },
             { data: 'tipo_pago_nombre', className: 'text-center', defaultContent: '-',
               render: v => v === 'Credito'
                 ? '<span class="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">Crédito</span>'
@@ -151,7 +152,7 @@ function labelMetodo(tipo) {
 
 async function verHistorial(id) {
     g('hist-compra-id').value = id;
-    g('hist-pagos-body').innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-400">Cargando...</td></tr>';
+    g('hist-pagos-body').innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-400">Cargando...</td></tr>';
     abrirModal('md-historial');
 
     const d = await apiGet(BASE + '/api/pagos/historial', { id_compra: id });
@@ -165,7 +166,7 @@ async function verHistorial(id) {
     g('hist-saldo').textContent = 'S/ ' + parseFloat(d.saldo_pendiente || 0).toFixed(2);
 
     if (d.pagos.length === 0) {
-        g('hist-pagos-body').innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-400">Sin pagos registrados</td></tr>';
+        g('hist-pagos-body').innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-400">Sin pagos registrados</td></tr>';
         return;
     }
 
@@ -175,6 +176,9 @@ async function verHistorial(id) {
             <td class="px-3 py-2">${p.fecha}</td>
             <td class="px-3 py-2 text-right font-semibold text-emerald-600">S/ ${parseFloat(p.monto || 0).toFixed(2)}</td>
             <td class="px-3 py-2 text-center text-gray-500">${labelMetodo(p.instrumento_tipo)}</td>
+            <td class="px-3 py-2 text-center">${p.estado === '1'
+                ? '<span class="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Activo</span>'
+                : '<span class="inline-block rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600">Anulado</span>'}</td>
             <td class="px-3 py-2 text-center">
                 <button onclick="editarPago(${p.dias_compra_id}, ${c.id_compra})" title="Editar" class="h-7 w-7 inline-flex items-center justify-center rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600"><i class="ti ti-pencil text-sm"></i></button>
                 <button onclick="anularPago(${p.dias_compra_id})" title="Anular" class="h-7 w-7 inline-flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600"><i class="ti ti-trash text-sm"></i></button>

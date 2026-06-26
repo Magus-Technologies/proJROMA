@@ -15,6 +15,48 @@ class PagosApiController extends Controller
         return (int) session('id_empresa');
     }
 
+    private function cajaDelUsuario(): ?object
+    {
+        $usuarioId = (int) auth()->id();
+        if (!$usuarioId) return null;
+        return DB::table('cajas')
+            ->where('id_usuario_responsable', $usuarioId)
+            ->where('estado', 'ACTIVA')
+            ->first();
+    }
+
+    private function registrarMovimientoCaja(int $idCaja, string $tipo, float $monto, string $fecha, string $descripcion, ?string $instrumentoTipo = null, ?int $instrumentoId = null): void
+    {
+        $saldoAnterior = (float) DB::table('caja_movimientos')
+            ->where('id_caja', $idCaja)
+            ->where('estado', 'CONFIRMADO')
+            ->orderBy('id', 'desc')
+            ->value('saldo_posterior') ?? 0;
+
+        $saldoPosterior = $tipo === 'INGRESO'
+            ? $saldoAnterior + $monto
+            : $saldoAnterior - $monto;
+
+        DB::table('caja_movimientos')->insert([
+            'id_caja'           => $idCaja,
+            'tipo'              => $tipo,
+            'categoria'         => 'COMPRA',
+            'descripcion'       => $descripcion,
+            'monto'             => $monto,
+            'fecha'             => $fecha,
+            'instrumento_tipo'  => $instrumentoTipo,
+            'instrumento_id'    => $instrumentoId,
+            'saldo_anterior'    => $saldoAnterior,
+            'saldo_posterior'   => $saldoPosterior,
+            'id_usuario'        => (int) auth()->id(),
+            'estado'            => 'CONFIRMADO',
+        ]);
+
+        DB::table('cajas')->where('id', $idCaja)->update([
+            'saldo_actual' => $saldoPosterior,
+        ]);
+    }
+
     public function listar(Request $request): mixed
     {
         $empresa = $this->empresa();
@@ -146,11 +188,28 @@ class PagosApiController extends Controller
             ], 422);
         }
 
+        $idCaja = null;
+        $caja = $this->cajaDelUsuario();
+        if ($caja) {
+            $idCaja = $caja->id;
+            $serieNum = trim(($compra->serie ?? '') . '-' . ($compra->numero ?? ''), '-');
+            $this->registrarMovimientoCaja(
+                idCaja: $caja->id,
+                tipo: 'EGRESO',
+                monto: (float) $data['monto'],
+                fecha: $data['fecha'],
+                descripcion: 'Pago compra ' . ($serieNum ?: '#' . $data['id_compra']),
+                instrumentoTipo: $data['instrumento_tipo'] ?? null,
+                instrumentoId: $data['instrumento_id'] ?? null
+            );
+        }
+
         DB::table('dias_compras')->insert([
             'id_compra'        => $data['id_compra'],
             'monto'            => $data['monto'],
             'fecha'            => $data['fecha'],
             'estado'           => '1',
+            'id_caja'          => $idCaja,
             'instrumento_tipo' => $data['instrumento_tipo'] ?? null,
             'instrumento_id'   => $data['instrumento_id'] ?? null,
         ]);
@@ -199,6 +258,20 @@ class PagosApiController extends Controller
         DB::table('dias_compras')
             ->where('dias_compra_id', $data['dias_compra_id'])
             ->update(['estado' => '0']);
+
+        if ($pago->id_caja) {
+            $compra = DB::table('compras')->where('id_compra', $pago->id_compra)->first();
+            $serieNum = $compra ? trim(($compra->serie ?? '') . '-' . ($compra->numero ?? ''), '-') : '';
+            $this->registrarMovimientoCaja(
+                idCaja: $pago->id_caja,
+                tipo: 'INGRESO',
+                monto: (float) $pago->monto,
+                fecha: now()->toDateString(),
+                descripcion: 'Reversión pago anulado compra ' . ($serieNum ?: '#' . $pago->id_compra),
+                instrumentoTipo: $pago->instrumento_tipo,
+                instrumentoId: $pago->instrumento_id
+            );
+        }
 
         return response()->json(['res' => true, 'msg' => 'Pago anulado correctamente.']);
     }

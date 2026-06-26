@@ -187,7 +187,7 @@ function cargarCajasPadres() {
 }
 
 const ctrl = {
-    get alpine() { return document.querySelector('[x-data]')?.__x; },
+    get alpine() { const el = document.querySelector('[x-data]'); return el ? Alpine.$data(el) : null; },
 
     cambiarModo() {
         const a = this.alpine;

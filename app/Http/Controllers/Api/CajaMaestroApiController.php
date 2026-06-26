@@ -89,7 +89,7 @@ class CajaMaestroApiController extends Controller
             ->where('id_empresa', $this->empresa())
             ->where('sucursal', $this->sucursal())
             ->where('estado', 'ACTIVA')
-            ->get(['id', 'nombre', 'id_usuario_responsable', 'id_caja_padre']);
+            ->get(['id', 'nombre', 'saldo_actual', 'id_usuario_responsable', 'id_caja_padre']);
 
         $usuarios = DB::table('usuarios')
             ->where('id_empresa', $this->empresa())

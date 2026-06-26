@@ -136,11 +136,13 @@ function cargarMiCaja() {
             miCajaId = miCaja.id;
             alpineCaja.idCaja = miCaja.id;
             alpineCaja.nombre = miCaja.nombre;
+            alpineCaja.saldo = parseFloat(miCaja.saldo_actual || 0);
             alpineCaja.esHija = !!miCaja.id_caja_padre;
         }
         alpineCaja.cargando = false;
 
         if (miCajaId) {
+            Alpine.nextTick(() => {
             tblMC = initDataTable('#tblMiCaja', {
                 processing: true, serverSide: true,
                 ajax: { url: BASE + '/api/caja-movimientos/' + miCajaId, headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' } },
@@ -178,6 +180,7 @@ function cargarMiCaja() {
                     { data: 'observaciones', defaultContent: '-', className: 'text-xs' },
                 ],
                 order: [[0, 'desc']],
+            });
             });
         }
     });

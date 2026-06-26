@@ -53,8 +53,9 @@ class CotizacionesApiController extends Controller
         $docs = DB::table('documentos_empresas')
             ->where('id_empresa', $this->empresa())
             ->where('sucursal', $this->sucursal())
+            ->whereIn('id_tido', [1, 2, 6])
             ->get();
-        $map = [1=>'Boleta', 2=>'Factura', 3=>'Factura Export.', 4=>'Factura Nota', 6=>'Nota Venta', 11=>'Ticket'];
+        $map = [1 => 'Boleta', 2 => 'Factura', 6 => 'Nota de Venta'];
         $result = $docs->map(fn($d) => [
             'id_tido' => $d->id_tido,
             'tipo_doc' => $map[$d->id_tido] ?? "Tipo {$d->id_tido}",

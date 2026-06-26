@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\CajaInstrumentoApiController;
 use App\Http\Controllers\Api\CajaMovimientoApiController;
 use App\Http\Controllers\Api\PagosApiController;
 use App\Http\Controllers\Api\GuiaRemisionApiController;
+use App\Http\Controllers\Api\NotaElectronicaApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -45,7 +46,7 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/add',                   [VentasApiController::class, 'guardar']);
         Route::post('/anular',                [VentasApiController::class, 'anular']);
         Route::post('/detalle',               [VentasApiController::class, 'detalle']);
-        Route::post('/tipo',                  [VentasApiController::class, 'tipoVenta']);
+        Route::get('/tipo',                   [VentasApiController::class, 'tipoVenta']);
         Route::post('/productos/edit',        [VentasApiController::class, 'editProducto']);
         Route::post('/servicios/edit',        [VentasApiController::class, 'editServicio']);
         Route::post('/ingreso/almacen',       [VentasApiController::class, 'ingresoAlmacen']);
@@ -204,6 +205,16 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/recepcionar', [RecepcionApiController::class, 'recepcionar']);
         Route::post('/deshacer',    [RecepcionApiController::class, 'deshacer']);
         Route::post('/eliminar',    [RecepcionApiController::class, 'eliminar']);
+    });
+
+    // ── Notas Electrónicas (Crédito / Débito) ───────────────────────────────
+    Route::prefix('notas')->group(function () {
+        Route::get('/',                [NotaElectronicaApiController::class, 'listar']);
+        Route::get('/buscar-venta',    [NotaElectronicaApiController::class, 'buscarVenta']);
+        Route::post('/cargar-venta',   [NotaElectronicaApiController::class, 'cargarVenta']);
+        Route::post('/add',            [NotaElectronicaApiController::class, 'guardar']);
+        Route::post('/enviar-sunat',   [NotaElectronicaApiController::class, 'enviarSunat']);
+        Route::post('/anular',         [NotaElectronicaApiController::class, 'anular']);
     });
 
     // ── Guías de Remisión ────────────────────────────────────────────────────

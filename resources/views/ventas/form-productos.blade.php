@@ -5,140 +5,141 @@
 
 @section('content')
 <div x-data="ventaApp()" x-init="init()">
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 xl:h-[calc(100vh-120px)]">
 
         {{-- COLUMNA IZQUIERDA --}}
-        <div class="xl:col-span-1 space-y-4">
+        <div class="xl:col-span-1 flex flex-col gap-4 xl:overflow-y-auto pr-1" style="scrollbar-width:thin;">
 
             {{-- Comprobante --}}
-            <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-5">
-                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4">Comprobante</h3>
-                <div class="space-y-3">
+            <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-4 shrink-0">
+                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Comprobante</h3>
+                <div class="space-y-2.5">
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Tipo de Documento *</label>
                         <select x-model="venta.id_tido" @change="seleccionarTido()"
-                                class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                                class="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                             <option value="">-- Selecciona --</option>
                             <template x-for="d in documentos" :key="d.id_tido">
                                 <option :value="d.id_tido" x-text="d.tipo_doc+' — '+d.serie"></option>
                             </template>
                         </select>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">Serie</label>
-                            <input x-model="venta.serie" type="text" readonly class="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                            <input x-model="venta.serie" type="text" readonly class="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-1.5 text-sm text-gray-500">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">Número</label>
-                            <input x-model="venta.numero" type="text" readonly class="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                            <input x-model="venta.numero" type="text" readonly class="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-1.5 text-sm text-gray-500">
                         </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Fecha Emisión *</label>
-                        <input x-model="venta.fecha" type="date" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Forma de Pago *</label>
-                        <select x-model="venta.id_tipo_pago" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                            <option value="1">Contado</option>
-                            <option value="2">Crédito</option>
-                        </select>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Fecha Emisión *</label>
+                            <input x-model="venta.fecha" type="date" class="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Forma de Pago *</label>
+                            <select x-model="venta.id_tipo_pago" class="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                                <option value="1">Contado</option>
+                                <option value="2">Crédito</option>
+                            </select>
+                        </div>
                     </div>
                     <div x-show="venta.id_tipo_pago == 2">
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Fecha Vencimiento</label>
-                        <input x-model="venta.fecha_vencimiento" type="date" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        <input x-model="venta.fecha_vencimiento" type="date" class="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">IGV</label>
-                        <select x-model="venta.apli_igv" @change="recalcular()" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                            <option value="1">Con IGV (18%)</option>
-                            <option value="0">Sin IGV</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Observación</label>
-                        <input x-model="venta.observacion" type="text" maxlength="220" placeholder="Opcional"
-                               class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">IGV</label>
+                            <select x-model="venta.apli_igv" @change="recalcular()" class="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                                <option value="1">Con IGV (18%)</option>
+                                <option value="0">Sin IGV</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Observación</label>
+                            <input x-model="venta.observacion" type="text" maxlength="220" placeholder="Opcional"
+                                   class="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        </div>
                     </div>
                 </div>
             </div>
 
             {{-- Cliente --}}
-            <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-5">
-                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4">Cliente</h3>
-                <div class="space-y-3">
-                    <template x-if="!clienteSeleccionado">
-                        <div class="relative">
-                            <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                            <input id="inpCliente" type="text" placeholder="Buscar por nombre o documento..."
-                                   @input.debounce.400ms="buscarClientes($event.target.value)"
-                                   class="w-full rounded-lg border border-gray-200 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                            <ul x-show="sugerencias.length>0" x-cloak class="absolute z-30 w-full bg-white border border-gray-200 rounded-lg shadow-xl mt-1 max-h-52 overflow-y-auto">
-                                <template x-for="c in sugerencias" :key="c.id_cliente">
-                                    <li @click="seleccionarCliente(c)" class="flex justify-between px-3 py-2 text-xs cursor-pointer hover:bg-blue-50 border-b border-gray-50 last:border-0">
-                                        <span class="font-semibold text-gray-700" x-text="c.datos"></span>
-                                        <span class="text-gray-400" x-text="c.documento"></span>
-                                    </li>
-                                </template>
-                            </ul>
-                        </div>
-                    </template>
-                    <template x-if="clienteSeleccionado">
-                        <div class="rounded-xl bg-blue-50 border border-blue-200 p-3">
-                            <p class="text-xs font-bold text-blue-800" x-text="clienteSeleccionado.datos"></p>
-                            <p class="text-xs text-blue-600 mt-0.5" x-text="clienteSeleccionado.documento"></p>
-                            <p class="text-xs text-blue-500 mt-0.5" x-text="clienteSeleccionado.direccion||''"></p>
-                            <button @click="clienteSeleccionado=null;venta.id_cliente=null" class="mt-2 text-[10px] text-red-500 hover:underline">
-                                <i class="ti ti-refresh"></i> Cambiar cliente
-                            </button>
-                        </div>
-                    </template>
-                </div>
+            <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-4 shrink-0">
+                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Cliente</h3>
+                <template x-if="!clienteSeleccionado">
+                    <div class="relative">
+                        <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                        <input id="inpCliente" type="text" placeholder="Buscar por nombre o documento..."
+                               @input.debounce.400ms="buscarClientes($event.target.value)"
+                               class="w-full rounded-lg border border-gray-200 pl-9 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        <ul x-show="sugerencias.length>0" x-cloak class="absolute z-30 w-full bg-white border border-gray-200 rounded-lg shadow-xl mt-1 max-h-52 overflow-y-auto">
+                            <template x-for="c in sugerencias" :key="c.id_cliente">
+                                <li @click="seleccionarCliente(c)" class="flex justify-between px-3 py-2 text-xs cursor-pointer hover:bg-blue-50 border-b border-gray-50 last:border-0">
+                                    <span class="font-semibold text-gray-700" x-text="c.datos"></span>
+                                    <span class="text-gray-400" x-text="c.documento"></span>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                </template>
+                <template x-if="clienteSeleccionado">
+                    <div class="rounded-xl bg-blue-50 border border-blue-200 p-3">
+                        <p class="text-xs font-bold text-blue-800" x-text="clienteSeleccionado.datos"></p>
+                        <p class="text-xs text-blue-600 mt-0.5" x-text="clienteSeleccionado.documento"></p>
+                        <p class="text-xs text-blue-500 mt-0.5" x-text="clienteSeleccionado.direccion||''"></p>
+                        <button @click="clienteSeleccionado=null;venta.id_cliente=null" class="mt-1.5 text-[10px] text-red-500 hover:underline">
+                            <i class="ti ti-refresh"></i> Cambiar cliente
+                        </button>
+                    </div>
+                </template>
             </div>
 
-            {{-- Totales + Guardar --}}
-            <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-5">
-                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4">Resumen</h3>
-                <div class="space-y-2 text-xs">
+            {{-- Resumen + Guardar --}}
+            <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-4 shrink-0">
+                <div class="space-y-1.5 text-xs mb-4">
                     <div class="flex justify-between"><span class="text-gray-500">Op. Gravadas:</span><span class="font-semibold" x-text="'S/ '+subtotal.toFixed(2)"></span></div>
                     <div class="flex justify-between"><span class="text-gray-500">IGV (18%):</span><span class="font-semibold" x-text="'S/ '+igvMonto.toFixed(2)"></span></div>
-                    <div class="flex justify-between text-sm border-t border-gray-100 pt-2 mt-1">
+                    <div class="flex justify-between text-sm border-t border-gray-100 pt-2">
                         <span class="font-bold text-gray-700">IMPORTE TOTAL:</span>
-                        <span class="font-extrabold text-blue-700 text-lg" x-text="'S/ '+totalFinal.toFixed(2)"></span>
+                        <span class="font-extrabold text-blue-700 text-base" x-text="'S/ '+totalFinal.toFixed(2)"></span>
                     </div>
                 </div>
                 <button @click="guardarVenta()" :disabled="guardando"
-                        class="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed px-4 py-3 text-sm font-bold text-white transition shadow-lg shadow-blue-900/20">
+                        class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed px-4 py-2.5 text-sm font-bold text-white transition shadow-lg shadow-blue-900/20">
                     <i class="ti ti-device-floppy" :class="{'spin':guardando}"></i>
                     <span x-text="guardando?'Guardando...':'Guardar Venta'"></span>
                 </button>
                 <a href="{{ route('ventas.index') }}"
-                   class="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 px-4 py-2.5 text-xs font-medium text-gray-600 transition">
+                   class="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 px-4 py-2 text-xs font-medium text-gray-600 transition">
                     <i class="ti ti-arrow-left text-xs"></i> Volver a Ventas
                 </a>
             </div>
         </div>
 
         {{-- COLUMNA DERECHA: Productos --}}
-        <div class="xl:col-span-2 space-y-4">
+        <div class="xl:col-span-2 flex flex-col gap-4 xl:overflow-hidden">
 
             {{-- Buscador --}}
-            <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-5">
-                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4">Agregar Producto</h3>
+            <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-4 shrink-0">
+                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Agregar Producto</h3>
                 <div class="flex gap-3">
                     <div class="flex-1 relative">
                         <i class="ti ti-barcode absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
                         <input id="inpProducto" type="text" placeholder="Buscar por nombre, código o código de barra..."
                                @input.debounce.300ms="buscarProductos($event.target.value)"
                                @keydown.enter.prevent="productosLista.length===1 && agregarProducto(productosLista[0])"
-                               class="w-full rounded-lg border border-gray-200 pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                        <ul x-show="productosLista.length>0" x-cloak class="absolute z-30 w-full bg-white border border-gray-200 rounded-xl shadow-2xl mt-1 max-h-72 overflow-y-auto">
+                               class="w-full rounded-lg border border-gray-200 pl-9 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        <ul x-show="productosLista.length>0" x-cloak class="absolute z-30 w-full bg-white border border-gray-200 rounded-xl shadow-2xl mt-1 max-h-64 overflow-y-auto">
                             <template x-for="p in productosLista" :key="p.id_producto">
-                                <li @click="agregarProducto(p)" class="flex items-center justify-between px-4 py-3 text-xs cursor-pointer hover:bg-blue-50 border-b border-gray-50 last:border-0">
+                                <li @click="agregarProducto(p)" class="flex items-center justify-between px-4 py-2.5 text-xs cursor-pointer hover:bg-blue-50 border-b border-gray-50 last:border-0">
                                     <div class="flex-1 min-w-0">
                                         <p class="font-semibold text-gray-700 truncate" x-text="p.descripcion"></p>
-                                        <p class="text-gray-400 mt-0.5" x-text="'Cód: '+(p.codigo||'-')+'  |  Barra: '+(p.cod_barra||'-')+'  |  Stock: '+p.cantidad"></p>
+                                        <p class="text-gray-400 mt-0.5" x-text="'Cód: '+(p.codigo||'-')+'  |  Stock: '+p.cantidad"></p>
                                     </div>
                                     <div class="text-right ml-4 shrink-0">
                                         <p class="font-bold text-blue-700 text-sm" x-text="'S/ '+parseFloat(p.precio).toFixed(2)"></p>
@@ -149,7 +150,7 @@
                         </ul>
                     </div>
                     <select x-model="almacenActivo" @change="productosLista=[]"
-                            class="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 shrink-0">
+                            class="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 shrink-0">
                         <option value="1">Almacén 1</option>
                         <option value="2">Almacén 2</option>
                         <option value="3">Almacén 3</option>
@@ -158,8 +159,8 @@
             </div>
 
             {{-- Detalle --}}
-            <div class="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
-                <div class="border-b border-gray-100 px-5 py-4 flex items-center justify-between">
+            <div class="rounded-2xl bg-white border border-gray-100 shadow-sm flex flex-col xl:flex-1 xl:overflow-hidden">
+                <div class="border-b border-gray-100 px-5 py-3 flex items-center justify-between shrink-0">
                     <div class="flex items-center gap-3">
                         <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide">Detalle de Productos</h3>
                         <span class="rounded-full bg-blue-100 text-blue-700 px-2.5 py-0.5 text-[10px] font-bold" x-text="productosVenta.length+' item(s)'"></span>
@@ -168,16 +169,16 @@
                 </div>
 
                 <template x-if="productosVenta.length===0">
-                    <div class="py-16 text-center">
+                    <div class="flex-1 flex flex-col items-center justify-center py-10">
                         <i class="ti ti-package-off text-4xl text-gray-200 block mb-3"></i>
                         <p class="text-sm text-gray-400">Busca y selecciona productos para agregar a la venta</p>
                     </div>
                 </template>
 
                 <template x-if="productosVenta.length>0">
-                    <div class="overflow-x-auto">
+                    <div class="xl:overflow-y-auto xl:flex-1" style="scrollbar-width:thin;">
                         <table class="w-full text-xs">
-                            <thead class="bg-gray-50 text-gray-500">
+                            <thead class="bg-gray-50 text-gray-500 sticky top-0">
                                 <tr>
                                     <th class="px-4 py-3 text-left font-medium">Descripción</th>
                                     <th class="px-3 py-3 text-center font-medium w-28">Cantidad</th>
@@ -189,22 +190,22 @@
                             <tbody>
                                 <template x-for="(item,idx) in productosVenta" :key="idx">
                                     <tr class="border-t border-gray-50 hover:bg-blue-50/30 transition-colors">
-                                        <td class="px-4 py-3">
+                                        <td class="px-4 py-2.5">
                                             <p class="font-medium text-gray-800" x-text="item.descripcion"></p>
-                                            <p class="text-[10px] text-gray-400 mt-0.5" x-text="'Stock: '+item.stock_disponible+' | '+( item.igv_prod==1?'Exonerado':item.igv_prod==2?'Inafecto':'Gravado')"></p>
+                                            <p class="text-[10px] text-gray-400 mt-0.5" x-text="'Stock: '+item.stock_disponible+' | '+(item.igv_prod==1?'Exonerado':item.igv_prod==2?'Inafecto':'Gravado')"></p>
                                         </td>
-                                        <td class="px-3 py-3 text-center">
+                                        <td class="px-3 py-2.5 text-center">
                                             <input type="number" :value="item.cantidad" min="0.01" step="1"
                                                    @change="cambiarCantidad(idx,$event.target.value)"
                                                    class="w-20 rounded-lg border border-gray-200 px-2 py-1.5 text-center text-xs focus:outline-none focus:ring-2 focus:ring-blue-400">
                                         </td>
-                                        <td class="px-3 py-3 text-right">
+                                        <td class="px-3 py-2.5 text-right">
                                             <input type="number" :value="item.precio" min="0" step="0.01"
                                                    @change="cambiarPrecio(idx,$event.target.value)"
                                                    class="w-28 rounded-lg border border-gray-200 px-2 py-1.5 text-right text-xs focus:outline-none focus:ring-2 focus:ring-blue-400">
                                         </td>
-                                        <td class="px-3 py-3 text-right font-bold text-gray-800" x-text="'S/ '+item.total.toFixed(2)"></td>
-                                        <td class="px-3 py-3 text-center">
+                                        <td class="px-3 py-2.5 text-right font-bold text-gray-800" x-text="'S/ '+item.total.toFixed(2)"></td>
+                                        <td class="px-3 py-2.5 text-center">
                                             <button @click="quitarProducto(idx)" class="text-red-400 hover:text-red-600 transition-colors">
                                                 <i class="ti ti-x text-sm"></i>
                                             </button>
@@ -212,7 +213,7 @@
                                     </tr>
                                 </template>
                             </tbody>
-                            <tfoot class="bg-gray-50 border-t border-gray-100">
+                            <tfoot class="bg-gray-50 border-t border-gray-100 sticky bottom-0">
                                 <tr>
                                     <td colspan="3" class="px-4 py-3 text-right text-xs font-bold text-gray-600">TOTAL:</td>
                                     <td class="px-3 py-3 text-right font-extrabold text-blue-700" x-text="'S/ '+totalFinal.toFixed(2)"></td>

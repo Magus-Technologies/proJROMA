@@ -1,10 +1,13 @@
 <table class="header-table" style="width:100%;border-collapse:collapse;margin-bottom:16px">
     <tr>
         <td style="vertical-align:top;width:60%">
-            <div style="font-size:16pt;font-weight:bold;color:#dc2626;text-transform:uppercase;line-height:1.2;margin-bottom:3px">
+            @if(!empty($logoBase64))
+            <img src="{{ $logoBase64 }}" style="max-height:60px;max-width:190px;margin-bottom:5px;display:block;">
+            @endif
+            <div style="font-size:15pt;font-weight:bold;color:#dc2626;text-transform:uppercase;line-height:1.2;margin-bottom:3px">
                 {{ $empresa->razon_social ?? 'EMPRESA' }}
             </div>
-            <div style="font-size:7.5pt;color:#000;line-height:1.6">
+            <div style="font-size:7.5pt;color:#555;line-height:1.6">
                 {{ $empresa->direccion ?? '' }}<br>
                 @if($empresa->telefono)Central Telefónica: {{ $empresa->telefono }}<br>@endif
                 @if($empresa->email)Email: {{ $empresa->email }}<br>@endif

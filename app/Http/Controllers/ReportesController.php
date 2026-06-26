@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cotizacion;
+use App\Models\NotaElectronica;
 use App\Models\Venta;
 use App\Models\Empresa;
 use App\Models\DocumentoEmpresa;
@@ -65,7 +66,16 @@ class ReportesController extends Controller
     }
     public function notaElectronicaPdf(int $nota): \Illuminate\Http\Response
     {
-        return response('<h2 style="font-family:Arial;padding:40px">Nota PDF — En desarrollo</h2>', 200)->header('Content-Type','text/html');
+        $nota = NotaElectronica::with([
+            'venta.cliente',
+            'venta.productosVenta.producto',
+        ])->findOrFail($nota);
+
+        $empresa = $this->getEmpresa() ?? Empresa::find($nota->id_empresa);
+        $serie   = $nota->serie . '-' . str_pad($nota->numero, 8, '0', STR_PAD_LEFT);
+
+        return PdfService::a4()
+            ->generar('pdf.nota-electronica', compact('nota', 'empresa'), "nota-{$serie}.pdf");
     }
     public function comprobanteCotizacion(int $coti): \Illuminate\Http\Response
     {

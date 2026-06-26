@@ -34,6 +34,9 @@
                     <p class="text-xs text-gray-400">Saldo actual: <strong class="text-gray-700" x-text="'S/ ' + saldo.toFixed(2)"></strong></p>
                 </div>
                 <div class="flex gap-2">
+                    <template x-if="esHija">
+                        <x-btn color="primary" icon="ti ti-cash" @click="abrirApertura()">Aperturar caja</x-btn>
+                    </template>
                     <x-btn color="emerald" icon="ti ti-arrow-up" onclick="abrirMiMovimiento('INGRESO')">Ingreso</x-btn>
                     <x-btn color="red" icon="ti ti-arrow-down" onclick="abrirMiMovimiento('EGRESO')">Egreso</x-btn>
                     <template x-if="esHija">
@@ -113,6 +116,45 @@
         <x-btn color="primary" icon="ti ti-lock" onclick="confirmarCierre()">Cerrar caja</x-btn>
     </x-slot:footer>
 </x-modal>
+
+{{-- Modal Apertura --}}
+<x-modal id="md-apertura" title="Apertura de Caja" size="max-w-lg">
+    <div class="space-y-4">
+        <x-input-group label="Fecha">
+            <x-input id="ap-fecha" type="date" />
+        </x-input-group>
+
+        <div>
+            <p class="mb-2 text-xs font-bold text-gray-500">Desglose de billetes y monedas</p>
+            <div class="overflow-hidden rounded-xl border border-gray-100">
+                <table class="w-full text-xs">
+                    <thead class="bg-gray-50 text-gray-500">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-semibold">Denominación</th>
+                            <th class="px-3 py-2 text-center font-semibold">Cantidad</th>
+                            <th class="px-3 py-2 text-right font-semibold">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ap-tbody"></tbody>
+                    <tfoot>
+                        <tr class="border-t border-gray-200 bg-gray-50">
+                            <td class="px-3 py-2 font-bold text-gray-700" colspan="2">Total</td>
+                            <td class="px-3 py-2 text-right font-bold text-brand-600" id="ap-total">S/ 0.00</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <x-input-group label="Observaciones">
+            <textarea id="ap-obs" rows="2" maxlength="500" class="field w-full" placeholder="Opcional"></textarea>
+        </x-input-group>
+    </div>
+    <x-slot:footer>
+        <x-btn color="ghost" onclick="cerrarModal('md-apertura')">Cancelar</x-btn>
+        <x-btn color="primary" icon="ti ti-cash" onclick="confirmarApertura()">Aperturar</x-btn>
+    </x-slot:footer>
+</x-modal>
 @endsection
 
 @push('scripts')
@@ -129,8 +171,11 @@ function cargarMiCaja() {
     apiGet(BASE + '/api/cajas/opciones').then(opts => {
         const cajas = opts.cajas || [];
         const usuarioId = {{ auth()->user()->usuario_id ?? 0 }};
-        // Buscar por id_usuario_responsable (sin tipo)
-        let miCaja = cajas.find(c => c.id_usuario_responsable == usuarioId)
+        // Buscar por id_usuario_responsable. Si el responsable tiene varias cajas,
+        // priorizar la caja chica (hija) que es la operativa para aperturar/cerrar.
+        const misCajas = cajas.filter(c => c.id_usuario_responsable == usuarioId);
+        let miCaja = misCajas.find(c => c.id_caja_padre)
+                  || misCajas[0]
                   || cajas[0];
         if (miCaja) {
             miCajaId = miCaja.id;
@@ -320,6 +365,77 @@ async function confirmarCierre() {
         if (tblCierresMC) tblCierresMC.ajax.reload(null, false);
     } else {
         toastErr(d.msg || 'Error.');
+    }
+}
+
+// ── Apertura de caja (desglose de billetes y monedas) ────────────
+const AP_DENOMS = [
+    { tipo: 'BILLETE', val: 200 }, { tipo: 'BILLETE', val: 100 }, { tipo: 'BILLETE', val: 50 },
+    { tipo: 'BILLETE', val: 20 },  { tipo: 'BILLETE', val: 10 },
+    { tipo: 'MONEDA', val: 5 }, { tipo: 'MONEDA', val: 2 }, { tipo: 'MONEDA', val: 1 },
+    { tipo: 'MONEDA', val: 0.5 }, { tipo: 'MONEDA', val: 0.2 }, { tipo: 'MONEDA', val: 0.1 },
+];
+
+function abrirApertura() {
+    if (!miCajaId) return;
+    g('ap-fecha').value = new Date().toISOString().split('T')[0];
+    g('ap-obs').value = '';
+    g('ap-tbody').innerHTML = AP_DENOMS.map((d, i) => {
+        const badge = d.tipo === 'BILLETE'
+            ? '<span class="rounded px-1.5 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700">Billete</span>'
+            : '<span class="rounded px-1.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700">Moneda</span>';
+        return `<tr class="border-t border-gray-100">
+            <td class="px-3 py-1.5"><span class="inline-flex items-center gap-2">${badge} S/ ${d.val.toFixed(2)}</span></td>
+            <td class="px-3 py-1.5 text-center"><input type="number" min="0" step="1" value="0" data-i="${i}" oninput="calcApertura()" class="field w-20 py-1 text-center" /></td>
+            <td class="px-3 py-1.5 text-right font-semibold" id="ap-sub-${i}">S/ 0.00</td>
+        </tr>`;
+    }).join('');
+    g('ap-total').textContent = 'S/ 0.00';
+    abrirModal('md-apertura');
+}
+
+function calcApertura() {
+    let total = 0;
+    document.querySelectorAll('#ap-tbody input[data-i]').forEach(inp => {
+        const i = parseInt(inp.dataset.i, 10);
+        const cant = Math.max(0, parseInt(inp.value || 0, 10) || 0);
+        const sub = cant * AP_DENOMS[i].val;
+        total += sub;
+        g('ap-sub-' + i).textContent = 'S/ ' + sub.toFixed(2);
+    });
+    g('ap-total').textContent = 'S/ ' + total.toFixed(2);
+    return total;
+}
+
+async function confirmarApertura() {
+    if (!miCajaId) return;
+    const detalles = [];
+    document.querySelectorAll('#ap-tbody input[data-i]').forEach(inp => {
+        const i = parseInt(inp.dataset.i, 10);
+        const cant = Math.max(0, parseInt(inp.value || 0, 10) || 0);
+        if (cant > 0) detalles.push({ denominacion: AP_DENOMS[i].val, tipo: AP_DENOMS[i].tipo, cantidad: cant });
+    });
+    if (!detalles.length) { toastWarn('Ingresa la cantidad de al menos una denominación.'); return; }
+
+    const total = calcApertura();
+    const conf = await Swal.fire({
+        title: '¿Aperturar caja?',
+        html: 'Monto inicial: <b>S/ ' + total.toFixed(2) + '</b>',
+        icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, aperturar', cancelButtonText: 'Cancelar'
+    });
+    if (!conf.isConfirmed) return;
+
+    const d = await apiPost(BASE + '/api/aperturas/guardar', {
+        id_caja: miCajaId,
+        fecha: g('ap-fecha').value,
+        detalles,
+        observaciones: g('ap-obs').value || null,
+    });
+    if (d.res) {
+        toastOk('Caja aperturada. Monto inicial: S/ ' + parseFloat(d.monto_total || 0).toFixed(2));
+        cerrarModal('md-apertura');
+    } else {
+        toastErr(d.msg || 'Error al aperturar.');
     }
 }
 </script>

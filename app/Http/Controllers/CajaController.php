@@ -9,4 +9,5 @@ class CajaController extends Controller
     }
     public function rendiciones(): \Illuminate\View\View { return view('caja.rendiciones'); }
     public function miCaja(): \Illuminate\View\View    { return view('caja.micaja'); }
+    public function apertura(): \Illuminate\View\View { return view('caja.apertura'); }
 }

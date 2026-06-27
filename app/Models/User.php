@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -11,7 +13,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 // ── Laravel 13: atributos PHP en lugar de propiedades de clase ────────
 #[Table('usuarios')]
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
@@ -89,4 +91,20 @@ class User extends Authenticatable
     public function esAdmin(): bool    { return $this->id_rol == 1; }
     public function esVendedor(): bool { return $this->id_rol == 3; }
     public function esCajero(): bool   { return $this->id_rol == 4; }
+
+    // ── Filament ──────────────────────────────────────────────────────
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->estado === '1' && $this->available_status;
+    }
+
+    public function getFilamentName(): string
+    {
+        return $this->nombre_completo ?: $this->usuario ?: 'Usuario';
+    }
+
+    public function getNameAttribute(): string
+    {
+        return $this->getFilamentName();
+    }
 }

@@ -20,6 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
    
     ->withProviders([
     App\Providers\AppServiceProvider::class,
+    App\Providers\AuthServiceProvider::class,
+    App\Providers\Filament\AdminPanelProvider::class,
 ])
    
    

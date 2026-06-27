@@ -231,7 +231,7 @@ const ctrl = {
                 ajax: { url: `${BASE}/api/cierres/historial/${cajaId}`, headers: { 'Accept': 'application/json' } },
                 columns: [
                     { data: 'fecha', defaultContent: '-' },
-                    { data: 'id_caja', defaultContent: '-' },
+                    { data: 'caja_nombre', defaultContent: '-' },
                     { data: 'saldo_declarado', className: 'text-right', render: v => 'S/ ' + parseFloat(v || 0).toFixed(2) },
                     { data: 'saldo_sistema', className: 'text-right', render: v => 'S/ ' + parseFloat(v || 0).toFixed(2) },
                     { data: 'estado', className: 'text-center',

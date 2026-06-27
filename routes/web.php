@@ -90,6 +90,7 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/rendiciones',  [\App\Http\Controllers\CajaController::class, 'rendiciones'])->name('rendiciones');
         Route::get('/arqueo-diario',[\App\Http\Controllers\ArqueoDiarioController::class,'index'])->name('arqueo');
         Route::get('/mi-caja',      [\App\Http\Controllers\CajaController::class, 'miCaja'])->name('micaja');
+        Route::get('/apertura',     [\App\Http\Controllers\CajaController::class, 'apertura'])->name('apertura');
     });
 
     // ── Compras ───────────────────────────────────────────────────────────

@@ -209,26 +209,20 @@ class CajaService
         $hijas = DB::table('cajas')->where('id_caja_padre', $idCajaPadre)->get();
         $idsHijas = $hijas->pluck('id')->toArray();
 
-        if (empty($idsHijas)) {
-            return [
-                'total_declarado' => 0,
-                'total_sistema' => 0,
-                'diferencia' => 0,
-                'cierres' => [],
-            ];
-        }
+        // Incluir también la propia caja padre en la consulta
+        $ids = empty($idsHijas) ? [$idCajaPadre] : $idsHijas;
 
         $cierres = DB::table('cierre_caja as cc')
             ->join('cajas as c', 'c.id', '=', 'cc.id_caja')
             ->leftJoin('usuarios as uc', 'uc.usuario_id', '=', 'cc.id_usuario_cierra')
             ->leftJoin('usuarios as ua', 'ua.usuario_id', '=', 'cc.id_usuario_aprueba')
-            ->whereIn('cc.id_caja', $idsHijas)
+            ->whereIn('cc.id_caja', $ids)
             ->where('cc.fecha', $fecha)
             ->select(
                 'cc.*',
                 'c.nombre as caja_nombre',
-                DB::raw('CONCAT(uc.nombres, " ", uc.apellidos) as usuario_cierra_nombre'),
-                DB::raw('COALESCE(CONCAT(ua.nombres, " ", ua.apellidos), "-") as usuario_aprueba_nombre')
+                DB::raw("COALESCE(NULLIF(CONCAT_WS(' ', uc.nombres, uc.apellidos), ''), '-') as usuario_cierra_nombre"),
+                DB::raw("COALESCE(NULLIF(CONCAT_WS(' ', ua.nombres, ua.apellidos), ''), '-') as usuario_aprueba_nombre")
             )
             ->get();
 

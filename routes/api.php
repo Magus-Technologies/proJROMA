@@ -296,6 +296,14 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::get('/historial/{idCaja}', [\App\Http\Controllers\Api\CierreCajaApiController::class, 'historial']);
     });
 
+    // ── Apertura de Caja ─────────────────────────────────────────────────
+    Route::prefix('aperturas')->group(function () {
+        Route::get('/cajas-disponibles', [\App\Http\Controllers\Api\AperturaCajaApiController::class, 'cajasDisponibles']);
+        Route::post('/guardar',          [\App\Http\Controllers\Api\AperturaCajaApiController::class, 'guardar']);
+        Route::get('/historial/{idCaja}',[\App\Http\Controllers\Api\AperturaCajaApiController::class, 'historial']);
+        Route::get('/ultima/{idCaja}',   [\App\Http\Controllers\Api\AperturaCajaApiController::class, 'ultima']);
+    });
+
     // ── Arqueo Diario ─────────────────────────────────────────────────────
     Route::prefix('arqueo')->group(function () {
         Route::post('/cobros-dia',   [ArqueoApiController::class, 'obtenerCobrosDia']);

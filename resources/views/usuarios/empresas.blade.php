@@ -264,7 +264,11 @@ async function buscarRuc() {
             document.getElementById('f_ubigeo').value = d.empresa.ubigeo || '';
             toastOk('Datos de empresa encontrados.');
         } else {
-            toastWarn('No se encontró empresa con ese RUC.');
+            ['f_razon','f_comercial','f_direccion','f_distrito','f_provincia','f_departamento','f_ubigeo'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            toastWarn('RUC no registrado. Complete los datos manualmente.');
         }
     } catch { toastWarn('Error al consultar RUC.'); }
 }

@@ -107,7 +107,7 @@ $(function(){
              render:(id,type,row) => {
                 let btns = '<div class="flex justify-center gap-1">';
                 btns += `<button onclick="verDetalle(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600" title="Ver detalle"><i class="ti ti-eye text-sm"></i></button>`;
-                btns += `<a href="${BASE}/r/guia/remision/pdf/${id}" target="_blank" class="h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600" title="PDF"><i class="ti ti-file-type-pdf text-sm"></i></a>`;
+                btns += `<a href="${BASE}/guia/remision/pdf/${id}" target="_blank" class="h-7 w-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600" title="PDF"><i class="ti ti-file-type-pdf text-sm"></i></a>`;
                 if(row.estado==='1'){
                     btns += `<button onclick="anularGuia(${id})" class="h-7 w-7 flex items-center justify-center rounded-lg bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-600" title="Anular"><i class="ti ti-ban text-sm"></i></button>`;
                 }

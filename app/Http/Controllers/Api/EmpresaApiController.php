@@ -158,10 +158,43 @@ class EmpresaApiController extends Controller
     public function buscarRuc(Request $request): JsonResponse
     {
         $request->validate(['ruc' => 'required|string|min:11|max:11']);
+
         $empresa = Empresa::where('ruc', $request->ruc)->first();
-        if (!$empresa) {
-            return response()->json(['res' => false, 'msg' => 'Empresa no encontrada.'], 404);
+        if ($empresa) {
+            return response()->json(['res' => true, 'empresa' => $empresa]);
         }
-        return response()->json(['res' => true, 'empresa' => $empresa]);
+
+        $token = config('services.apis_net_pe.token');
+        if (!$token) {
+            return response()->json(['res' => false, 'msg' => 'RUC no registrado. Complete los datos manualmente.']);
+        }
+
+        try {
+            $response = Http::withToken($token)
+                ->timeout(8)
+                ->get("https://api.apis.net.pe/v2/sunat/ruc", ['numero' => $request->ruc]);
+
+            if (!$response->successful()) {
+                return response()->json(['res' => false, 'msg' => 'RUC no encontrado en SUNAT.']);
+            }
+
+            $data = $response->json();
+
+            return response()->json([
+                'res' => true,
+                'empresa' => [
+                    'ruc'          => $data['ruc']          ?? $request->ruc,
+                    'razon_social' => $data['razonSocial']  ?? '',
+                    'comercial'    => $data['nombreComercial'] ?? '',
+                    'direccion'    => $data['direccion']    ?? '',
+                    'distrito'     => $data['ubigeo'][2]    ?? '',
+                    'provincia'    => $data['ubigeo'][1]    ?? '',
+                    'departamento' => $data['ubigeo'][0]    ?? '',
+                    'ubigeo'       => $data['codigoUbigeo'] ?? '',
+                ],
+            ]);
+        } catch (\Throwable) {
+            return response()->json(['res' => false, 'msg' => 'Error al consultar SUNAT. Complete los datos manualmente.']);
+        }
     }
 }

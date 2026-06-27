@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cotizacion;
+use App\Models\GuiaRemision;
 use App\Models\NotaElectronica;
 use App\Models\Venta;
 use App\Models\Empresa;
@@ -62,7 +63,19 @@ class ReportesController extends Controller
 
     public function guiaRemisionPdf(int $guia): \Illuminate\Http\Response
     {
-        return response('<h2 style="font-family:Arial;padding:40px">Guía PDF — En desarrollo</h2>', 200)->header('Content-Type','text/html');
+        $guia    = GuiaRemision::with(['venta.cliente', 'detalles'])->findOrFail($guia);
+        $empresa = $this->getEmpresa() ?? Empresa::find($guia->id_empresa);
+
+        $logoBase64 = '';
+        if ($empresa?->logo && file_exists(public_path('storage/' . $empresa->logo))) {
+            $mime       = mime_content_type(public_path('storage/' . $empresa->logo));
+            $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents(public_path('storage/' . $empresa->logo)));
+        }
+
+        $serie = $guia->serie . '-' . str_pad($guia->numero, 8, '0', STR_PAD_LEFT);
+
+        return PdfService::a4()
+            ->generar('pdf.guia-remision', compact('guia', 'empresa', 'logoBase64'), "guia-{$serie}.pdf");
     }
     public function notaElectronicaPdf(int $nota): \Illuminate\Http\Response
     {

@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasAvatar;
 use Filament\Panel;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -13,7 +15,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 // ── Laravel 13: atributos PHP en lugar de propiedades de clase ────────
 #[Table('usuarios')]
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements FilamentUser, HasAvatar
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
@@ -26,7 +28,7 @@ class User extends Authenticatable implements FilamentUser
     protected $fillable = [
         'id_empresa', 'id_rol', 'num_doc', 'usuario', 'clave',
         'email', 'nombres', 'apellidos', 'rubro', 'sucursal',
-        'telefono', 'estado', 'mensaje', 'rotativo', 'available_status',
+        'telefono', 'foto', 'estado', 'mensaje', 'rotativo', 'available_status',
     ];
 
     protected $hidden = [
@@ -93,6 +95,14 @@ class User extends Authenticatable implements FilamentUser
     public function esCajero(): bool   { return $this->id_rol == 4; }
 
     // ── Filament ──────────────────────────────────────────────────────
+    public function getFilamentAvatarUrl(): ?string
+    {
+        if ($this->foto && Storage::disk('public')->exists($this->foto)) {
+            return Storage::disk('public')->url($this->foto);
+        }
+        return null;
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->estado === '1' && $this->available_status;

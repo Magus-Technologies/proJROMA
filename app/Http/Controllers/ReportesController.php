@@ -9,12 +9,33 @@ use App\Models\Venta;
 use App\Models\Empresa;
 use App\Models\DocumentoEmpresa;
 use App\Services\PdfService;
+use Illuminate\Support\Facades\Storage;
 
 class ReportesController extends Controller
 {
     private function getEmpresa(): ?Empresa
     {
         return Empresa::find(session('id_empresa'));
+    }
+
+    private function getLogoBase64(?Empresa $empresa): string
+    {
+        if (!$empresa?->logo) {
+            return '';
+        }
+        // Try public disk first (Filament v5 uploads with ->disk('public'))
+        if (Storage::disk('public')->exists($empresa->logo)) {
+            $path = Storage::disk('public')->path($empresa->logo);
+            $mime = mime_content_type($path);
+            return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+        }
+        // Fallback: legacy path directly under public/storage/
+        $legacy = public_path('storage/' . $empresa->logo);
+        if (file_exists($legacy)) {
+            $mime = mime_content_type($legacy);
+            return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($legacy));
+        }
+        return '';
     }
 
     public function comprobanteVenta(int $venta): \Illuminate\Http\Response
@@ -66,11 +87,7 @@ class ReportesController extends Controller
         $guia    = GuiaRemision::with(['venta.cliente', 'detalles'])->findOrFail($guia);
         $empresa = $this->getEmpresa() ?? Empresa::find($guia->id_empresa);
 
-        $logoBase64 = '';
-        if ($empresa?->logo && file_exists(public_path('storage/' . $empresa->logo))) {
-            $mime       = mime_content_type(public_path('storage/' . $empresa->logo));
-            $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents(public_path('storage/' . $empresa->logo)));
-        }
+        $logoBase64 = $this->getLogoBase64($empresa);
 
         $serie = $guia->serie . '-' . str_pad($guia->numero, 8, '0', STR_PAD_LEFT);
 
@@ -98,7 +115,8 @@ class ReportesController extends Controller
             'usuario',
         ])->findOrFail($coti);
 
-        $empresa = $this->getEmpresa();
+        $empresa    = $this->getEmpresa();
+        $logoBase64 = $this->getLogoBase64($empresa);
 
         $doc = DocumentoEmpresa::where('id_empresa', session('id_empresa'))
             ->where('sucursal', session('sucursal'))
@@ -110,7 +128,7 @@ class ReportesController extends Controller
             : 'NV-' . str_pad($coti->numero, 8, '0', STR_PAD_LEFT);
 
         return PdfService::a4()
-            ->generar('pdf.cotizacion', compact('coti', 'empresa', 'documentoCompleto'), "cotizacion-{$coti->numero}.pdf");
+            ->generar('pdf.cotizacion', compact('coti', 'empresa', 'documentoCompleto', 'logoBase64'), "cotizacion-{$coti->numero}.pdf");
     }
     public function comprobanteCotizacionA4(int $coti): \Illuminate\Http\Response  { return $this->comprobanteCotizacion($coti); }
     public function comprobantePedidos(int $coti): \Illuminate\Http\Response        { return $this->comprobanteCotizacion($coti); }

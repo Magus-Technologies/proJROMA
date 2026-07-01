@@ -4,20 +4,20 @@ namespace App\Filament\Resources;
 
 use App\Models\Empresa;
 use BackedEnum;
-use Filament\Forms;
-use Filament\Schemas\Components\FileUpload;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Select;
-use Filament\Schemas\Components\TextInput;
-use Filament\Schemas\Components\Toggle;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
 use Filament\Notifications\Notification;
 use Filament\Tables;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -30,9 +30,8 @@ class EmpresaResource extends Resource
     protected static ?string $model = Empresa::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-office-2';
-
     protected static ?string $navigationLabel = 'Empresas';
-
+    protected static ?int    $navigationSort  = 3;
     protected static string|UnitEnum|null $navigationGroup = 'Administración';
 
     protected static ?string $pluralLabel = 'Empresas';
@@ -89,31 +88,33 @@ class EmpresaResource extends Resource
                     ]),
             ])
             ->actions([
-                EditAction::make(),
-                Action::make('toggle')
-                    ->label('Activar/Desactivar')
-                    ->icon('heroicon-o-power')
-                    ->color('warning')
-                    ->requiresConfirmation()
-                    ->modalHeading(fn (Empresa $record): string => $record->estado === '1' ? '¿Desactivar empresa?' : '¿Activar empresa?')
-                    ->action(function (Empresa $record) {
-                        $record->update(['estado' => $record->estado === '1' ? '0' : '1']);
-                        Notification::make()
-                            ->title($record->estado === '1' ? 'Empresa activada' : 'Empresa desactivada')
-                            ->success()
-                            ->send();
-                    }),
-                DeleteAction::make()
-                    ->before(function (DeleteAction $action, Empresa $record) {
-                        if ($record->usuarios()->exists()) {
+                ActionGroup::make([
+                    EditAction::make(),
+                    Action::make('toggle')
+                        ->label('Activar/Desactivar')
+                        ->icon('heroicon-o-power')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading(fn (Empresa $record): string => $record->estado === '1' ? '¿Desactivar empresa?' : '¿Activar empresa?')
+                        ->action(function (Empresa $record) {
+                            $record->update(['estado' => $record->estado === '1' ? '0' : '1']);
                             Notification::make()
-                                ->title('No se puede eliminar')
-                                ->body('Hay usuarios asignados a esta empresa.')
-                                ->danger()
+                                ->title($record->estado === '1' ? 'Empresa activada' : 'Empresa desactivada')
+                                ->success()
                                 ->send();
-                            $action->cancel();
-                        }
-                    }),
+                        }),
+                    DeleteAction::make()
+                        ->before(function (Action $action, Empresa $record) {
+                            if ($record->usuarios()->exists()) {
+                                Notification::make()
+                                    ->title('No se puede eliminar')
+                                    ->body('Hay usuarios asignados a esta empresa.')
+                                    ->danger()
+                                    ->send();
+                                $action->cancel();
+                            }
+                        }),
+                ])->tooltip('Acciones'),
             ])
             ->defaultSort('razon_social', 'asc');
     }
@@ -122,6 +123,20 @@ class EmpresaResource extends Resource
     {
         return $schema
             ->schema([
+                Section::make('Logo')
+                    ->icon('heroicon-o-photo')
+                    ->schema([
+                        FileUpload::make('logo')
+                            ->label('Logo de la empresa')
+                            ->image()
+                            ->disk('public')
+                            ->imagePreviewHeight('120')
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'])
+                            ->directory('logos')
+                            ->maxSize(2048)
+                            ->columnSpanFull(),
+                    ]),
+
                 Section::make('Datos Principales')
                     ->icon('heroicon-o-building-office-2')
                     ->schema([

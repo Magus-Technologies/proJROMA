@@ -32,8 +32,11 @@ class Producto extends Model
         'ultima_salida' => 'date',
     ];
 
-    public function scopeActivos(Builder $q): Builder             { return $q->where('estado','1'); }
-    public function scopeDeEmpresa(Builder $q, int $id): Builder  { return $q->where('id_empresa',$id); }
-    public function scopeDeSucursal(Builder $q, int $s): Builder  { return $q->where('sucursal',$s); }
-    public function scopeBajoStock(Builder $q, int $min=5): Builder{ return $q->where('cantidad','<=',$min); }
+    public function categoria()     { return $this->belongsTo(Categoria::class, 'id_categoria', 'id_categoria'); }
+    public function marca()         { return $this->belongsTo(Marca::class,     'id_marca',     'id_marca'); }
+
+    public function scopeActivos(Builder $q): Builder              { return $q->where('estado','1'); }
+    public function scopeDeEmpresa(Builder $q, int $id): Builder   { return $q->where('id_empresa',$id); }
+    public function scopeDeSucursal(Builder $q, int $s): Builder   { return $q->where('sucursal',$s); }
+    public function scopeBajoStock(Builder $q, int $min=5): Builder { return $q->where('cantidad','<=',$min); }
 }

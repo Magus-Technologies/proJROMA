@@ -127,7 +127,7 @@
                     <i class="ti ti-truck-delivery"></i>
                     <span x-text="guardando?'Guardando...':'Registrar Guía'"></span>
                 </button>
-                <a href="{{ route('guias.index') }}"
+                <a href="{{ url('/panel/guia-remisions') }}"
                    class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 px-4 py-2.5 text-xs font-medium text-gray-600 transition">
                     <i class="ti ti-arrow-left text-xs"></i> Volver
                 </a>

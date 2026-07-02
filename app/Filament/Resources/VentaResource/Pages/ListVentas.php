@@ -17,7 +17,7 @@ class ListVentas extends ListRecords
                 ->label('Nueva Venta')
                 ->icon('heroicon-o-plus')
                 ->color('primary')
-                ->url(url('/ventas/productos')),
+                ->url(VentaResource::getUrl('create')),
 
             Action::make('excel')
                 ->label('Reporte Excel')

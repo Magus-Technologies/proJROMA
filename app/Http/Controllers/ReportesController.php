@@ -131,11 +131,6 @@ class ReportesController extends Controller
             ->generar('pdf.cotizacion', compact('coti', 'empresa', 'documentoCompleto', 'logoBase64'), "cotizacion-{$coti->numero}.pdf");
     }
     public function comprobanteCotizacionA4(int $coti): \Illuminate\Http\Response  { return $this->comprobanteCotizacion($coti); }
-    public function comprobantePedidos(int $coti): \Illuminate\Http\Response        { return $this->comprobanteCotizacion($coti); }
-    public function comprobantePedido(string $n): \Illuminate\Http\Response
-    {
-        return response('<h2 style="font-family:Arial;padding:40px">Pedido PDF — En desarrollo</h2>', 200)->header('Content-Type','text/html');
-    }
     public function ventasPdf(\Illuminate\Http\Request $request): \Illuminate\Http\Response
     {
         $desde = $request->query('desde', now()->startOfMonth()->toDateString());
@@ -155,14 +150,8 @@ class ReportesController extends Controller
         return PdfService::a4()
             ->generar('pdf.reporte-ventas', compact('ventas', 'empresa', 'periodo'), "reporte-ventas-{$desde}-{$hasta}.pdf");
     }
-    public function ventasVendedor(): \Illuminate\View\View    { return view('reportes.ventas-vendedor'); }
-    public function deudaCobros(): \Illuminate\View\View       { return view('reportes.deudas-cobros'); }
-    public function deudaVendedor(): \Illuminate\View\View     { return view('reportes.deudas-vendedor'); }
-    public function deudaRuta(): \Illuminate\View\View         { return view('reportes.deudas-ruta'); }
     public function reporteCliente(int $id): \Illuminate\View\View { return view('reportes.cliente',compact('id')); }
     public function reporteCompra(int $id): \Illuminate\View\View  { return view('reportes.compra',compact('id')); }
-    public function pedidoCamion(): \Illuminate\View\View      { return view('reportes.pedido-camion'); }
-    public function reporteLogistico(): \Illuminate\View\View  { return view('reportes.logistico'); }
     public function ingresosEgresos(int $id): \Illuminate\View\View{ return view('reportes.ingresos-egresos',compact('id')); }
     public function exportarExcel(string $fecha): \Symfony\Component\HttpFoundation\Response
     {
@@ -180,7 +169,4 @@ class ReportesController extends Controller
             "ventas-{$fecha}.xlsx",
         );
     }
-    public function exportarExcelProducto(): \Symfony\Component\HttpFoundation\Response           { return response('Excel en desarrollo',200); }
-    public function exportarExcelCaja(int $id): \Symfony\Component\HttpFoundation\Response        { return response('Excel en desarrollo',200); }
-    public function pedidoClientes(): \Symfony\Component\HttpFoundation\Response                   { return response('Excel en desarrollo',200); }
 }

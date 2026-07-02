@@ -74,6 +74,50 @@ class CotizacionResource extends Resource
                     }),
             ])
             ->actions([
+                \App\Filament\Actions\PdfPreviewAction::make(
+                    pdfUrl: fn (Cotizacion $record): string => route('cotizacion.reporte', $record->cotizacion_id),
+                    titulo: function (Cotizacion $record, $livewire): string {
+                        $doc = 'Cotización COT-' . str_pad((string) $record->numero, 8, '0', STR_PAD_LEFT);
+                        $esNueva = property_exists($livewire, 'recienCreada')
+                            && (int) $livewire->recienCreada === (int) $record->cotizacion_id;
+
+                        return $esNueva ? "¡Cotización creada exitosamente! — {$doc}" : $doc;
+                    },
+                    whatsappUrl: function (Cotizacion $record): string {
+                        $doc     = 'COT-' . str_pad((string) $record->numero, 8, '0', STR_PAD_LEFT);
+                        $mensaje = rawurlencode(
+                            "Hola! Le comparto la cotización {$doc} por S/ " . number_format($record->total, 2)
+                            . ".\n" . route('cotizacion.reporte', $record->cotizacion_id)
+                        );
+                        $telefono = preg_replace('/\D/', '', (string) $record->cliente?->telefono);
+                        $telefono = strlen($telefono) === 9 ? "51{$telefono}" : $telefono;
+
+                        return $telefono
+                            ? "https://wa.me/{$telefono}?text={$mensaje}"
+                            : "https://wa.me/?text={$mensaje}";
+                    },
+                    emailUrl: function (Cotizacion $record): string {
+                        $doc = 'COT-' . str_pad((string) $record->numero, 8, '0', STR_PAD_LEFT);
+
+                        return 'mailto:' . ($record->cliente?->email ?? '')
+                            . '?subject=' . rawurlencode("Cotización {$doc}")
+                            . '&body=' . rawurlencode(
+                                "Estimado cliente,\n\nLe compartimos la cotización {$doc} por S/ "
+                                . number_format($record->total, 2)
+                                . ".\n\nPuede verla aquí: " . route('cotizacion.reporte', $record->cotizacion_id)
+                            );
+                    },
+                    accionesExtra: [
+                        Action::make('convertir_desde_preview')
+                            ->label('Convertir a Venta')
+                            ->icon('heroicon-m-arrow-path')
+                            ->color('warning')
+                            ->visible(fn (Cotizacion $record): bool => $record->estado === '1' && ! $record->id_venta)
+                            ->url(fn (Cotizacion $record): string =>
+                                \App\Filament\Resources\VentaResource::getUrl('create', ['cotizacion' => $record->cotizacion_id])),
+                    ],
+                )->iconButton()->tooltip('Vista previa'),
+
                 ActionGroup::make([
                 Action::make('editar')
                     ->label('Editar')
@@ -81,12 +125,6 @@ class CotizacionResource extends Resource
                     ->color('info')
                     ->url(fn (Cotizacion $record) => route('cotizaciones.edit', $record->cotizacion_id))
                     ->visible(fn (Cotizacion $record) => $record->estado === '1'),
-
-                Action::make('cuotas')
-                    ->label('Cuotas')
-                    ->icon('heroicon-m-credit-card')
-                    ->color('gray')
-                    ->url(fn (Cotizacion $record) => route('cotizaciones.cuotas', $record->cotizacion_id)),
 
                 Action::make('pdf')
                     ->label('PDF')
@@ -100,100 +138,8 @@ class CotizacionResource extends Resource
                     ->icon('heroicon-m-arrow-path')
                     ->color('warning')
                     ->visible(fn (Cotizacion $record) => $record->estado === '1' && !$record->id_venta)
-                    ->requiresConfirmation(false)
-                    ->form([
-                        Select::make('id_tido')
-                            ->label('Tipo de comprobante')
-                            ->options(function () {
-                                $map = [1 => 'Boleta', 2 => 'Factura', 6 => 'Nota de Venta'];
-                                return DB::table('documentos_empresas')
-                                    ->where('id_empresa', (int) session('id_empresa'))
-                                    ->where('sucursal', (int) session('sucursal'))
-                                    ->whereIn('id_tido', [1, 2, 6])
-                                    ->get()
-                                    ->mapWithKeys(fn ($d) => [
-                                        $d->id_tido => $map[$d->id_tido] ?? "Tipo {$d->id_tido}",
-                                    ]);
-                            })
-                            ->required(),
-                    ])
-                    ->action(function (array $data, Cotizacion $record) {
-                        if ($record->estado !== '1') {
-                            Notification::make()->warning()->title('Solo se pueden convertir cotizaciones activas.')->send();
-                            return;
-                        }
-                        if ($record->id_venta) {
-                            Notification::make()->warning()->title('Esta cotización ya fue convertida a venta.')->send();
-                            return;
-                        }
-
-                        $empresa  = (int) session('id_empresa');
-                        $sucursal = (int) session('sucursal');
-
-                        DB::beginTransaction();
-                        try {
-                            $record->load('productos');
-
-                            $tido = DocumentoEmpresa::where('id_empresa', $empresa)
-                                ->where('sucursal', $sucursal)
-                                ->where('id_tido', $data['id_tido'])
-                                ->lockForUpdate()
-                                ->firstOrFail();
-
-                            $numero = $tido->numero + 1;
-                            $serie  = $tido->serie;
-
-                            $idVenta = DB::table('ventas')->insertGetId([
-                                'id_tido'           => $data['id_tido'],
-                                'id_tipo_pago'      => $record->id_tipo_pago,
-                                'fecha_emision'     => now()->toDateString(),
-                                'fecha_vencimiento' => now()->toDateString(),
-                                'dias_pagos'        => $record->dias_pagos,
-                                'direccion'         => $record->direccion ?? '-',
-                                'serie'             => $serie,
-                                'numero'            => $numero,
-                                'id_cliente'        => $record->id_cliente,
-                                'total'             => $record->total,
-                                'igv'               => round($record->total - ($record->total / 1.18), 2),
-                                'apli_igv'          => '1',
-                                'estado'            => '1',
-                                'enviado_sunat'     => '0',
-                                'id_empresa'        => $empresa,
-                                'sucursal'          => $sucursal,
-                                'id_vendedor'       => auth()->id(),
-                                'observacion'       => 'Convertido de cotización N° ' . $record->numero,
-                                'pagado'            => '0',
-                                'id_coti'           => $record->cotizacion_id,
-                            ]);
-
-                            $tido->increment('numero');
-
-                            foreach ($record->productos as $prod) {
-                                DB::table('productos_ventas')->insert([
-                                    'id_venta'     => $idVenta,
-                                    'id_producto'  => $prod->id_producto,
-                                    'cantidad'     => $prod->cantidad,
-                                    'precio'       => $prod->precio,
-                                    'costo'        => $prod->costo ?? 0,
-                                    'medida'       => $prod->medida ?? '',
-                                    'presenta'     => $prod->presenta ?? '',
-                                    'presenta_cnt' => $prod->presenta_cnt ?? 0,
-                                ]);
-                            }
-
-                            $record->update(['estado' => '3', 'id_venta' => $idVenta]);
-
-                            DB::commit();
-
-                            $doc = "{$serie}-" . str_pad($numero, 8, '0', STR_PAD_LEFT);
-                            Notification::make()->success()->title("Venta {$doc} generada correctamente.")->send();
-
-                        } catch (\Throwable $e) {
-                            DB::rollBack();
-                            Log::error('Error convertir cotización: ' . $e->getMessage());
-                            Notification::make()->danger()->title('Error al convertir la cotización.')->send();
-                        }
-                    }),
+                    ->url(fn (Cotizacion $record): string =>
+                        \App\Filament\Resources\VentaResource::getUrl('create', ['cotizacion' => $record->cotizacion_id])),
 
                 Action::make('anular')
                     ->label('Anular')
@@ -226,10 +172,90 @@ class CotizacionResource extends Resource
 
     public static function getRelations(): array { return []; }
 
+    public static function convertirAVenta(Cotizacion $record, int $idTido): void
+    {
+        if ($record->estado !== '1') {
+            Notification::make()->warning()->title('Solo se pueden convertir cotizaciones activas.')->send();
+            return;
+        }
+        if ($record->id_venta) {
+            Notification::make()->warning()->title('Esta cotización ya fue convertida a venta.')->send();
+            return;
+        }
+
+        $empresa  = (int) session('id_empresa');
+        $sucursal = (int) session('sucursal');
+
+        DB::beginTransaction();
+        try {
+            $record->load('productos');
+
+            $tido = DocumentoEmpresa::where('id_empresa', $empresa)
+                ->where('sucursal', $sucursal)
+                ->where('id_tido', $idTido)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $numero = $tido->numero + 1;
+            $serie  = $tido->serie;
+
+            $idVenta = DB::table('ventas')->insertGetId([
+                'id_tido'           => $idTido,
+                'id_tipo_pago'      => $record->id_tipo_pago,
+                'fecha_emision'     => now()->toDateString(),
+                'fecha_vencimiento' => now()->toDateString(),
+                'dias_pagos'        => $record->dias_pagos,
+                'direccion'         => $record->direccion ?? '-',
+                'serie'             => $serie,
+                'numero'            => $numero,
+                'id_cliente'        => $record->id_cliente,
+                'total'             => $record->total,
+                'igv'               => round($record->total - ($record->total / 1.18), 2),
+                'apli_igv'          => '1',
+                'estado'            => '1',
+                'enviado_sunat'     => '0',
+                'id_empresa'        => $empresa,
+                'sucursal'          => $sucursal,
+                'id_vendedor'       => auth()->id(),
+                'observacion'       => 'Convertido de cotización N° ' . $record->numero,
+                'pagado'            => '0',
+                'id_coti'           => $record->cotizacion_id,
+            ]);
+
+            $tido->increment('numero');
+
+            foreach ($record->productos as $prod) {
+                DB::table('productos_ventas')->insert([
+                    'id_venta'     => $idVenta,
+                    'id_producto'  => $prod->id_producto,
+                    'cantidad'     => $prod->cantidad,
+                    'precio'       => $prod->precio,
+                    'costo'        => $prod->costo ?? 0,
+                    'medida'       => $prod->medida ?? '',
+                    'presenta'     => $prod->presenta ?? '',
+                    'presenta_cnt' => $prod->presenta_cnt ?? 0,
+                ]);
+            }
+
+            $record->update(['estado' => '3', 'id_venta' => $idVenta]);
+
+            DB::commit();
+
+            $doc = "{$serie}-" . str_pad($numero, 8, '0', STR_PAD_LEFT);
+            Notification::make()->success()->title("Venta {$doc} generada correctamente.")->send();
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Error convertir cotización: ' . $e->getMessage());
+            Notification::make()->danger()->title('Error al convertir la cotización.')->send();
+        }
+    }
+
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListCotizaciones::route('/'),
+            'index'  => Pages\ListCotizaciones::route('/'),
+            'create' => Pages\CreateCotizacion::route('/create'),
         ];
     }
 }

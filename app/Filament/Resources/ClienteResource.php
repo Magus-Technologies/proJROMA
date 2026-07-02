@@ -84,7 +84,13 @@ class ClienteResource extends Resource
             TextInput::make('datos')->label('Razón Social / Nombre')->required()->maxLength(200)->columnSpanFull(),
             TextInput::make('direccion')->label('Dirección')->maxLength(200)->columnSpanFull(),
             TextInput::make('distrito')->label('Distrito')->maxLength(100),
-            TextInput::make('telefono')->label('Teléfono')->maxLength(20),
+            TextInput::make('telefono')
+                ->label('Teléfono')
+                ->tel()
+                ->mask('99999999999999999999')
+                ->maxLength(20)
+                ->regex('/^[0-9]*$/')
+                ->validationMessages(['regex' => 'El teléfono solo puede contener números.']),
             TextInput::make('email')->label('Email')->email()->maxLength(100),
         ]);
     }
@@ -116,6 +122,12 @@ class ClienteResource extends Resource
             ])
             ->bulkActions([BulkActionGroup::make([DeleteBulkAction::make()])])
             ->defaultSort('datos');
+    }
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getEloquentQuery()
+            ->where('id_empresa', (int) session('id_empresa'));
     }
 
     public static function getRelations(): array { return []; }

@@ -1,46 +1,25 @@
 <?php
 
-use App\Http\Controllers\Api\VentasApiController;
 use App\Http\Controllers\Api\ClientesApiController;
-use App\Http\Controllers\Api\ProductosApiController;
-use App\Http\Controllers\Api\CatalogoApiController;
 use App\Http\Controllers\Api\ComprasApiController;
-use App\Http\Controllers\Api\AlmacenApiController;
-use App\Http\Controllers\Api\MovimientoApiController;
-use App\Http\Controllers\Api\RecepcionApiController;
-use App\Http\Controllers\Api\PrestamoApiController;
-use App\Http\Controllers\Api\MotivoApiController;
-use App\Http\Controllers\Api\SucursalApiController;
-use App\Http\Controllers\Api\TrasladoApiController;
-use App\Http\Controllers\Api\ArqueoApiController;
-use App\Http\Controllers\Api\CajaApiController;
-use App\Http\Controllers\Api\FlujoApiController;
-use App\Http\Controllers\Api\MiCajaApiController;
-use App\Http\Controllers\Api\PagoInstrumentoApiController;
-use App\Http\Controllers\Api\EmpresaApiController;
-use App\Http\Controllers\Api\UsuariosApiController;
 use App\Http\Controllers\Api\CotizacionesApiController;
-use App\Http\Controllers\Api\ProveedoresApiController;
-use App\Http\Controllers\Api\CajaMaestroApiController;
-use App\Http\Controllers\Api\CajaInstrumentoApiController;
-use App\Http\Controllers\Api\CajaMovimientoApiController;
-use App\Http\Controllers\Api\PagosApiController;
 use App\Http\Controllers\Api\GuiaRemisionApiController;
 use App\Http\Controllers\Api\NotaElectronicaApiController;
+use App\Http\Controllers\Api\PagoInstrumentoApiController;
+use App\Http\Controllers\Api\VentasApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes — todas con auth:sanctum,web + check.empresa
-|--------------------------------------------------------------------------
-| Nota: Los controladores ya usan #[Middleware] en Laravel 13,
-| pero también están protegidos aquí a nivel de grupo como doble capa.
+| API Routes — solo los endpoints que consumen los formularios POS en Blade
+| que Filament aún enlaza (compras/add, guias/registrar, nota/electronica,
+| cotizaciones/editar). Todo lo demás vive en el panel de Filament.
 |--------------------------------------------------------------------------
 */
 
 Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
 
-    // ── Ventas ───────────────────────────────────────────────────────────
+    // ── Ventas (buscador de productos y carga usada por los POS) ──────────
     Route::prefix('ventas')->group(function () {
         Route::get('/',                       [VentasApiController::class, 'listar']);
         Route::post('/add',                   [VentasApiController::class, 'guardar']);
@@ -70,67 +49,10 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::get('/buscar/datos',  [ClientesApiController::class, 'buscarDatos']);
     });
 
-    // ── Proveedores ──────────────────────────────────────────────────────
-    Route::prefix('proveedores')->group(function () {
-        Route::get('/',              [ProveedoresApiController::class, 'listar']);
-        Route::post('/add',          [ProveedoresApiController::class, 'guardar']);
-        Route::post('/update',       [ProveedoresApiController::class, 'actualizar']);
-        Route::post('/get',          [ProveedoresApiController::class, 'getOne']);
-        Route::post('/delete',       [ProveedoresApiController::class, 'eliminar']);
-    });
-
-    // ── Consulta RENIEC / SUNAT (compartida entre módulos) ───────────────────
-    Route::get('/consulta/documento', [ProveedoresApiController::class, 'consultarDocumento']);
-
-    // ── Empresas (admin) ──────────────────────────────────────────────────
-    Route::prefix('empresas')->group(function () {
-        Route::get('/',          [EmpresaApiController::class, 'listar']);
-        Route::post('/add',      [EmpresaApiController::class, 'guardar']);
-        Route::post('/get-one',  [EmpresaApiController::class, 'getOne']);
-        Route::post('/editar',   [EmpresaApiController::class, 'editar']);
-        Route::post('/toggle',   [EmpresaApiController::class, 'toggle']);
-        Route::post('/eliminar', [EmpresaApiController::class, 'eliminar']);
-        Route::post('/buscar-ruc',       [EmpresaApiController::class, 'buscarRuc']);
-        Route::post('/subir-certificado',[EmpresaApiController::class, 'subirCertificado']);
-    });
-
-    // ── Productos ─────────────────────────────────────────────────────────
-    Route::prefix('productos')->group(function () {
-        Route::get('/',              [ProductosApiController::class, 'listar']);
-        Route::get('/serverside',    [ProductosApiController::class, 'serverside']);
-        Route::get('/catalogo',      [ProductosApiController::class, 'catalogo']);
-        Route::post('/add',          [ProductosApiController::class, 'guardar']);
-        Route::post('/add/lista',    [ProductosApiController::class, 'agregarPorLista']);
-        Route::post('/editar',       [ProductosApiController::class, 'editar']);
-        Route::post('/borrar',       [ProductosApiController::class, 'borrar']);
-        Route::post('/get-one',      [ProductosApiController::class, 'getOne']);
-        Route::post('/imagen',       [ProductosApiController::class, 'subirImagen']);
-        Route::get('/razon-social',  [ProductosApiController::class, 'porRazonSocial']);
-        Route::get('/stock-almacenes/{codigo}',  [ProductosApiController::class, 'stockPorAlmacen']);
-    });
-
-    // ── Catálogo: Categorías / Subcategorías / Marcas / Submarcas ──────────
-    Route::prefix('catalogo')->group(function () {
-        Route::get('/{tipo}',         [CatalogoApiController::class, 'listar']);
-        Route::post('/{tipo}',        [CatalogoApiController::class, 'guardar']);
-        Route::post('/{tipo}/editar', [CatalogoApiController::class, 'editar']);
-        Route::post('/{tipo}/toggle', [CatalogoApiController::class, 'toggle']);
-        Route::post('/{tipo}/borrar', [CatalogoApiController::class, 'borrar']);
-    })->where('tipo', 'categorias|subcategorias|marcas|submarcas');
-
     // ── Compras ────────────────────────────────────────────────────────────
     Route::get('/compras',         [ComprasApiController::class, 'listar']);
     Route::post('/compras',        [ComprasApiController::class, 'guardar']);
     Route::post('/compras/editar', [ComprasApiController::class, 'editar']);
-
-    // ── Pagos / Cuentas por Pagar ──────────────────────────────────────────
-    Route::prefix('pagos')->group(function () {
-        Route::get('/',               [PagosApiController::class, 'listar']);
-        Route::get('/historial',      [PagosApiController::class, 'historial']);
-        Route::post('/registrar',     [PagosApiController::class, 'registrarPago']);
-        Route::post('/editar',        [PagosApiController::class, 'editarPago']);
-        Route::post('/eliminar',      [PagosApiController::class, 'eliminarPago']);
-    });
 
     // ── Cotizaciones ────────────────────────────────────────────────────
     Route::prefix('cotizaciones')->group(function () {
@@ -172,39 +94,6 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
         Route::post('/billetera-tipo',        [PagoInstrumentoApiController::class, 'guardarBilleteraTipo']);
         Route::post('/billetera-tipo/editar', [PagoInstrumentoApiController::class, 'editarBilleteraTipo']);
         Route::post('/billetera-tipo/toggle', [PagoInstrumentoApiController::class, 'toggleBilleteraTipo']);
-    });
-
-    // ── Almacenes (maestro) ──────────────────────────────────────────────────
-    Route::prefix('almacenes')->group(function () {
-        Route::get('/',        [AlmacenApiController::class, 'listar']);
-        Route::post('/',       [AlmacenApiController::class, 'guardar']);
-        Route::post('/editar', [AlmacenApiController::class, 'editar']);
-        Route::post('/toggle', [AlmacenApiController::class, 'toggle']);
-        Route::post('/borrar', [AlmacenApiController::class, 'borrar']);
-    });
-
-    // ── Movimientos de Inventario (Ingresos / Salidas) ───────────────────────
-    Route::prefix('movimientos')->group(function () {
-        Route::get('/',          [MovimientoApiController::class, 'listar']);
-        Route::get('/ajustes',   [MovimientoApiController::class, 'ajustes']);
-        Route::get('/motivos',   [MovimientoApiController::class, 'motivos']);
-        Route::get('/productos', [MovimientoApiController::class, 'productosAlmacen']);
-        Route::post('/',         [MovimientoApiController::class, 'guardar']);
-        Route::post('/batch',    [MovimientoApiController::class, 'guardarBatch']);
-        Route::post('/traslado', [MovimientoApiController::class, 'traslado']);
-        Route::post('/anular',   [MovimientoApiController::class, 'anular']);
-    });
-
-    // ── Recepción de compras ─────────────────────────────────────────────────
-    Route::prefix('recepcion')->group(function () {
-        Route::get('/pendientes',  [RecepcionApiController::class, 'pendientes']);
-        Route::get('/lineas',      [RecepcionApiController::class, 'lineas']);
-        Route::get('/registro',    [RecepcionApiController::class, 'registro']);
-        Route::get('/detalle-recepcion', [RecepcionApiController::class, 'detalleRecepcion']);
-        Route::get('/historial',   [RecepcionApiController::class, 'historial']);
-        Route::post('/recepcionar', [RecepcionApiController::class, 'recepcionar']);
-        Route::post('/deshacer',    [RecepcionApiController::class, 'deshacer']);
-        Route::post('/eliminar',    [RecepcionApiController::class, 'eliminar']);
     });
 
     // ── Notas Electrónicas (Crédito / Débito) ───────────────────────────────

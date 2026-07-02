@@ -14,7 +14,7 @@ class Venta extends Model
         'dias_pagos','direccion','serie','numero','id_cliente','total',
         'subtotal','estado','enviado_sunat','id_empresa','sucursal',
         'apli_igv','observacion','igv','medoto_pago_id','pagado',
-        'id_vendedor','id_cotizacion',
+        'id_vendedor','id_coti',
     ];
 
     protected $casts = [

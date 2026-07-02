@@ -1,19 +1,13 @@
 <?php
 
-namespace App\Filament\Resources\VentaResource\Pages;
+namespace App\Filament\Resources\CotizacionResource\Pages;
 
 use App\Filament\Resources\CotizacionResource;
-use App\Filament\Resources\VentaResource;
 use App\Models\Cliente;
 use App\Models\Cotizacion;
 use App\Models\CuotaCotizacion;
-use App\Models\DiasVenta;
 use App\Models\DocumentoEmpresa;
-use App\Models\InventarioMovimiento;
-use App\Models\MotivoMovimiento;
 use App\Models\Producto;
-use App\Models\ProductoVenta;
-use App\Models\Venta;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
@@ -21,7 +15,6 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Schemas\Components\Grid;
@@ -33,75 +26,20 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 
-class CreateVenta extends CreateRecord
+class CreateCotizacion extends CreateRecord
 {
-    protected static string $resource = VentaResource::class;
+    protected static string $resource = CotizacionResource::class;
 
-    protected static ?string $title = 'Nueva Venta';
+    protected static ?string $title = 'Nueva Cotización';
 
-    public ?int $desdeCotizacion = null;
-
-    public function mount(): void
+    protected static function proximoNumero(): string
     {
-        parent::mount();
+        $numero = (int) DocumentoEmpresa::where('id_empresa', (int) session('id_empresa'))
+            ->where('sucursal', (int) session('sucursal'))
+            ->where('id_tido', 6)
+            ->value('numero');
 
-        $cotiId = (int) request()->query('cotizacion');
-        if (! $cotiId) {
-            return;
-        }
-
-        $coti = Cotizacion::with('productos')
-            ->where('id_empresa', (int) session('id_empresa'))
-            ->find($cotiId);
-
-        if (! $coti) {
-            return;
-        }
-
-        if ($coti->estado !== '1' || $coti->id_venta) {
-            Notification::make()->warning()
-                ->title('Esta cotización ya no puede convertirse')
-                ->body('Solo cotizaciones activas y sin venta asociada.')
-                ->send();
-            $this->redirect(CotizacionResource::getUrl('index'));
-
-            return;
-        }
-
-        $this->desdeCotizacion = (int) $coti->cotizacion_id;
-
-        $productos = $coti->productos->map(function ($linea): array {
-            $p = Producto::find($linea->id_producto);
-
-            return [
-                'id_producto' => $linea->id_producto,
-                'descripcion' => $p?->descripcion ?? "Producto #{$linea->id_producto}",
-                'cantidad'    => (float) $linea->cantidad,
-                'precio'      => number_format((float) $linea->precio, 2, '.', ''),
-                'linea_total' => number_format((float) $linea->cantidad * (float) $linea->precio, 2, '.', ''),
-            ];
-        })->values()->toArray();
-
-        $cuotas = CuotaCotizacion::where('id_coti', $coti->cotizacion_id)
-            ->get()
-            ->map(fn (CuotaCotizacion $c): array => [
-                'fecha'     => $c->fecha?->toDateString(),
-                'monto'     => $c->monto,
-                'tipo_pago' => $c->tipo_pago ?: 'EFECTIVO',
-                'pagado'    => false,
-            ])
-            ->toArray();
-
-        $this->form->fill(array_merge($this->data ?? [], array_filter([
-            'id_tido'      => $coti->id_tido,
-            'id_cliente'   => $coti->id_cliente,
-            'id_tipo_pago' => (int) $coti->id_tipo_pago,
-            'fecha'        => now()->toDateString(),
-            'direccion'    => $coti->direccion,
-            'observacion'  => 'Convertido de cotización N° ' . $coti->numero,
-            'productos'    => $productos,
-            'lista_pagos'  => $cuotas ?: null,
-        ], fn ($v) => $v !== null)));
+        return 'COT-' . str_pad((string) ($numero + 1), 8, '0', STR_PAD_LEFT);
     }
 
     public function form(Schema $schema): Schema
@@ -132,7 +70,6 @@ class CreateVenta extends CreateRecord
                                         }
 
                                         $productos = Producto::where('id_empresa', (int) session('id_empresa'))
-                                            ->where('cantidad', '>', 0)
                                             ->where(fn ($q) => $q
                                                 ->where('descripcion', 'like', "%{$busqueda}%")
                                                 ->orWhere('codigo', 'like', "%{$busqueda}%"))
@@ -232,9 +169,9 @@ class CreateVenta extends CreateRecord
                             ->description('Programe las cuotas del crédito')
                             ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 2)
                             ->schema([
-                                Repeater::make('lista_pagos')
+                                Repeater::make('cuotas')
                                     ->hiddenLabel()
-                                    ->columns(4)
+                                    ->columns(3)
                                     ->defaultItems(1)
                                     ->addActionLabel('Agregar cuota')
                                     ->schema([
@@ -256,29 +193,35 @@ class CreateVenta extends CreateRecord
                                                 'DEPOSITO'      => 'Depósito',
                                             ])
                                             ->default('EFECTIVO'),
-                                        Toggle::make('pagado')
-                                            ->label('Ya pagado')
-                                            ->inline(false),
                                     ]),
                             ]),
                     ])->columnSpan(['default' => 1, 'xl' => 2]),
 
-                    // ── COLUMNA DERECHA (angosta): comprobante, cliente, resumen ──
+                    // ── COLUMNA DERECHA (angosta): datos, cliente, resumen ──
                     Group::make([
-                        Section::make('Comprobante')
+                        Section::make('Cotización')
                             ->compact()
                             ->columns(2)
                             ->schema([
+                                Placeholder::make('numero_cotizacion')
+                                    ->label('Número')
+                                    ->content(fn (): HtmlString => new HtmlString(
+                                        '<span style="font-weight:700;font-size:1.05rem;color:rgb(59,130,246)">'
+                                        . static::proximoNumero() . '</span>'
+                                    ))
+                                    ->columnSpanFull(),
+
                                 Select::make('id_tido')
-                                    ->label('Tipo de documento')
+                                    ->label('Comprobante a emitir')
                                     ->options(fn (): array => DB::table('documentos_empresas as de')
                                         ->join('documentos_sunat as ds', 'ds.id_tido', '=', 'de.id_tido')
                                         ->where('de.id_empresa', (int) session('id_empresa'))
                                         ->where('de.sucursal', (int) session('sucursal'))
                                         ->whereIn('de.id_tido', [1, 2, 6])
-                                        ->selectRaw("de.id_tido, CONCAT(ds.nombre, ' — ', de.serie, '-', LPAD(de.numero + 1, 8, '0')) as etiqueta")
-                                        ->pluck('etiqueta', 'id_tido')
+                                        ->pluck('ds.nombre', 'de.id_tido')
                                         ->toArray())
+                                    ->default(6)
+                                    ->helperText('Se usará al convertir la cotización en venta.')
                                     ->required()
                                     ->columnSpanFull(),
 
@@ -309,7 +252,7 @@ class CreateVenta extends CreateRecord
                                     ->columnSpanFull(),
 
                                 DatePicker::make('fecha')
-                                    ->label('Fecha emisión')
+                                    ->label('Fecha')
                                     ->default(now())
                                     ->required(),
 
@@ -322,12 +265,6 @@ class CreateVenta extends CreateRecord
                                     ->default(1)
                                     ->live()
                                     ->required(),
-
-                                DatePicker::make('fecha_vencimiento')
-                                    ->label('Fecha vencimiento')
-                                    ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 2)
-                                    ->requiredIf('id_tipo_pago', 2)
-                                    ->after('fecha'),
 
                                 TextInput::make('observacion')
                                     ->label('Observación')
@@ -348,19 +285,11 @@ class CreateVenta extends CreateRecord
                                     ->content(function (callable $get): HtmlString {
                                         $total = collect($get('productos') ?? [])
                                             ->sum(fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['precio'] ?? 0));
-                                        $subtotal = $total / 1.18;
-                                        $igv      = $total - $subtotal;
 
                                         return new HtmlString(
-                                            '<div style="line-height:1.7">'
-                                            . '<div style="display:flex;justify-content:space-between;opacity:.7">'
-                                            . '<span>Op. Gravadas:</span><span style="font-weight:600">S/ ' . number_format($subtotal, 2) . '</span></div>'
-                                            . '<div style="display:flex;justify-content:space-between;opacity:.7">'
-                                            . '<span>IGV (18%):</span><span style="font-weight:600">S/ ' . number_format($igv, 2) . '</span></div>'
-                                            . '<div style="display:flex;justify-content:space-between;align-items:center;'
-                                            . 'border-top:1px solid rgba(128,128,128,.25);margin-top:8px;padding-top:10px">'
+                                            '<div style="display:flex;justify-content:space-between;align-items:center">'
                                             . '<span style="font-weight:700">IMPORTE TOTAL:</span>'
-                                            . '<span style="font-weight:800;font-size:1.35rem;color:rgb(59,130,246)">S/ ' . number_format($total, 2) . '</span></div>'
+                                            . '<span style="font-weight:800;font-size:1.35rem;color:rgb(59,130,246)">S/ ' . number_format($total, 2) . '</span>'
                                             . '</div>'
                                         );
                                     }),
@@ -379,7 +308,6 @@ class CreateVenta extends CreateRecord
 
         $items = $this->data['productos'] ?? [];
 
-        // If already in the list, bump its quantity instead of duplicating
         foreach ($items as $key => $item) {
             if ((int) ($item['id_producto'] ?? 0) === (int) $p->id_producto) {
                 $items[$key]['cantidad']    = (float) $item['cantidad'] + 1;
@@ -405,136 +333,99 @@ class CreateVenta extends CreateRecord
 
     protected function handleRecordCreation(array $data): Model
     {
-        return DB::transaction(function () use ($data): Venta {
+        return DB::transaction(function () use ($data): Cotizacion {
             $empresa  = (int) session('id_empresa');
             $sucursal = (int) session('sucursal');
             $usuario  = (int) auth()->user()->usuario_id;
 
-            // Validate stock before touching anything
-            $lineas = [];
             $total  = 0.0;
+            $lineas = [];
             foreach ($data['productos'] as $linea) {
                 $producto = Producto::where('id_empresa', $empresa)
                     ->where('id_producto', $linea['id_producto'])
-                    ->lockForUpdate()
                     ->firstOrFail();
 
                 $cantidad = (float) $linea['cantidad'];
-                if ($cantidad > (float) $producto->cantidad) {
-                    throw ValidationException::withMessages([
-                        'productos' => "Stock insuficiente de \"{$producto->descripcion}\" (disponible: {$producto->cantidad}).",
-                    ]);
-                }
-
-                $lineaTotal = round($cantidad * (float) $linea['precio'], 2);
-                $total     += $lineaTotal;
-                $lineas[]   = [$producto, $cantidad, (float) $linea['precio'], $lineaTotal];
+                $precio   = (float) $linea['precio'];
+                $total   += round($cantidad * $precio, 2);
+                $lineas[] = [$producto, $cantidad, $precio];
             }
 
             if ($total <= 0) {
                 throw ValidationException::withMessages(['productos' => 'El total debe ser mayor a 0.']);
             }
 
-            // Correlative number with lock (same as legacy API)
+            // Correlativo propio de cotización (id_tido 6, igual que la API legacy)
             $tido = DocumentoEmpresa::where('id_empresa', $empresa)
                 ->where('sucursal', $sucursal)
-                ->where('id_tido', $data['id_tido'])
+                ->where('id_tido', 6)
                 ->lockForUpdate()
-                ->firstOrFail();
+                ->first();
+
+            if (! $tido) {
+                throw ValidationException::withMessages(['productos' => 'No hay serie de cotización configurada.']);
+            }
+
             $numero = $tido->numero + 1;
 
-            $venta = Venta::create([
-                'id_tido'           => $data['id_tido'],
-                'id_tipo_pago'      => $data['id_tipo_pago'],
-                'fecha_emision'     => $data['fecha'],
-                'fecha_vencimiento' => $data['fecha_vencimiento'] ?? $data['fecha'],
-                'direccion'         => $data['direccion'] ?? '-',
-                'serie'             => $tido->serie,
-                'numero'            => $numero,
-                'id_cliente'        => $data['id_cliente'],
-                'total'             => $total,
-                'subtotal'          => round($total / 1.18, 2),
-                'igv'               => round($total - $total / 1.18, 2),
-                'apli_igv'          => '1',
-                'estado'            => '1',
-                'enviado_sunat'     => '0',
-                'id_empresa'        => $empresa,
-                'sucursal'          => $sucursal,
-                'id_vendedor'       => $usuario,
-                'observacion'       => $data['observacion'] ?? null,
-                'id_coti'           => $this->desdeCotizacion,
+            $coti = Cotizacion::create([
+                'numero'         => $numero,
+                'id_tido'        => $data['id_tido'] ?? 6,
+                'id_tipo_pago'   => $data['id_tipo_pago'],
+                'fecha'          => $data['fecha'],
+                'direccion'      => $data['direccion'] ?? null,
+                'id_cliente'     => $data['id_cliente'],
+                'total'          => $total,
+                'estado'         => '1',
+                'id_empresa'     => $empresa,
+                'sucursal'       => $sucursal,
+                'usar_precio'    => 1,
+                'moneda'         => 1,
+                'id_usuario'     => $usuario,
+                'observacion'    => $data['observacion'] ?? null,
+                'fecha_registro' => now(),
             ]);
 
             $tido->increment('numero');
 
-            if ($this->desdeCotizacion) {
-                Cotizacion::where('cotizacion_id', $this->desdeCotizacion)
-                    ->update(['estado' => '3', 'id_venta' => $venta->id_venta]);
-            }
-
-            $motivoVenta = MotivoMovimiento::where('id_empresa', $empresa)
-                ->where('nombre', 'Venta')
-                ->value('id_motivo');
-            $doc = "{$tido->serie}-" . str_pad((string) $numero, 8, '0', STR_PAD_LEFT);
-
-            foreach ($lineas as [$producto, $cantidad, $precio, $lineaTotal]) {
-                ProductoVenta::create([
-                    'id_venta'    => $venta->id_venta,
-                    'id_producto' => $producto->id_producto,
-                    'descripcion' => $producto->descripcion,
-                    'cantidad'    => $cantidad,
-                    'precio'      => $precio,
-                    'total'       => $lineaTotal,
-                    'igv_prod'    => 0,
-                    'descuento'   => 0,
-                ]);
-
-                $anterior = (int) $producto->cantidad;
-                $producto->decrement('cantidad', $cantidad);
-
-                InventarioMovimiento::create([
-                    'id_empresa'     => $empresa,
-                    'almacen'        => $producto->almacen ?? '',
-                    'id_producto'    => $producto->id_producto,
-                    'tipo'           => 'S',
-                    'id_motivo'      => $motivoVenta,
-                    'cantidad'       => (int) $cantidad,
-                    'stock_anterior' => $anterior,
-                    'stock_nuevo'    => $anterior - (int) $cantidad,
-                    'costo'          => $producto->costo,
-                    'observacion'    => "Venta {$doc}",
-                    'id_usuario'     => $usuario,
-                    'fecha'          => now(),
+            foreach ($lineas as [$producto, $cantidad, $precio]) {
+                DB::table('productos_cotis')->insert([
+                    'id_coti'      => $coti->cotizacion_id,
+                    'id_producto'  => $producto->id_producto,
+                    'cantidad'     => $cantidad,
+                    'precio'       => $precio,
+                    'costo'        => $producto->costo ?? 0,
+                    'medida'       => $producto->medida ?? 'Unidad',
+                    'presenta'     => 1,
+                    'presenta_cnt' => 1,
                 ]);
             }
 
-            foreach ($data['lista_pagos'] ?? [] as $pago) {
-                DiasVenta::create([
-                    'id_venta'   => $venta->id_venta,
-                    'fecha'      => $pago['fecha'],
-                    'monto'      => $pago['monto'],
-                    'estado'     => ($pago['pagado'] ?? false) ? '1' : '0',
-                    'tipo_pago'  => $pago['tipo_pago'] ?? 'EFECTIVO',
-                    'id_usuario' => $usuario,
-                ]);
+            if ((int) $data['id_tipo_pago'] === 2) {
+                foreach ($data['cuotas'] ?? [] as $cuota) {
+                    CuotaCotizacion::create([
+                        'id_coti'    => $coti->cotizacion_id,
+                        'id_usuario' => $usuario,
+                        'monto'      => $cuota['monto'],
+                        'fecha'      => $cuota['fecha'],
+                        'estado'     => '0',
+                        'tipo_pago'  => $cuota['tipo_pago'] ?? 'EFECTIVO',
+                    ]);
+                }
             }
-
-            Cliente::where('id_cliente', $data['id_cliente'])->update([
-                'ultima_venta' => now()->toDateString(),
-                'total_venta'  => DB::raw('IFNULL(total_venta, 0) + ' . $total),
-            ]);
 
             Notification::make()->success()
-                ->title("Venta {$doc} registrada")
+                ->title('Cotización COT-' . str_pad((string) $numero, 8, '0', STR_PAD_LEFT) . ' registrada')
                 ->body('Total: S/ ' . number_format($total, 2))
                 ->send();
 
-            return $venta;
+            return $coti;
         });
     }
 
     protected function getRedirectUrl(): string
     {
-        return VentaResource::getUrl('view', ['record' => $this->getRecord()]);
+        // The index page auto-opens the PDF preview modal for this record
+        return CotizacionResource::getUrl('index', ['previsualizar' => $this->getRecord()->cotizacion_id]);
     }
 }

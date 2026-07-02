@@ -136,7 +136,25 @@ class ReportesController extends Controller
     {
         return response('<h2 style="font-family:Arial;padding:40px">Pedido PDF — En desarrollo</h2>', 200)->header('Content-Type','text/html');
     }
-    public function ventasPdf(): \Illuminate\View\View         { return view('reportes.ventas'); }
+    public function ventasPdf(\Illuminate\Http\Request $request): \Illuminate\Http\Response
+    {
+        $desde = $request->query('desde', now()->startOfMonth()->toDateString());
+        $hasta = $request->query('hasta', now()->endOfMonth()->toDateString());
+
+        $ventas = Venta::with(['cliente'])
+            ->where('id_empresa', (int) session('id_empresa'))
+            ->where('sucursal', (int) session('sucursal'))
+            ->whereBetween('fecha_emision', [$desde, $hasta])
+            ->orderBy('fecha_emision')
+            ->orderBy('id_venta')
+            ->get();
+
+        $empresa = $this->getEmpresa();
+        $periodo = \Carbon\Carbon::parse($desde)->format('d/m/Y') . ' — ' . \Carbon\Carbon::parse($hasta)->format('d/m/Y');
+
+        return PdfService::a4()
+            ->generar('pdf.reporte-ventas', compact('ventas', 'empresa', 'periodo'), "reporte-ventas-{$desde}-{$hasta}.pdf");
+    }
     public function ventasVendedor(): \Illuminate\View\View    { return view('reportes.ventas-vendedor'); }
     public function deudaCobros(): \Illuminate\View\View       { return view('reportes.deudas-cobros'); }
     public function deudaVendedor(): \Illuminate\View\View     { return view('reportes.deudas-vendedor'); }
@@ -146,7 +164,22 @@ class ReportesController extends Controller
     public function pedidoCamion(): \Illuminate\View\View      { return view('reportes.pedido-camion'); }
     public function reporteLogistico(): \Illuminate\View\View  { return view('reportes.logistico'); }
     public function ingresosEgresos(int $id): \Illuminate\View\View{ return view('reportes.ingresos-egresos',compact('id')); }
-    public function exportarExcel(string $fecha): \Symfony\Component\HttpFoundation\Response      { return response('Excel en desarrollo',200); }
+    public function exportarExcel(string $fecha): \Symfony\Component\HttpFoundation\Response
+    {
+        // $fecha llega como 'YYYY-MM' (mes a exportar)
+        $inicio = \Carbon\Carbon::createFromFormat('Y-m', $fecha)->startOfMonth();
+        $fin    = $inicio->copy()->endOfMonth();
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\VentasExport(
+                (int) session('id_empresa'),
+                (int) session('sucursal'),
+                $inicio->toDateString(),
+                $fin->toDateString(),
+            ),
+            "ventas-{$fecha}.xlsx",
+        );
+    }
     public function exportarExcelProducto(): \Symfony\Component\HttpFoundation\Response           { return response('Excel en desarrollo',200); }
     public function exportarExcelCaja(int $id): \Symfony\Component\HttpFoundation\Response        { return response('Excel en desarrollo',200); }
     public function pedidoClientes(): \Symfony\Component\HttpFoundation\Response                   { return response('Excel en desarrollo',200); }

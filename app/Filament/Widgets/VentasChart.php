@@ -51,17 +51,12 @@ class VentasChart extends LineChartWidget
         return [
             'plugins' => [
                 'legend' => ['display' => false],
-                'tooltip' => [
-                    'callbacks' => [
-                        'label' => \Filament\Support\RawJs::make("(c) => 'S/ ' + c.parsed.y.toFixed(2)"),
-                    ],
-                ],
             ],
             'scales' => [
                 'x' => ['grid' => ['display' => false]],
                 'y' => [
+                    'beginAtZero' => true,
                     'grid' => ['color' => '#f1f5f9'],
-                    'ticks' => ['callback' => \Filament\Support\RawJs::make("(v) => 'S/ ' + v.toLocaleString()")],
                 ],
             ],
         ];

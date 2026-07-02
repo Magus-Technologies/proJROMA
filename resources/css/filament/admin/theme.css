@@ -545,6 +545,67 @@ html {
 }
 
 /* ============================================================
+   STAT CARDS — con color (claro + oscuro)
+   ============================================================ */
+.fi-stat--info    { --stat: 59, 130, 246; }   /* azul   */
+.fi-stat--warning { --stat: 245, 158, 11; }   /* ámbar  */
+.fi-stat--success { --stat: 16, 185, 129; }   /* verde  */
+.fi-stat--danger  { --stat: 244, 63, 94; }    /* rojo   */
+
+.fi-wi-stats-overview-stat[class*="fi-stat--"] {
+  position: relative !important;
+  overflow: hidden !important;
+  border-radius: 0.85rem !important;
+  background: rgba(var(--stat), .07) !important;
+  box-shadow: inset 0 0 0 1px rgba(var(--stat), .20) !important;
+  transition: transform .15s ease, box-shadow .15s ease !important;
+}
+.fi-wi-stats-overview-stat[class*="fi-stat--"]:hover {
+  transform: translateY(-2px) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--stat), .35),
+    0 10px 24px -8px rgba(var(--stat), .40) !important;
+}
+/* Barra de acento lateral */
+.fi-wi-stats-overview-stat[class*="fi-stat--"]::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 4px !important;
+  background: rgb(var(--stat)) !important;
+}
+/* Ícono + valor en color */
+.fi-wi-stats-overview-stat[class*="fi-stat--"] .fi-wi-stats-overview-stat-label-ctn svg {
+  color: rgb(var(--stat)) !important;
+}
+.fi-wi-stats-overview-stat[class*="fi-stat--"] .fi-wi-stats-overview-stat-value {
+  color: rgb(var(--stat)) !important;
+  font-weight: 800 !important;
+}
+
+/* ── Modo oscuro ── */
+.dark .fi-wi-stats-overview-stat[class*="fi-stat--"] {
+  background: linear-gradient(135deg, rgba(var(--stat), .28), rgba(var(--stat), .07)) !important;
+  box-shadow: inset 0 0 0 1px rgba(var(--stat), .35) !important;
+}
+.dark .fi-wi-stats-overview-stat[class*="fi-stat--"]:hover {
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--stat), .5),
+    0 12px 28px -8px rgba(var(--stat), .55) !important;
+}
+.dark .fi-wi-stats-overview-stat[class*="fi-stat--"] .fi-wi-stats-overview-stat-value {
+  color: #fff !important;
+}
+.dark .fi-wi-stats-overview-stat[class*="fi-stat--"] .fi-wi-stats-overview-stat-label {
+  color: rgba(255, 255, 255, .85) !important;
+}
+.dark .fi-wi-stats-overview-stat[class*="fi-stat--"] .fi-wi-stats-overview-stat-label-ctn svg {
+  color: #fff !important;
+}
+
+/* ============================================================
    TOPBAR — badge del usuario logueado
    ============================================================ */
 .fi-user-badge {

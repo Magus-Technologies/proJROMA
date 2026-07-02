@@ -47,22 +47,26 @@ class StatsOverview extends StatsOverviewWidget
                 ->description(now()->translatedFormat('F Y'))
                 ->icon('heroicon-o-arrow-trending-up')
                 ->color('info')
+                ->extraAttributes(['class' => 'fi-stat--info'])
                 ->chart($ventasTrend),
 
             Stat::make('Compras del Mes', 'S/ ' . number_format($comprasMes, 2))
                 ->description(now()->translatedFormat('F Y'))
                 ->icon('heroicon-o-shopping-cart')
-                ->color('warning'),
+                ->color('warning')
+                ->extraAttributes(['class' => 'fi-stat--warning']),
 
             Stat::make('Clientes', number_format($clientes))
                 ->description('Total registrados')
                 ->icon('heroicon-o-users')
-                ->color('success'),
+                ->color('success')
+                ->extraAttributes(['class' => 'fi-stat--success']),
 
             Stat::make('Pedidos Pendientes', number_format($pedidosPend))
                 ->description('Sin convertir')
                 ->icon('heroicon-o-clipboard-document-list')
-                ->color('danger'),
+                ->color('danger')
+                ->extraAttributes(['class' => 'fi-stat--danger']),
         ];
     }
 }

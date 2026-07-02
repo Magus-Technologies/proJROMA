@@ -9,6 +9,7 @@ use App\Models\Producto;
 use App\Models\Venta;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\ViewAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -125,19 +126,20 @@ class VentaResource extends Resource
                         ->when($data['hasta'], fn (Builder $q) => $q->whereDate('fecha_emision', '<=', $data['hasta']))),
             ])
             ->actions([
+                ActionGroup::make([
                 ViewAction::make()
-                    ->label('Ver'),
+                    ->label('Ver detalle'),
 
                 Action::make('pdf_a4')
                     ->label('PDF A4')
-                    ->icon('heroicon-o-document-text')
+                    ->icon('heroicon-m-document-arrow-down')
                     ->color('danger')
                     ->url(fn (Venta $record): string => url("/venta/comprobante/pdf/{$record->id_venta}"))
                     ->openUrlInNewTab(),
 
                 Action::make('voucher')
                     ->label('Voucher 8cm')
-                    ->icon('heroicon-o-printer')
+                    ->icon('heroicon-m-printer')
                     ->color('gray')
                     ->url(fn (Venta $record): string => url("/venta/pdf/voucher/8cm/{$record->id_venta}"))
                     ->openUrlInNewTab(),
@@ -201,6 +203,7 @@ class VentaResource extends Resource
                                 ->send();
                         }
                     }),
+                ]),
             ])
             ->defaultSort('id_venta', 'desc');
     }

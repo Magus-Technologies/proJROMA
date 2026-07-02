@@ -20,14 +20,14 @@ class ListVentas extends ListRecords
                 ->url(url('/ventas/productos')),
 
             Action::make('excel')
-                ->label('Excel')
+                ->label('Reporte Excel')
                 ->icon('heroicon-o-table-cells')
                 ->color('success')
                 ->url(url('/reporte/excel/' . now()->format('Y-m')))
                 ->openUrlInNewTab(),
 
             Action::make('pdf')
-                ->label('PDF')
+                ->label('Reporte PDF')
                 ->icon('heroicon-o-document-text')
                 ->color('danger')
                 ->url(url('/reporte/ventas'))

@@ -12,14 +12,17 @@ use App\Models\Producto;
 use App\Models\ProductoVenta;
 use App\Models\Venta;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
@@ -36,182 +39,276 @@ class CreateVenta extends CreateRecord
     public function form(Schema $schema): Schema
     {
         return $schema->components([
-            Section::make('Comprobante')
-                ->columns(4)
+            Grid::make(['default' => 1, 'xl' => 3])
+                ->columnSpanFull()
                 ->schema([
-                    Select::make('id_tido')
-                        ->label('Tipo de comprobante')
-                        ->options(fn (): array => DB::table('documentos_empresas as de')
-                            ->join('documentos_sunat as ds', 'ds.id_tido', '=', 'de.id_tido')
-                            ->where('de.id_empresa', (int) session('id_empresa'))
-                            ->where('de.sucursal', (int) session('sucursal'))
-                            ->whereIn('de.id_tido', [1, 2, 6])
-                            ->selectRaw("de.id_tido, CONCAT(ds.nombre, ' (', de.serie, '-', LPAD(de.numero + 1, 8, '0'), ')') as etiqueta")
-                            ->pluck('etiqueta', 'id_tido')
-                            ->toArray())
-                        ->required(),
+                    // ── COLUMNA IZQUIERDA (ancha): buscador + tabla de productos ──
+                    Group::make([
+                        Section::make('Productos')
+                            ->compact()
+                            ->schema([
+                                Select::make('buscador_producto')
+                                    ->hiddenLabel()
+                                    ->placeholder('🔍 Buscar producto por descripción o código y agregarlo…')
+                                    ->searchable()
+                                    ->dehydrated(false)
+                                    ->live()
+                                    ->getSearchResultsUsing(fn (string $search): array => Producto::where('id_empresa', (int) session('id_empresa'))
+                                        ->where('cantidad', '>', 0)
+                                        ->where(fn ($q) => $q
+                                            ->where('descripcion', 'like', "%{$search}%")
+                                            ->orWhere('codigo', 'like', "%{$search}%"))
+                                        ->limit(30)
+                                        ->get()
+                                        ->mapWithKeys(fn (Producto $p) => [
+                                            $p->id_producto => "{$p->descripcion} — S/ " . number_format((float) $p->precio, 2) . " (stock: {$p->cantidad})",
+                                        ])
+                                        ->toArray())
+                                    ->afterStateUpdated(function ($state, callable $set, callable $get): void {
+                                        if (! $state) {
+                                            return;
+                                        }
 
-                    Select::make('id_cliente')
-                        ->label('Cliente')
-                        ->searchable()
-                        ->getSearchResultsUsing(fn (string $search): array => Cliente::where('id_empresa', (int) session('id_empresa'))
-                            ->where(fn ($q) => $q
-                                ->where('datos', 'like', "%{$search}%")
-                                ->orWhere('documento', 'like', "%{$search}%"))
-                            ->limit(30)
-                            ->pluck('datos', 'id_cliente')
-                            ->toArray())
-                        ->getOptionLabelUsing(fn ($value): ?string => Cliente::find($value)?->datos)
-                        ->createOptionForm([
-                            TextInput::make('documento')->label('RUC / DNI')->maxLength(15),
-                            TextInput::make('datos')->label('Nombre / Razón Social')->required()->maxLength(200),
-                            TextInput::make('telefono')->label('Teléfono')->tel()->maxLength(20),
-                        ])
-                        ->createOptionUsing(fn (array $data): int => Cliente::create(array_merge($data, [
-                            'id_empresa' => (int) session('id_empresa'),
-                        ]))->id_cliente)
-                        ->required(),
+                                        $p = Producto::find($state);
+                                        if (! $p) {
+                                            return;
+                                        }
 
-                    DatePicker::make('fecha')
-                        ->label('Fecha de emisión')
-                        ->default(now())
-                        ->required(),
+                                        $items = $get('productos') ?? [];
 
-                    Select::make('id_tipo_pago')
-                        ->label('Forma de pago')
-                        ->options([
-                            1 => 'Contado',
-                            2 => 'Crédito',
-                        ])
-                        ->default(1)
-                        ->live()
-                        ->required(),
+                                        // If already in the list, bump its quantity instead of duplicating
+                                        foreach ($items as $key => $item) {
+                                            if ((int) ($item['id_producto'] ?? 0) === (int) $p->id_producto) {
+                                                $items[$key]['cantidad']    = (float) $item['cantidad'] + 1;
+                                                $items[$key]['linea_total'] = number_format($items[$key]['cantidad'] * (float) $item['precio'], 2, '.', '');
+                                                $set('productos', $items);
+                                                $set('buscador_producto', null);
 
-                    DatePicker::make('fecha_vencimiento')
-                        ->label('Fecha de vencimiento')
-                        ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 2)
-                        ->requiredIf('id_tipo_pago', 2)
-                        ->after('fecha'),
-                ]),
+                                                return;
+                                            }
+                                        }
 
-            Section::make('Productos')
-                ->schema([
-                    Repeater::make('productos')
-                        ->hiddenLabel()
-                        ->columns(12)
-                        ->minItems(1)
-                        ->defaultItems(1)
-                        ->live()
-                        ->schema([
-                            Select::make('id_producto')
-                                ->label('Producto')
-                                ->searchable()
-                                ->getSearchResultsUsing(fn (string $search): array => Producto::where('id_empresa', (int) session('id_empresa'))
-                                    ->where('cantidad', '>', 0)
-                                    ->where(fn ($q) => $q
-                                        ->where('descripcion', 'like', "%{$search}%")
-                                        ->orWhere('codigo', 'like', "%{$search}%"))
-                                    ->limit(30)
-                                    ->get()
-                                    ->mapWithKeys(fn (Producto $p) => [
-                                        $p->id_producto => "{$p->descripcion} — S/ " . number_format((float) $p->precio, 2) . " (stock: {$p->cantidad})",
+                                        $items[] = [
+                                            'id_producto' => $p->id_producto,
+                                            'descripcion' => $p->descripcion,
+                                            'cantidad'    => 1,
+                                            'precio'      => number_format((float) $p->precio, 2, '.', ''),
+                                            'linea_total' => number_format((float) $p->precio, 2, '.', ''),
+                                        ];
+                                        $set('productos', $items);
+                                        $set('buscador_producto', null);
+                                    }),
+
+                                Placeholder::make('tabla_vacia')
+                                    ->hiddenLabel()
+                                    ->visible(fn (callable $get): bool => blank($get('productos')))
+                                    ->content(new HtmlString(
+                                        '<table style="width:100%;border-collapse:collapse;font-size:.875rem">'
+                                        . '<thead><tr style="border-bottom:1px solid rgba(128,128,128,.25);text-align:left;opacity:.6">'
+                                        . '<th style="padding:8px 12px;font-weight:600">Producto</th>'
+                                        . '<th style="padding:8px 12px;font-weight:600;width:110px">Cant.</th>'
+                                        . '<th style="padding:8px 12px;font-weight:600;width:140px">Precio</th>'
+                                        . '<th style="padding:8px 12px;font-weight:600;width:140px">Total</th>'
+                                        . '</tr></thead>'
+                                        . '<tbody><tr><td colspan="4" style="padding:28px 12px;text-align:center;opacity:.45">'
+                                        . 'Sin productos agregados — usá el buscador de arriba'
+                                        . '</td></tr></tbody></table>'
+                                    )),
+
+                                Repeater::make('productos')
+                                    ->hiddenLabel()
+                                    ->minItems(1)
+                                    ->defaultItems(0)
+                                    ->addable(false)
+                                    ->reorderable(false)
+                                    ->live()
+                                    ->table([
+                                        TableColumn::make('Producto'),
+                                        TableColumn::make('Cant.')->width('110px'),
+                                        TableColumn::make('Precio')->width('140px'),
+                                        TableColumn::make('Total')->width('140px'),
                                     ])
-                                    ->toArray())
-                                ->getOptionLabelUsing(fn ($value): ?string => Producto::find($value)?->descripcion)
-                                ->live()
-                                ->afterStateUpdated(function ($state, callable $set): void {
-                                    $p = Producto::find($state);
-                                    $set('precio', $p ? (string) $p->precio : null);
-                                    $set('cantidad', 1);
-                                })
-                                ->required()
-                                ->columnSpan(6),
+                                    ->schema([
+                                        Hidden::make('id_producto'),
 
-                            TextInput::make('cantidad')
-                                ->label('Cantidad')
-                                ->numeric()
-                                ->minValue(0.001)
-                                ->default(1)
-                                ->live(onBlur: true)
-                                ->required()
-                                ->columnSpan(2),
+                                        TextInput::make('descripcion')
+                                            ->hiddenLabel()
+                                            ->readOnly()
+                                            ->dehydrated(false),
 
-                            TextInput::make('precio')
-                                ->label('Precio (S/)')
-                                ->numeric()
-                                ->minValue(0)
-                                ->live(onBlur: true)
-                                ->required()
-                                ->columnSpan(2),
+                                        TextInput::make('cantidad')
+                                            ->hiddenLabel()
+                                            ->numeric()
+                                            ->minValue(0.001)
+                                            ->default(1)
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn ($state, callable $set, callable $get) =>
+                                                $set('linea_total', number_format((float) $state * (float) $get('precio'), 2, '.', '')))
+                                            ->required(),
 
-                            Placeholder::make('linea_total')
-                                ->label('Total')
-                                ->content(fn (callable $get): string =>
-                                    'S/ ' . number_format((float) $get('cantidad') * (float) $get('precio'), 2))
-                                ->columnSpan(2),
-                        ]),
+                                        TextInput::make('precio')
+                                            ->hiddenLabel()
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->prefix('S/')
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn ($state, callable $set, callable $get) =>
+                                                $set('linea_total', number_format((float) $get('cantidad') * (float) $state, 2, '.', '')))
+                                            ->required(),
 
-                    Placeholder::make('resumen')
-                        ->hiddenLabel()
-                        ->content(function (callable $get): HtmlString {
-                            $total = collect($get('productos') ?? [])
-                                ->sum(fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['precio'] ?? 0));
-                            $subtotal = $total / 1.18;
-                            $igv      = $total - $subtotal;
+                                        TextInput::make('linea_total')
+                                            ->hiddenLabel()
+                                            ->prefix('S/')
+                                            ->readOnly()
+                                            ->dehydrated(false),
+                                    ]),
+                            ]),
 
-                            return new HtmlString(
-                                '<div style="text-align:right;font-size:1rem;line-height:1.9">'
-                                . 'Subtotal: <strong>S/ ' . number_format($subtotal, 2) . '</strong><br>'
-                                . 'IGV (18%): <strong>S/ ' . number_format($igv, 2) . '</strong><br>'
-                                . '<span style="font-size:1.25rem">Total: <strong>S/ ' . number_format($total, 2) . '</strong></span>'
-                                . '</div>'
-                            );
-                        }),
-                ]),
+                        Section::make('Cuotas de pago')
+                            ->compact()
+                            ->description('Programá las cuotas del crédito')
+                            ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 2)
+                            ->schema([
+                                Repeater::make('lista_pagos')
+                                    ->hiddenLabel()
+                                    ->columns(4)
+                                    ->defaultItems(1)
+                                    ->addActionLabel('Agregar cuota')
+                                    ->schema([
+                                        DatePicker::make('fecha')
+                                            ->label('Fecha de cuota')
+                                            ->required(),
+                                        TextInput::make('monto')
+                                            ->label('Monto (S/)')
+                                            ->numeric()
+                                            ->minValue(0.01)
+                                            ->required(),
+                                        Select::make('tipo_pago')
+                                            ->label('Tipo de pago')
+                                            ->options([
+                                                'EFECTIVO'      => 'Efectivo',
+                                                'YAPE'          => 'Yape',
+                                                'PLIN'          => 'Plin',
+                                                'TRANSFERENCIA' => 'Transferencia',
+                                                'DEPOSITO'      => 'Depósito',
+                                            ])
+                                            ->default('EFECTIVO'),
+                                        Toggle::make('pagado')
+                                            ->label('Ya pagado')
+                                            ->inline(false),
+                                    ]),
+                            ]),
+                    ])->columnSpan(['default' => 1, 'xl' => 2]),
 
-            Section::make('Detalles adicionales')
-                ->columns(2)
-                ->collapsed()
-                ->schema([
-                    TextInput::make('direccion')
-                        ->label('Dirección de entrega')
-                        ->maxLength(220),
+                    // ── COLUMNA DERECHA (angosta): comprobante, cliente, resumen ──
+                    Group::make([
+                        Section::make('Comprobante')
+                            ->compact()
+                            ->columns(2)
+                            ->schema([
+                                Select::make('id_tido')
+                                    ->label('Tipo de documento')
+                                    ->options(fn (): array => DB::table('documentos_empresas as de')
+                                        ->join('documentos_sunat as ds', 'ds.id_tido', '=', 'de.id_tido')
+                                        ->where('de.id_empresa', (int) session('id_empresa'))
+                                        ->where('de.sucursal', (int) session('sucursal'))
+                                        ->whereIn('de.id_tido', [1, 2, 6])
+                                        ->selectRaw("de.id_tido, CONCAT(ds.nombre, ' — ', de.serie, '-', LPAD(de.numero + 1, 8, '0')) as etiqueta")
+                                        ->pluck('etiqueta', 'id_tido')
+                                        ->toArray())
+                                    ->required()
+                                    ->columnSpanFull(),
 
-                    Textarea::make('observacion')
-                        ->label('Observación')
-                        ->maxLength(220),
-                ]),
+                                DatePicker::make('fecha')
+                                    ->label('Fecha emisión')
+                                    ->default(now())
+                                    ->required(),
 
-            Section::make('Cuotas de pago')
-                ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 2)
-                ->schema([
-                    Repeater::make('lista_pagos')
-                        ->hiddenLabel()
-                        ->columns(4)
-                        ->defaultItems(1)
-                        ->schema([
-                            DatePicker::make('fecha')
-                                ->label('Fecha de cuota')
-                                ->required(),
-                            TextInput::make('monto')
-                                ->label('Monto (S/)')
-                                ->numeric()
-                                ->minValue(0.01)
-                                ->required(),
-                            Select::make('tipo_pago')
-                                ->label('Tipo de pago')
-                                ->options([
-                                    'EFECTIVO'      => 'Efectivo',
-                                    'YAPE'          => 'Yape',
-                                    'PLIN'          => 'Plin',
-                                    'TRANSFERENCIA' => 'Transferencia',
-                                    'DEPOSITO'      => 'Depósito',
-                                ])
-                                ->default('EFECTIVO'),
-                            Toggle::make('pagado')
-                                ->label('Ya pagado')
-                                ->inline(false),
-                        ]),
+                                Select::make('id_tipo_pago')
+                                    ->label('Forma de pago')
+                                    ->options([
+                                        1 => 'Contado',
+                                        2 => 'Crédito',
+                                    ])
+                                    ->default(1)
+                                    ->live()
+                                    ->required(),
+
+                                DatePicker::make('fecha_vencimiento')
+                                    ->label('Fecha vencimiento')
+                                    ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 2)
+                                    ->requiredIf('id_tipo_pago', 2)
+                                    ->after('fecha')
+                                    ->columnSpanFull(),
+
+                                TextInput::make('observacion')
+                                    ->label('Observación')
+                                    ->placeholder('Opcional')
+                                    ->maxLength(220)
+                                    ->columnSpanFull(),
+
+                                TextInput::make('direccion')
+                                    ->label('Dirección de entrega')
+                                    ->placeholder('Opcional')
+                                    ->maxLength(220)
+                                    ->columnSpanFull(),
+                            ]),
+
+                        Section::make('Cliente')
+                            ->compact()
+                            ->schema([
+                                Select::make('id_cliente')
+                                    ->hiddenLabel()
+                                    ->placeholder('Buscar por nombre o documento…')
+                                    ->searchable()
+                                    ->getSearchResultsUsing(fn (string $search): array => Cliente::where('id_empresa', (int) session('id_empresa'))
+                                        ->where(fn ($q) => $q
+                                            ->where('datos', 'like', "%{$search}%")
+                                            ->orWhere('documento', 'like', "%{$search}%"))
+                                        ->limit(30)
+                                        ->get()
+                                        ->mapWithKeys(fn (Cliente $c) => [
+                                            $c->id_cliente => $c->datos . ($c->documento ? " — {$c->documento}" : ''),
+                                        ])
+                                        ->toArray())
+                                    ->getOptionLabelUsing(fn ($value): ?string => Cliente::find($value)?->datos)
+                                    ->createOptionForm([
+                                        TextInput::make('documento')->label('RUC / DNI')->maxLength(15),
+                                        TextInput::make('datos')->label('Nombre / Razón Social')->required()->maxLength(200),
+                                        TextInput::make('telefono')->label('Teléfono')->tel()->maxLength(20),
+                                    ])
+                                    ->createOptionUsing(fn (array $data): int => Cliente::create(array_merge($data, [
+                                        'id_empresa' => (int) session('id_empresa'),
+                                    ]))->id_cliente)
+                                    ->required(),
+                            ]),
+
+                        Section::make('Resumen')
+                            ->compact()
+                            ->schema([
+                                Placeholder::make('resumen')
+                                    ->hiddenLabel()
+                                    ->content(function (callable $get): HtmlString {
+                                        $total = collect($get('productos') ?? [])
+                                            ->sum(fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['precio'] ?? 0));
+                                        $subtotal = $total / 1.18;
+                                        $igv      = $total - $subtotal;
+
+                                        return new HtmlString(
+                                            '<div style="line-height:2">'
+                                            . '<div style="display:flex;justify-content:space-between;opacity:.7">'
+                                            . '<span>Op. Gravadas:</span><span style="font-weight:600">S/ ' . number_format($subtotal, 2) . '</span></div>'
+                                            . '<div style="display:flex;justify-content:space-between;opacity:.7">'
+                                            . '<span>IGV (18%):</span><span style="font-weight:600">S/ ' . number_format($igv, 2) . '</span></div>'
+                                            . '<div style="display:flex;justify-content:space-between;align-items:center;'
+                                            . 'border-top:1px solid rgba(128,128,128,.25);margin-top:8px;padding-top:10px">'
+                                            . '<span style="font-weight:700">IMPORTE TOTAL:</span>'
+                                            . '<span style="font-weight:800;font-size:1.35rem;color:rgb(59,130,246)">S/ ' . number_format($total, 2) . '</span></div>'
+                                            . '</div>'
+                                        );
+                                    }),
+                            ]),
+                    ])->columnSpan(1),
                 ]),
         ]);
     }

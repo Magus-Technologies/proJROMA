@@ -2,7 +2,7 @@
 @section('title','Nueva Nota Electrónica')
 @section('page-title','Nueva Nota Electrónica')
 @section('breadcrumb')
-Ventas / <a href="{{ route('nota.electronica.lista') }}" class="hover:underline">Notas Electrónicas</a> / Nueva
+Ventas / <a href="{{ url('/panel/notas-electronicas') }}" class="hover:underline">Notas Electrónicas</a> / Nueva
 @endsection
 @section('content')
 
@@ -203,7 +203,7 @@ Ventas / <a href="{{ route('nota.electronica.lista') }}" class="hover:underline"
                         <div class="text-2xl font-bold text-gray-800">S/ <span x-text="totalFormateado()"></span></div>
                     </div>
                     <div class="flex gap-2">
-                        <a href="{{ route('nota.electronica.lista') }}"
+                        <a href="{{ url('/panel/notas-electronicas') }}"
                            class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">
                             <i class="ti ti-arrow-left"></i> Cancelar
                         </a>

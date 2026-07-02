@@ -12,7 +12,7 @@
         <div class="rounded-2xl bg-white border border-gray-100 shadow-sm p-8 text-center">
             <i class="ti ti-alert-circle text-5xl text-red-400 mb-4 block"></i>
             <h2 class="text-xl font-bold text-gray-700 mb-2">Cotización no encontrada</h2>
-            <a href="{{ route('cotizaciones.index') }}" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 text-xs font-semibold text-white transition">
+            <a href="{{ url('/panel/cotizacions') }}" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 text-xs font-semibold text-white transition">
                 <i class="ti ti-arrow-left"></i> Volver
             </a>
         </div>
@@ -116,7 +116,7 @@
                         <i class="ti ti-device-floppy" :class="{'spin':guardando}"></i>
                         <span x-text="guardando?'Guardando...':'Actualizar'"></span>
                     </button>
-                    <a href="{{ route('cotizaciones.index') }}"
+                    <a href="{{ url('/panel/cotizacions') }}"
                        class="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 px-4 py-2 text-xs font-medium text-gray-600 transition">
                         <i class="ti ti-arrow-left text-xs"></i> Volver
                     </a>

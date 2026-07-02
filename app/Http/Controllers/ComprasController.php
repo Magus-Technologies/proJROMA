@@ -5,8 +5,6 @@ use Illuminate\Support\Facades\DB;
 
 class ComprasController extends Controller
 {
-    public function index(): \Illuminate\View\View { return view('compras.index'); }
-    public function pagos(): \Illuminate\View\View { return view('compras.pagos'); }
 
     public function create(): \Illuminate\View\View
     {

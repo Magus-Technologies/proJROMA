@@ -19,12 +19,6 @@ class ListVentas extends ListRecords
                 ->color('primary')
                 ->url(VentaResource::getUrl('create')),
 
-            Action::make('pos_clasico')
-                ->label('POS clásico')
-                ->icon('heroicon-o-computer-desktop')
-                ->color('gray')
-                ->url(url('/ventas/productos')),
-
             Action::make('excel')
                 ->label('Reporte Excel')
                 ->icon('heroicon-o-table-cells')

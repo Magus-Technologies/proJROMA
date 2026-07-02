@@ -42,7 +42,6 @@ Route::middleware('auth')->group(function () {
 // ── Formularios POS aún en Blade (enlazados desde Filament) ────────────────────
 Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function () {
 
-<<<<<<< HEAD
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
    Route::get('/home', [DashboardController::class, 'index'])->name('home');
@@ -134,12 +133,6 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
     // ── Reportes ──────────────────────────────────────────────────────────
     // ── Métodos de pago (Bancos, Cuentas, Tarjetas, Billeteras) ──────────
     Route::get('/pago-instrumentos', [\App\Http\Controllers\PagoInstrumentoController::class, 'index'])->name('pago.instrumentos');
-=======
-    Route::get('/nota/electronica',        [VentasController::class, 'notaElectronica'])->name('nota.electronica');
-    Route::get('/guias/remision/registrar', [GuiaRemisionController::class, 'create'])->name('guias.create');
-    Route::get('/cotizaciones/editar/{id}', [CotizacionesController::class, 'edit'])->name('cotizaciones.edit');
-    Route::get('/compras/add',              [ComprasController::class, 'create'])->name('compras.create');
->>>>>>> 2c1cfc386a00aafac11797f29df99740b1813dd2
 
     // ── Reportes / Exports (enlazados desde Filament) ─────────────────────
     Route::prefix('reporte')->name('reporte.')->group(function () {

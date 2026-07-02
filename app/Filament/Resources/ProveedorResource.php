@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources;
 
-use App\Models\Proveedor;
 use App\Filament\Resources\ProveedorResource\Pages;
+use App\Models\Proveedor;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -13,6 +13,8 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\Rules\Unique;
 
 class ProveedorResource extends Resource
 {
@@ -28,12 +30,19 @@ class ProveedorResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
-            TextInput::make('num_doc')->label('RUC / DNI')->maxLength(15),
-            TextInput::make('nombre')->label('Razón Social')->required()->maxLength(200)->columnSpanFull(),
-            TextInput::make('nombre_comercial')->label('Nombre Comercial')->maxLength(200)->columnSpanFull(),
-            TextInput::make('direccion')->label('Dirección')->maxLength(200)->columnSpanFull(),
-            TextInput::make('telefono')->label('Teléfono')->maxLength(20),
-            TextInput::make('email')->label('Email')->email()->maxLength(100),
+            TextInput::make('ruc')
+                ->label('RUC / DNI')
+                ->required()
+                ->maxLength(11)
+                ->unique(
+                    ignoreRecord: true,
+                    modifyRuleUsing: fn (Unique $rule) => $rule->where('id_empresa', (int) session('id_empresa')),
+                ),
+            TextInput::make('razon_social')->label('Razón Social')->required()->maxLength(200)->columnSpanFull(),
+            TextInput::make('nombre_comercial')->label('Nombre Comercial')->maxLength(255)->columnSpanFull(),
+            TextInput::make('direccion')->label('Dirección')->maxLength(100)->columnSpanFull(),
+            TextInput::make('telefono')->label('Teléfono')->maxLength(100),
+            TextInput::make('email')->label('Email')->email()->maxLength(150),
         ]);
     }
 
@@ -41,15 +50,21 @@ class ProveedorResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('num_doc')->label('RUC/DNI')->searchable()->sortable(),
-                TextColumn::make('nombre')->label('Razón Social')->searchable()->sortable()->wrap(),
-                TextColumn::make('nombre_comercial')->label('Nombre Comercial')->toggleable()->searchable(),
-                TextColumn::make('telefono')->label('Teléfono')->toggleable(),
-                TextColumn::make('email')->label('Email')->toggleable(),
+                TextColumn::make('ruc')->label('RUC/DNI')->searchable()->sortable(),
+                TextColumn::make('razon_social')->label('Razón Social')->searchable()->sortable()->wrap(),
+                TextColumn::make('nombre_comercial')->label('Nombre Comercial')->toggleable()->searchable()->placeholder('—'),
+                TextColumn::make('telefono')->label('Teléfono')->toggleable()->placeholder('—'),
+                TextColumn::make('email')->label('Email')->toggleable()->placeholder('—'),
             ])
             ->actions([EditAction::make()])
             ->bulkActions([BulkActionGroup::make([DeleteBulkAction::make()])])
-            ->defaultSort('nombre');
+            ->defaultSort('razon_social');
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->where('id_empresa', (int) session('id_empresa'));
     }
 
     public static function getRelations(): array { return []; }

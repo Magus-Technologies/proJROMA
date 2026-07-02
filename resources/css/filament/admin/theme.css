@@ -295,9 +295,16 @@ html {
     overflow-y: auto !important;
     overflow-x: hidden !important;
     min-height: 0 !important;
-    padding: 0.375rem 0.5rem 1rem !important;
+    padding: 0.25rem 0.5rem 2rem !important;
     scrollbar-width: thin !important;
     scrollbar-color: rgba(255,255,255,.12) transparent !important;
+  }
+  .fi-sidebar-nav-groups {
+    margin: 0 !important;
+    padding: 0 !important;
+    list-style: none !important;
+    row-gap: 0.125rem !important;
+    gap: 0.125rem !important;
   }
   .fi-sidebar-nav::-webkit-scrollbar { width: 3px; }
   .fi-sidebar-nav::-webkit-scrollbar-track { background: transparent; }
@@ -305,7 +312,8 @@ html {
 
   /* ── Group headers — igual que nav-group en app sidebar ── */
   .fi-sidebar-group {
-    margin-top: 0.25rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
   .fi-sidebar-group-btn {
     display: flex !important;
@@ -369,15 +377,14 @@ html {
   .fi-sidebar-group:not(.fi-collapsed) .fi-sidebar-group-collapse-btn svg {
     transform: rotate(180deg) !important;
   }
-  /* Sub-items — border-left como app sidebar */
-  .fi-sidebar-group-items {
+  /* Sub-items — border-left SOLO en grupos con label (los que tienen group-btn) */
+  .fi-sidebar-group:has(.fi-sidebar-group-btn) > .fi-sidebar-group-items {
     margin-left: 1rem !important;
     border-left: 1px solid rgba(255, 255, 255, .1) !important;
     padding-left: 0.5rem !important;
     margin-top: 0 !important;
-  }
-  .fi-sidebar-group-items > .fi-sidebar-item:first-child {
-    margin-top: 0.125rem !important;
+    row-gap: 0 !important;
+    gap: 0 !important;
   }
   /* Estado activo en grupo (cuando algún item inside está activo) */
   .fi-sidebar-group.fi-active > .fi-sidebar-group-btn {
@@ -391,9 +398,9 @@ html {
     display: none !important;
   }
   .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-group {
-    margin-top: 0.25rem !important;
+    margin: 0 !important;
   }
-  .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-group-items {
+  .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-group:has(.fi-sidebar-group-btn) > .fi-sidebar-group-items {
     margin-left: 0 !important;
     border-left: none !important;
     padding-left: 0 !important;
@@ -535,58 +542,6 @@ html {
     display: none !important;
   }
 
-  /* ── Custom footer collapse toggle ── */
-  .fi-sidebar-custom-footer {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0.75rem !important;
-    border-top: 1px solid rgba(255, 255, 255, .1) !important;
-    flex-shrink: 0 !important;
-  }
-  .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-custom-footer {
-    padding: 0.5rem !important;
-  }
-  .fi-sidebar-custom-footer-btn {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 0.5rem !important;
-    width: 100% !important;
-    border-radius: 0.5rem !important;
-    padding: 0.5rem 0.75rem !important;
-    color: rgba(147, 197, 253, .6) !important;
-    font-size: 0.75rem !important;
-    transition: all 0.15s ease !important;
-    cursor: pointer !important;
-    border: none !important;
-    background: none !important;
-  }
-  .fi-sidebar-custom-footer-btn:hover {
-    color: #fff !important;
-    background: rgba(255, 255, 255, .1) !important;
-  }
-  .fi-sidebar-custom-footer-btn svg {
-    width: 1rem !important;
-    height: 1rem !important;
-    transition: transform 0.3s ease !important;
-  }
-  .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-custom-footer-btn {
-    justify-content: center !important;
-    padding: 0.5rem !important;
-    width: 2.25rem !important;
-    height: 2.25rem !important;
-  }
-  .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-custom-footer-btn svg {
-    transform: rotate(180deg) !important;
-  }
-  .fi-sidebar-custom-footer-btn span {
-    flex: 1 !important;
-    text-align: left !important;
-  }
-  .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-custom-footer-btn span {
-    display: none !important;
-  }
 }
 
 /* ============================================================

@@ -20,8 +20,10 @@ class Compra extends Model
 
     public function proveedor()     { return $this->belongsTo(Proveedor::class,'id_proveedor','proveedor_id'); }
     public function tipoDocumento() { return $this->belongsTo(DocumentoEmpresa::class,'id_tido','id_tido'); }
+    public function tipoDocSunat()  { return $this->belongsTo(DocumentoSunat::class,'id_tido','id_tido'); }
     public function empresa()   { return $this->belongsTo(Empresa::class,'id_empresa','id_empresa'); }
     public function productos() { return $this->hasMany(ProductoCompra::class,'id_compra','id_compra'); }
+    public function pagos()     { return $this->hasMany(DiasCompra::class,'id_compra','id_compra'); }
 
     public function scopeDeEmpresa(Builder $q, int $id): Builder { return $q->where('id_empresa',$id); }
     public function scopeDelMes(Builder $q): Builder

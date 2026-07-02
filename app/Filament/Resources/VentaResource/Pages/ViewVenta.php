@@ -76,8 +76,18 @@ class ViewVenta extends ViewRecord
                         TextEntry::make('estado')
                             ->label('Estado')
                             ->badge()
-                            ->formatStateUsing(fn (string $state): string => $state === '1' ? 'Activa' : 'Anulada')
-                            ->color(fn (string $state): string => $state === '1' ? 'success' : 'gray'),
+                            ->formatStateUsing(fn (string $state): string => match ($state) {
+                                '1'     => 'Activa',
+                                '2'     => 'Crédito',
+                                '0'     => 'Anulada',
+                                default => $state,
+                            })
+                            ->color(fn (string $state): string => match ($state) {
+                                '1'     => 'success',
+                                '2'     => 'warning',
+                                '0'     => 'gray',
+                                default => 'gray',
+                            }),
 
                         TextEntry::make('observacion')
                             ->label('Observación')

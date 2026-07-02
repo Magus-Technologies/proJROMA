@@ -12,4 +12,8 @@ class InventarioMovimiento extends Model
         'stock_anterior', 'stock_nuevo', 'costo', 'id_proveedor', 'observacion',
         'id_usuario', 'fecha',
     ];
+
+    public function producto() { return $this->belongsTo(Producto::class,'id_producto','id_producto'); }
+    public function motivo()   { return $this->belongsTo(MotivoMovimiento::class,'id_motivo','id_motivo'); }
+    public function usuario()  { return $this->belongsTo(User::class,'id_usuario','usuario_id'); }
 }

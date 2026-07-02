@@ -9,8 +9,10 @@ class Proveedor extends Model
     public    $timestamps = false;
 
     protected $fillable = [
-        'num_doc','nombre','nombre_comercial',
-        'direccion','telefono','email','id_empresa',
+        'ruc','razon_social','nombre_comercial',
+        'direccion','direccion2','telefono','telefono2','email',
+        'departamento','provincia','distrito','ubigeo',
+        'id_empresa','fecha_create','estado',
     ];
 
     public function compras() { return $this->hasMany(Compra::class,'id_proveedor','proveedor_id'); }

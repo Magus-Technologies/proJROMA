@@ -83,8 +83,18 @@ class VentaResource extends Resource
                 TextColumn::make('estado')
                     ->label('Estado')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => $state === '1' ? 'Activa' : 'Anulada')
-                    ->color(fn (string $state): string => $state === '1' ? 'success' : 'gray'),
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        '1'     => 'Activa',
+                        '2'     => 'Crédito',
+                        '0'     => 'Anulada',
+                        default => $state,
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        '1'     => 'success',
+                        '2'     => 'warning',
+                        '0'     => 'gray',
+                        default => 'gray',
+                    }),
 
                 TextColumn::make('vendedor.nombre_completo')
                     ->label('Vendedor')
@@ -101,6 +111,7 @@ class VentaResource extends Resource
                     ->label('Estado')
                     ->options([
                         '1' => 'Activa',
+                        '2' => 'Crédito',
                         '0' => 'Anulada',
                     ]),
 
@@ -135,7 +146,7 @@ class VentaResource extends Resource
                     ->label('Anular')
                     ->icon('heroicon-o-no-symbol')
                     ->color('danger')
-                    ->visible(fn (Venta $record): bool => $record->estado === '1')
+                    ->visible(fn (Venta $record): bool => $record->estado !== '0')
                     ->requiresConfirmation()
                     ->modalHeading('¿Anular esta venta?')
                     ->modalDescription('Se repondrá el stock de los productos.')

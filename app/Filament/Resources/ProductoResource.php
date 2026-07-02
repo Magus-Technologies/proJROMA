@@ -4,7 +4,9 @@ namespace App\Filament\Resources;
 
 use App\Models\Categoria;
 use App\Models\Marca;
+use App\Models\Presentacion;
 use App\Models\Producto;
+use App\Models\UnidadMedida;
 use App\Filament\Resources\ProductoResource\Pages;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
@@ -44,8 +46,34 @@ class ProductoResource extends Resource
             TextInput::make('precio')->label('Precio')->numeric()->prefix('S/'),
             TextInput::make('costo')->label('Costo')->numeric()->prefix('S/'),
             TextInput::make('cantidad')->label('Stock')->numeric(),
-            TextInput::make('medida')->label('Medida')->maxLength(50)
-                ->placeholder('Ej: Unidad, Caja, Kg'),
+            Select::make('medida')->label('Unidad de medida')
+                ->options(fn () => UnidadMedida::where('id_empresa', (int) session('id_empresa'))
+                    ->where('estado', 1)->orderBy('nombre')->pluck('nombre', 'nombre'))
+                ->searchable()->nullable()
+                ->createOptionForm([
+                    TextInput::make('nombre')->label('Nombre')->required()->maxLength(60),
+                    TextInput::make('abreviatura')->label('Abreviatura')->maxLength(15),
+                ])
+                ->createOptionUsing(fn (array $data): string => UnidadMedida::firstOrCreate(
+                    ['id_empresa' => (int) session('id_empresa'), 'nombre' => trim($data['nombre'])],
+                    ['abreviatura' => $data['abreviatura'] ?? null, 'estado' => 1]
+                )->nombre),
+
+            Select::make('presentaciones')->label('Presentación (cómo compra)')
+                ->options(fn () => Presentacion::where('id_empresa', (int) session('id_empresa'))
+                    ->where('estado', 1)->orderBy('nombre')->pluck('nombre', 'nombre'))
+                ->searchable()->nullable()
+                ->createOptionForm([
+                    TextInput::make('nombre')->label('Nombre')->required()->maxLength(60),
+                ])
+                ->createOptionUsing(fn (array $data): string => Presentacion::firstOrCreate(
+                    ['id_empresa' => (int) session('id_empresa'), 'nombre' => trim($data['nombre'])],
+                    ['estado' => 1]
+                )->nombre),
+
+            TextInput::make('cnt_presenta')->label('Unidades por presentación')
+                ->numeric()->minValue(0)->placeholder('Ej: 20 (unidades por caja)'),
+
             Select::make('id_categoria')
                 ->label('Categoría')
                 ->options(fn () => Categoria::where('id_empresa', (int) session('id_empresa'))

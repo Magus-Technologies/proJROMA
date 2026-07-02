@@ -1,314 +1,363 @@
 # Módulo TMS (Transportation Management System) — Lógica requerida
 
-Documento de diseño funcional y técnico del módulo de gestión de transporte/despacho.
-Estado: **propuesta / pendiente de implementar**.
+Documento de diseño funcional/técnico del módulo de transporte y despacho.
+Estado: **lógica definida — pendiente de implementar**. Este documento describe SOLO la
+lógica y el modelo de datos; la UI se decide después.
 
 ---
 
 ## 1. Objetivo
 
-Gestionar el ciclo **pedido → despacho → reparto → entrega**: armar rutas, asignar
-vehículos y conductores, jalar los pedidos del día, cargar y repartir a los puntos de
-entrega (mercados, tiendas y otros clientes), registrando el estado de cada entrega.
+Armar el reparto diario: el usuario **define rutas como conjuntos de mercados**, el sistema
+**jala los pedidos** de los clientes de esos mercados en una fecha, **calcula el peso total**
+y permite asignar un **vehículo que aguante ese peso** con su **conductor**, registrando
+luego la **entrega** punto por punto.
 
 ---
 
-## 2. Flujo de negocio (según operación real)
+## 2. Jerarquía de datos (clave del módulo)
+
+Un **PUNTO DE ENTREGA** puede ser de dos tipos:
+- **MERCADO**: un local con UNA dirección que agrupa **muchos clientes** (puestos dentro).
+- **TIENDA**: un **cliente suelto** con su **propia dirección**, fuera de un mercado.
 
 ```
- DÍA 1 (ej. lunes)                         DÍA 2 (mañana siguiente)
- ─────────────────                         ────────────────────────
- 1. Vendedores registran PEDIDOS  ──┐
-    (cotizaciones, id_tido = pedido)│
- 2. Más tarde AUMENTAN pedidos      │  3. CORTE: se cierran los pedidos del día
-    (agregan líneas / nuevos)       │  4. Se ARMAN DESPACHOS:
-                                    │       - se eligen pedidos pendientes
-                                    └──►    - se agrupan por RUTA
-                                            - se asigna VEHÍCULO + CONDUCTOR
-                                         5. CARGA: se confirma la mercadería cargada
-                                         6. RUTA: el vehículo sale a repartir
-                                         7. ENTREGA por punto:
-                                            mercados / tiendas / otros
-                                            → ENTREGADO | RECHAZADO | PARCIAL
-                                         8. RETORNO / cierre del despacho + costos
+Producto  ──(peso_bruto)
+   └─ Línea de pedido      productos_cotis (cantidad)
+        └─ Pedido          cotizaciones (por fecha)
+             └─ Cliente    clientes.mercado
+                  └─ PUNTO DE ENTREGA
+                       ├─ MERCADO  (clientes.mercado > 0)  → N clientes  ◄── FALTA maestro + CRUD
+                       └─ TIENDA   (clientes.mercado = 0/null) → 1 cliente
+                            └─ RUTA = conjunto de PUNTOS (mercados y/o tiendas)  ◄── FALTA maestro
+                                 └─ DESPACHO (fecha)
+                                      → peso total
+                                      → VEHÍCULO (capacidad)  ◄── FALTA maestro
+                                      → CONDUCTOR             ◄── FALTA maestro
 ```
 
-Reglas clave del flujo:
-
-- Un **pedido** se puede **crear y aumentar** mientras no haya pasado el **corte** ni
-  esté asignado a un despacho cargado.
-- Un **despacho** agrupa **varios pedidos** de **una ruta** en **un vehículo** con **un
-  conductor**, para **una fecha de reparto**.
-- Un **pedido** pertenece como máximo a **un despacho activo**.
-- La **entrega** se registra por **pedido/cliente** (punto de entrega), no por todo el
-  camión de golpe.
+Reglas de la jerarquía:
+- **Un cliente está en un mercado** (`clientes.mercado > 0`) **o es una tienda suelta**
+  (`clientes.mercado = 0`/null), con su propia dirección.
+- **Una ruta se compone de uno o varios PUNTOS** (mercados y/o tiendas).
+  - Agregar un **mercado** a la ruta arrastra a TODOS sus clientes.
+  - Agregar una **tienda** a la ruta agrega a ESE cliente individual.
+- **Un despacho** = una ruta + una fecha → jala TODOS los pedidos de los clientes de los
+  puntos de esa ruta.
 
 ---
 
-## 3. Qué ya existe en el sistema (reutilizar)
+## 3. Flujo de negocio
 
-| Recurso | Tabla / campo | Uso en TMS |
+```
+ DÍA 1                                      DÍA 2 (mañana)
+ ─────                                      ──────────────
+ 1. Vendedores registran PEDIDOS            4. ARMAR DESPACHO:
+    (cotizaciones)                              a. elegir RUTA (ya trae sus mercados)
+ 2. Pueden AUMENTAR pedidos                     b. elegir FECHA de los pedidos
+ 3. (corte: fin del día)                        c. el sistema JALA los pedidos de los
+                                                   clientes de esos mercados
+                                                d. calcula PESO total
+                                                e. sugiere VEHÍCULO con capacidad ≥ peso
+                                                f. asigna CONDUCTOR
+                                             5. CARGAR → SALIR A RUTA
+                                             6. ENTREGAR por punto (mercado/cliente):
+                                                ENTREGADO | RECHAZADO | PARCIAL
+                                             7. CERRAR despacho (+ costos opcional)
+```
+
+---
+
+## 4. Qué ya existe (reutilizar)
+
+| Recurso | Tabla / campo | Uso |
 |---|---|---|
-| Pedidos | `cotizaciones` (cabecera) + `productos_cotis` (detalle) | Fuente de los pedidos a repartir. `id_tido` distingue el tipo pedido. |
-| Clientes / puntos | `clientes` | Punto de entrega. Ya trae `direccion`, `distrito`, `telefono`. |
-| Mercado vs tienda | `clientes.mercado` (int) | Clasifica el punto (mercado / otro). |
-| Ruta del cliente | `clientes.id_ruta` | Ruta a la que pertenece el cliente. |
-| Ruta ↔ vendedor | `rutas_vendedor` (id_ruta, id_usuario) | Asocia ruta con su vendedor. |
-| Empresa / sucursal | `id_empresa`, `sucursal` (en todas las tablas) | Multiempresa/multisucursal. Filtrar siempre. |
-| Caja (costos) | `caja_movimientos` | Registrar combustible/peajes/viáticos como egreso de caja (opcional fase 2). |
+| Pedidos (cabecera) | `cotizaciones` (`cotizacion_id`, `fecha`, `id_cliente`, `total`, `id_tido`, `id_empresa`, `sucursal`) | Fuente de pedidos. `id_tido` define el tipo "pedido". |
+| Pedidos (detalle) | `productos_cotis` (`id_coti`, `id_producto`, `cantidad`) | Líneas del pedido para calcular peso. |
+| **Peso del producto** | `productos.peso_bruto` (decimal 10,2) | ✅ Permite calcular el peso del despacho. |
+| Cliente / punto | `clientes` (`id_cliente`, `datos`, `direccion`, `distrito`, `telefono`) | Punto de entrega. |
+| Cliente ↔ mercado | `clientes.mercado` (int, valores 1–22) | Ya asocia cliente con un mercado… pero sin nombre. |
+| Empresa/sucursal | `id_empresa`, `sucursal` | Filtrar SIEMPRE por la sesión. |
 
-> ⚠️ **Falta una tabla maestra de RUTAS con nombre.** Hoy `id_ruta` es solo un número
-> referenciado por `clientes` y `rutas_vendedor`, pero no hay una tabla `rutas` con
-> nombre/zona/descripción. Hay que crearla (ver §4).
+### Vacíos detectados (hay que crear)
+1. **Maestro de MERCADOS** + CRUD. Hoy `clientes.mercado` es un número sin nombre/zona.
+2. **Maestro de RUTAS** (ruta = conjunto de mercados) + CRUD.
+3. **Maestro de VEHÍCULOS** (placa, capacidad, documentos) + CRUD.
+4. **Maestro de CONDUCTORES** + CRUD.
+5. **Edición del mercado de un cliente** (en el CRUD de clientes o desde el de mercados),
+   para poder mantener la relación cliente→mercado.
 
 ---
 
-## 4. Modelo de datos propuesto (tablas nuevas)
+## 5. Modelo de datos propuesto (tablas nuevas, prefijo `tms_`)
 
-Prefijo `tms_` para aislar el módulo. Todas con `id_empresa` + `sucursal`.
+Todas con `id_empresa` + `sucursal`.
 
-### 4.1 `tms_rutas` — maestro de rutas/zonas
+### 5.1 `tms_mercados` — maestro de mercados (pocos datos)
 ```
-id              PK
-id_empresa      int
-sucursal        int
-nombre          varchar(120)   -- "Ruta Mercado Central", "Zona Norte"
-descripcion     varchar(255)   nullable
-estado          tinyint        default 1  (activo/inactivo)
+id            PK
+id_empresa    int
+sucursal      int
+nombre        varchar(120)   -- "Mercado Central", "Mercado Caquetá"
+direccion     varchar(245)   -- dirección ESPECÍFICA (para ubicar al repartir)
+referencia    varchar(245)   nullable  -- "frente a la iglesia", puerta/portón, etc.
+distrito      varchar(120)   nullable  -- zona/distrito
+telefono      varchar(20)    nullable  -- contacto opcional (administración del mercado)
+estado        tinyint        default 1
 ```
-> Si se decide reusar el `id_ruta` ya existente en `clientes`, esta tabla le pondría
-> nombre a esos números. Recomendado: migrar `id_ruta` a FK de `tms_rutas`.
+> Solo lo esencial: **nombre + dirección específica** son los obligatorios; lo demás es
+> opcional. La dirección debe ser precisa porque es a donde llega el vehículo.
+>
+> Migración de datos: crear un registro por cada valor distinto de `clientes.mercado`
+> (1–22) y, si se desea, convertir `clientes.mercado` en FK a `tms_mercados`.
 
-### 4.2 `tms_vehiculos` — maestro de flota
+### 5.2 `tms_rutas` — maestro de rutas
+```
+id            PK
+id_empresa    int
+sucursal      int
+nombre        varchar(120)   -- "Ruta Norte", "Ruta SJL"
+descripcion   varchar(245)   nullable
+estado        tinyint        default 1
+```
+
+### 5.3 `tms_ruta_puntos` — qué puntos componen una ruta (mercados y/o tiendas)
+```
+id            PK
+id_ruta       int  FK tms_rutas (onDelete cascade)
+tipo          varchar(10)    -- MERCADO | TIENDA
+id_mercado    int  nullable  -- si tipo=MERCADO → FK tms_mercados
+id_cliente    int  nullable  -- si tipo=TIENDA  → FK clientes (cliente suelto)
+orden         int  default 0 -- orden de visita del punto en la ruta
+```
+> Regla: exactamente uno de `id_mercado` / `id_cliente` está lleno según `tipo`.
+
+### 5.4 `tms_vehiculos` — maestro de flota
 ```
 id                  PK
 id_empresa          int
 sucursal            int
-placa               varchar(15)    -- único por empresa
-marca               varchar(60)    nullable
-modelo              varchar(60)    nullable
-capacidad_kg        decimal(10,2)  nullable
-capacidad_volumen   decimal(10,2)  nullable
+placa               varchar(15)    -- único por empresa  (ej. "ABC-123")
+tipo                varchar(15)    -- CAMIONETA | FURGONETA | CAMION | MOTO | OTRO
+marca               varchar(60)    nullable  (ej. "Toyota")
+modelo              varchar(60)    nullable  (ej. "Hilux")
+anio                smallint       nullable
+
+-- PESO (clave para el matching con el peso del despacho)
+capacidad_kg        decimal(10,2)  -- carga útil máxima en kg (lo que PUEDE llevar)
+tara_kg             decimal(10,2)  nullable  -- peso del vehículo vacío (opcional)
+
+-- TAMAÑO de la zona de carga (para volumen / "qué tan grande")
+largo_m             decimal(6,2)   nullable
+ancho_m             decimal(6,2)   nullable
+alto_m              decimal(6,2)   nullable
+capacidad_m3        decimal(8,2)   nullable  -- volumen útil (= largo×ancho×alto o manual)
+
+-- DOCUMENTOS (para alertas de vencimiento)
 soat_vence          date           nullable
 rev_tecnica_vence   date           nullable
+
 estado              tinyint        default 1
 ```
 
-### 4.3 `tms_conductores` — maestro de choferes
+**Ejemplos de tipos y capacidades típicas:**
+
+| Tipo | Capacidad (kg) | Tamaño aprox. carga | Uso |
+|---|---|---|---|
+| **Moto / mototaxi** | 150 – 300 | pequeño | pedidos chicos, tiendas cercanas |
+| **Camioneta** (pickup) | 800 – 1,000 | mediano | rutas medianas, mixto |
+| **Furgoneta** (van) | 1,000 – 1,500 | cerrado, mediano-grande | mercados con varios puestos |
+| **Camión** | 3,000 – 8,000+ | grande | rutas pesadas / muchos mercados |
+
+> El **matching** del §6 usa `capacidad_kg` vs el peso del despacho. Si además se quiere
+> validar por **tamaño**, se compara el volumen estimado de la carga vs `capacidad_m3`
+> (requiere volumen por producto, que hoy NO existe → ver decisión §12.5).
+
+### 5.5 `tms_conductores` — maestro de choferes
 ```
 id                  PK
 id_empresa          int
 sucursal            int
-id_usuario          int            nullable  -- si el chofer también es usuario
+id_usuario          int            nullable  -- si también es usuario del sistema
 nombres             varchar(120)
 documento           varchar(15)    nullable
 licencia            varchar(30)    nullable
-licencia_categoria  varchar(10)    nullable
 licencia_vence      date           nullable
 telefono            varchar(20)    nullable
 estado              tinyint        default 1
 ```
 
-### 4.4 `tms_despachos` — cabecera del viaje/reparto
+### 5.6 `tms_despachos` — cabecera del despacho/viaje
 ```
 id                  PK
 id_empresa          int
 sucursal            int
-codigo              varchar(20)    -- correlativo legible (DSP-000123)
+codigo              varchar(20)    -- correlativo DSP-000123
 fecha_reparto       date
 id_ruta             int  FK tms_rutas
 id_vehiculo         int  FK tms_vehiculos
 id_conductor        int  FK tms_conductores
+peso_total          decimal(12,2)  -- calculado al armar
 estado              varchar(15)    -- PLANIFICADO|CARGADO|EN_RUTA|CERRADO|ANULADO
 observaciones       varchar(255)   nullable
 id_usuario_creacion int
 created_at / updated_at
 ```
 
-### 4.5 `tms_despacho_pedidos` — pedidos dentro del despacho (detalle)
+### 5.7 `tms_despacho_pedidos` — pedidos jalados al despacho
 ```
 id                  PK
 id_despacho         int  FK tms_despachos (onDelete cascade)
-id_cotizacion       int  -- el pedido (cotizaciones.cotizacion_id)
-id_cliente          int  -- punto de entrega (denormalizado p/ rapidez)
-orden               int  -- orden de visita en la ruta
-estado_entrega      varchar(15)  -- PENDIENTE|ENTREGADO|RECHAZADO|PARCIAL
-monto               decimal(12,2) -- total del pedido al momento de asignar
-motivo_rechazo      varchar(255)  nullable
-hora_entrega        datetime      nullable
+id_cotizacion       int  -- el pedido jalado
+id_cliente          int  -- denormalizado (punto de entrega)
+id_mercado          int  -- denormalizado (a qué mercado pertenece)
+peso                decimal(12,2)  -- peso del pedido
+monto               decimal(12,2)  -- total del pedido
+orden               int            -- orden de visita
+estado_entrega      varchar(15)    -- PENDIENTE|ENTREGADO|RECHAZADO|PARCIAL
+motivo_rechazo      varchar(255)   nullable
+hora_entrega        datetime       nullable
 ```
-
-> **Entrega parcial / evidencia (fase 2):** si se requiere detalle por producto
-> entregado, agregar `tms_entrega_detalle` (id_despacho_pedido, id_producto,
-> cant_entregada, cant_devuelta). Para evidencia: `tms_entrega_evidencia`
-> (foto/firma url).
 
 ---
 
-## 5. Máquina de estados
+## 6. Algoritmo de "Armar Despacho" (núcleo de la lógica)
 
-### Pedido (cotización) respecto al TMS
-```
-SIN_DESPACHO ──(asignar a despacho)──► ASIGNADO ──(cargar)──► EN_RUTA
-   ▲                                       │
-   └──────────(quitar del despacho)────────┘
-EN_RUTA ──► ENTREGADO | RECHAZADO | PARCIAL
-```
-Se puede derivar del `estado_entrega` en `tms_despacho_pedidos`; no requiere tocar
-`cotizaciones` salvo que se quiera marcar el pedido como "despachado".
+**Entrada:** `id_ruta`, `fecha_desde`, `fecha_hasta` (o una sola fecha).
 
-### Despacho
+```
+1. puntos = SELECT tipo, id_mercado, id_cliente
+            FROM tms_ruta_puntos WHERE id_ruta = :ruta
+
+   mercados = ids de los puntos tipo MERCADO
+   tiendas  = ids de cliente de los puntos tipo TIENDA
+
+2. clientes = (SELECT id_cliente FROM clientes
+                WHERE mercado IN (mercados) AND id_empresa = :empresa)
+              UNION
+              (tiendas)                       -- clientes sueltos agregados directo
+
+3. pedidos  = SELECT c.cotizacion_id, c.id_cliente, c.total, cl.mercado
+              FROM cotizaciones c
+              JOIN clientes cl ON cl.id_cliente = c.id_cliente
+              WHERE c.id_cliente IN (clientes)
+                AND c.fecha BETWEEN :desde AND :hasta
+                AND c.id_tido = :tipo_pedido
+                AND c.estado = activo
+                AND c.cotizacion_id NOT IN (             -- aún sin despacho activo
+                      SELECT id_cotizacion FROM tms_despacho_pedidos dp
+                      JOIN tms_despachos d ON d.id = dp.id_despacho
+                      WHERE d.estado <> 'ANULADO')
+
+4. POR CADA pedido:
+     peso_pedido = SUM(pc.cantidad * p.peso_bruto)
+                   FROM productos_cotis pc
+                   JOIN productos p ON p.id_producto = pc.id_producto
+                   WHERE pc.id_coti = pedido.cotizacion_id
+
+5. peso_total = SUM(peso_pedido de todos los pedidos)
+
+6. vehiculos_sugeridos = SELECT * FROM tms_vehiculos
+        WHERE id_empresa = :empresa
+          AND estado = 1
+          AND capacidad_kg >= peso_total
+          AND id NOT IN (vehículos ya en un despacho EN_RUTA/CARGADO esa fecha)
+        ORDER BY capacidad_kg ASC      -- el más ajustado primero
+
+7. (usuario elige vehículo + conductor) → CREAR despacho:
+     - tms_despachos (cabecera con peso_total)
+     - tms_despacho_pedidos (un registro por pedido, con su peso/monto/mercado)
+     - orden de visita = orden del mercado en la ruta (tms_ruta_mercados.orden)
+```
+
+**Salida en pantalla (resumen para decidir):**
+```
+Ruta: <nombre>          Fecha: <rango>
+Mercados: N             Puntos/clientes: M       Pedidos: K
+Peso total: X kg
+Vehículos que aguantan: [placa - capacidad] ...
+```
+
+---
+
+## 7. Máquina de estados del despacho
+
 ```
 PLANIFICADO ──► CARGADO ──► EN_RUTA ──► CERRADO
-     └──────────────► ANULADO (libera los pedidos)
+     └───────────────► ANULADO (libera los pedidos)
 ```
-Transiciones:
-- **PLANIFICADO → CARGADO**: se confirma la carga. A partir de aquí los pedidos
-  asignados **se bloquean** (no se pueden aumentar/editar).
+- **PLANIFICADO → CARGADO**: se confirma la carga; los pedidos quedan bloqueados (no se
+  aumentan/editan).
 - **CARGADO → EN_RUTA**: sale el vehículo.
-- **EN_RUTA → CERRADO**: todas las entregas tienen estado final; se calcula resumen.
-- **→ ANULADO**: solo desde PLANIFICADO/CARGADO; libera los pedidos (vuelven a
-  SIN_DESPACHO).
+- **EN_RUTA → CERRADO**: todas las entregas tienen estado final.
+- **→ ANULADO**: desde PLANIFICADO/CARGADO; libera los pedidos (vuelven al pool).
+
+Estado de cada punto (`tms_despacho_pedidos.estado_entrega`):
+`PENDIENTE → ENTREGADO | RECHAZADO | PARCIAL`.
 
 ---
 
-## 6. Reglas de negocio (validaciones)
+## 8. Reglas de negocio (validaciones)
 
-1. **Corte de pedidos**: definir una hora/fecha de corte. Después del corte, los pedidos
-   de esa fecha entran al pool despachable y ya no se aumentan (configurable).
-2. **Un pedido, un despacho activo**: al asignar, validar que el pedido no esté ya en un
-   despacho no anulado.
-3. **Coherencia de ruta**: al armar un despacho de la ruta X, solo listar pedidos cuyos
-   clientes pertenezcan a la ruta X (`clientes.id_ruta`). Permitir override manual.
-4. **Capacidad del vehículo (opcional)**: sumar peso/volumen de los pedidos y advertir si
-   supera `capacidad_kg`/`capacidad_volumen`.
-5. **Disponibilidad**: un vehículo/conductor no puede estar en dos despachos EN_RUTA el
-   mismo `fecha_reparto`.
-6. **Documentos vencidos**: advertir si SOAT/revisión técnica/licencia están vencidos a la
+1. **Un pedido, un despacho activo**: no jalar pedidos que ya estén en un despacho no
+   anulado.
+2. **Peso vs capacidad**: advertir/bloquear si `peso_total > capacidad_kg` del vehículo.
+3. **Disponibilidad**: un vehículo o conductor no puede estar en dos despachos
+   CARGADO/EN_RUTA la misma `fecha_reparto`.
+4. **Documentos vencidos**: avisar si SOAT / rev. técnica / licencia vencen antes de la
    `fecha_reparto`.
-7. **Bloqueo por carga**: si el despacho está CARGADO o EN_RUTA, no se quitan/agregan
-   pedidos ni se editan sus líneas.
-8. **Multiempresa/sucursal**: todo filtrado por `id_empresa` + `sucursal` de la sesión.
-9. **Anulación**: al anular un despacho, liberar pedidos y dejar traza.
+5. **Bloqueo por carga**: si el despacho está CARGADO/EN_RUTA no se agregan/quitan
+   pedidos.
+6. **Cliente sin mercado**: si un cliente no tiene `mercado`, no entra a ninguna ruta →
+   reportarlo para corregir el dato.
+7. **Multiempresa/sucursal**: todo filtrado por `id_empresa` + `sucursal` de la sesión.
 
 ---
 
-## 7. Integración recomendada (respuesta a "no estoy seguro")
+## 9. CRUD / mantenimientos necesarios (lo que "falta")
 
-**Integrar con `cotizaciones` (pedidos)** — es donde viven las órdenes reales:
-
-- El TMS **jala** los pedidos pendientes (`cotizaciones` del tipo pedido, sin despacho,
-  por fecha y/o ruta) en la pantalla "Armar despacho".
-- El **punto de entrega** sale de `clientes` (dirección, distrito, mercado).
-- La **ruta sugerida** sale de `clientes.id_ruta`.
-- **Opcional (fase 2):** al cerrar la entrega, **generar la Guía de Remisión**
-  (`guia_remision`) por pedido/cliente, reutilizando vehículo y conductor del despacho.
-- **Opcional (fase 2):** registrar **costos del viaje** (combustible, peajes, viáticos)
-  como egresos en `caja_movimientos`.
-
-No se integra con `ventas` directamente porque el reparto opera sobre el **pedido**, no
-sobre el comprobante.
+| CRUD | Para qué |
+|---|---|
+| **Mercados** | Crear/editar mercados con nombre y zona (hoy son solo números). |
+| **Rutas** | Crear rutas y **asignarles mercados** (con orden de visita). |
+| **Vehículos** | Flota con capacidad y vencimientos. |
+| **Conductores** | Choferes con licencia y vencimientos. |
+| **Cliente → mercado** | Poder asignar/editar el mercado de cada cliente (en el CRUD de clientes o desde mercados). |
 
 ---
 
-## 8. Endpoints / API propuestos
+## 10. Integración
 
-```
-# Maestros
-GET    /api/tms/rutas                 listar rutas
-POST   /api/tms/rutas                 crear
-POST   /api/tms/rutas/editar
-POST   /api/tms/rutas/toggle
-
-GET    /api/tms/vehiculos             listar
-POST   /api/tms/vehiculos             crear
-POST   /api/tms/vehiculos/editar
-POST   /api/tms/vehiculos/toggle
-
-GET    /api/tms/conductores           listar
-POST   /api/tms/conductores           crear
-POST   /api/tms/conductores/editar
-POST   /api/tms/conductores/toggle
-
-# Despacho
-GET    /api/tms/pedidos-pendientes    pedidos sin despacho (filtros: fecha, id_ruta)
-POST   /api/tms/despachos             crear despacho (ruta+vehiculo+conductor+pedidos)
-GET    /api/tms/despachos             listar (filtros: fecha, estado)
-GET    /api/tms/despachos/{id}        detalle (cabecera + pedidos + puntos)
-POST   /api/tms/despachos/cargar      PLANIFICADO → CARGADO
-POST   /api/tms/despachos/salir       CARGADO → EN_RUTA
-POST   /api/tms/despachos/anular      → ANULADO (libera pedidos)
-POST   /api/tms/despachos/reordenar   cambia orden de visita
-POST   /api/tms/entregas/registrar    marca un pedido ENTREGADO|RECHAZADO|PARCIAL
-```
+- **Fuente de pedidos**: `cotizaciones` (pedidos) + `productos_cotis` + `productos.peso_bruto`.
+- **Puntos de entrega**: `clientes` (vía `clientes.mercado`).
+- **Opcional fase 2**: generar **Guía de Remisión** (`guia_remision`) por pedido/cliente al
+  entregar, reutilizando vehículo y conductor del despacho.
+- **Opcional fase 2**: registrar **costos del viaje** (combustible/peajes/viáticos) como
+  egresos en `caja_movimientos`.
 
 ---
 
-## 9. Pantallas (vistas Blade) propuestas
-
-Menú nuevo en el sidebar: **"Transporte / TMS"** con:
-
-1. **Vehículos** — CRUD de flota (estilo `caja.gestion`).
-2. **Conductores** — CRUD de choferes.
-3. **Rutas** — CRUD de rutas/zonas.
-4. **Armar Despacho** — pantalla principal:
-   - Filtro por fecha + ruta → tabla de **pedidos pendientes** (checkbox).
-   - Selección de vehículo + conductor.
-   - Botón "Crear despacho" con los pedidos elegidos.
-5. **Despachos** — lista con estados; al abrir uno: cabecera + lista de puntos con su
-   estado de entrega y botones (Cargar / Salir / Registrar entrega / Anular).
-
----
-
-## 10. Estructura de archivos (Laravel) propuesta
-
-```
-app/Http/Controllers/
-  TmsController.php                 (vistas web: vehiculos, conductores, rutas, despachos)
-app/Http/Controllers/Api/
-  TmsVehiculoApiController.php
-  TmsConductorApiController.php
-  TmsRutaApiController.php
-  TmsDespachoApiController.php      (pedidos-pendientes, despachos, entregas)
-
-database/migrations/
-  XXXX_create_tms_rutas_table.php
-  XXXX_create_tms_vehiculos_table.php
-  XXXX_create_tms_conductores_table.php
-  XXXX_create_tms_despachos_table.php
-  XXXX_create_tms_despacho_pedidos_table.php
-
-resources/views/tms/
-  vehiculos.blade.php
-  conductores.blade.php
-  rutas.blade.php
-  armar-despacho.blade.php
-  despachos.blade.php
-
-routes/web.php  → grupo prefix('tms')
-routes/api.php  → grupo prefix('tms')
-```
-
----
-
-## 11. Fases de implementación sugeridas
+## 11. Fases sugeridas
 
 | Fase | Entrega |
 |---|---|
-| **1 — Maestros** | Migraciones + CRUD de vehículos, conductores y rutas. |
-| **2 — Despacho** | Armar despacho (jalar pedidos), estados, registro de entregas. |
-| **3 — Integraciones** | Generar Guía de Remisión desde la entrega; costos a caja; capacidad/vencimientos. |
-| **4 — Extras** | Evidencia (foto/firma), entrega parcial por producto, reportes/mapa. |
+| **1 — Maestros** | `tms_mercados`, `tms_rutas` (+ ruta_mercados), `tms_vehiculos`, `tms_conductores` y sus CRUD. Asignar mercado a clientes. |
+| **2 — Armar despacho** | Algoritmo §6: jalar pedidos por ruta+fecha, calcular peso, sugerir vehículo, crear despacho. |
+| **3 — Reparto/entregas** | Estados del despacho, registro de entregas por punto. |
+| **4 — Integraciones** | Guía de Remisión desde entrega, costos a caja, capacidad/vencimientos. |
 
 ---
 
-## 12. Decisiones pendientes de confirmar con el cliente
+## 12. Decisiones pendientes de confirmar
 
-1. ¿El **corte** de pedidos es por hora fija (ej. 6 p.m.) o manual?
-2. ¿Los **conductores** son usuarios del sistema o solo un maestro aparte?
-3. ¿Se requiere **generar Guía de Remisión** automática por entrega (fase 2)?
-4. ¿Se controlará **capacidad del vehículo** (peso/volumen) desde ya?
-5. ¿Reutilizamos el `id_ruta` existente de `clientes` o creamos rutas nuevas en
-   `tms_rutas` y migramos?
-6. ¿Entrega **parcial** a nivel de producto, o basta ENTREGADO/RECHAZADO por pedido?
+1. ¿`clientes.mercado` se convierte en **FK real** a `tms_mercados` o se deja como número
+   y solo se mapea por id?
+2. ¿La ruta es **fija** (maestro reusable) o se **arma al vuelo** eligiendo mercados en
+   cada despacho? (El modelo soporta ambos: ruta maestra reutilizable.)
+3. ¿Qué `id_tido` corresponde exactamente al **"pedido"** (vs cotización)? (Hay `id_tido`
+   = 1 y = 6 con datos.)
+4. ¿El peso usa `peso_bruto` tal cual, o hay que considerar `presentaciones`/unidades de
+   `productos_cotis` (presenta/medida)?
+5. ¿Se controla **capacidad por volumen** además de peso? (hoy solo hay `peso_bruto`).
+6. ¿Conductores son **usuarios** del sistema o maestro aparte?
 ```

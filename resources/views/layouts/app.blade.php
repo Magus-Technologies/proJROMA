@@ -122,6 +122,16 @@
                 <x-nav-link href="{{ route('almacen.prestamos') }}" icon="ti ti-arrows-left-right" label="Préstamos de Productos" />
             </x-nav-group>
 
+            <x-nav-group icon="ti ti-truck-delivery" label="Transporte (TMS)"
+                         :active="request()->routeIs('tms.*')">
+                <x-nav-link href="{{ route('tms.armar') }}"       icon="ti ti-package-import" label="Armar Despacho" />
+                <x-nav-link href="{{ route('tms.despachos') }}"   icon="ti ti-clipboard-check" label="Despachos" />
+                <x-nav-link href="{{ route('tms.rutas') }}"       icon="ti ti-route"        label="Rutas" />
+                <x-nav-link href="{{ route('tms.mercados') }}"    icon="ti ti-building-store" label="Mercados" />
+                <x-nav-link href="{{ route('tms.vehiculos') }}"   icon="ti ti-truck"        label="Vehículos" />
+                <x-nav-link href="{{ route('tms.conductores') }}" icon="ti ti-user"         label="Conductores" />
+            </x-nav-group>
+
             <x-nav-group icon="ti ti-users" label="Maestros"
                          :active="request()->routeIs('clientes.*','proveedores.*')">
                 <x-nav-link href="{{ route('clientes.index') }}"    icon="ti ti-users"          label="Clientes" />

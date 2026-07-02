@@ -318,4 +318,50 @@ Route::middleware(['web', 'auth', 'check.empresa'])->group(function () {
     Route::prefix('usuarios')->group(function () {
         Route::post('/render', [UsuariosApiController::class, 'render']);
     });
+
+    // ── TMS: Transporte / Despacho ─────────────────────────────────────────
+    Route::prefix('tms')->group(function () {
+        // Mercados
+        Route::get('/mercados',        [\App\Http\Controllers\Api\TmsMercadoApiController::class, 'listar']);
+        Route::post('/mercados',       [\App\Http\Controllers\Api\TmsMercadoApiController::class, 'guardar']);
+        Route::post('/mercados/editar',[\App\Http\Controllers\Api\TmsMercadoApiController::class, 'editar']);
+        Route::post('/mercados/toggle',[\App\Http\Controllers\Api\TmsMercadoApiController::class, 'toggle']);
+
+        // Vehículos
+        Route::get('/vehiculos',        [\App\Http\Controllers\Api\TmsVehiculoApiController::class, 'listar']);
+        Route::post('/vehiculos',       [\App\Http\Controllers\Api\TmsVehiculoApiController::class, 'guardar']);
+        Route::post('/vehiculos/editar',[\App\Http\Controllers\Api\TmsVehiculoApiController::class, 'editar']);
+        Route::post('/vehiculos/toggle',[\App\Http\Controllers\Api\TmsVehiculoApiController::class, 'toggle']);
+
+        // Conductores
+        Route::get('/conductores',        [\App\Http\Controllers\Api\TmsConductorApiController::class, 'listar']);
+        Route::post('/conductores',       [\App\Http\Controllers\Api\TmsConductorApiController::class, 'guardar']);
+        Route::post('/conductores/editar',[\App\Http\Controllers\Api\TmsConductorApiController::class, 'editar']);
+        Route::post('/conductores/toggle',[\App\Http\Controllers\Api\TmsConductorApiController::class, 'toggle']);
+
+        // Rutas + puntos
+        Route::get('/rutas',            [\App\Http\Controllers\Api\TmsRutaApiController::class, 'listar']);
+        Route::post('/rutas',           [\App\Http\Controllers\Api\TmsRutaApiController::class, 'guardar']);
+        Route::post('/rutas/editar',    [\App\Http\Controllers\Api\TmsRutaApiController::class, 'editar']);
+        Route::post('/rutas/toggle',    [\App\Http\Controllers\Api\TmsRutaApiController::class, 'toggle']);
+        Route::get('/rutas/{idRuta}/puntos', [\App\Http\Controllers\Api\TmsRutaApiController::class, 'puntos']);
+        Route::post('/rutas/puntos',         [\App\Http\Controllers\Api\TmsRutaApiController::class, 'agregarPunto']);
+        Route::post('/rutas/puntos/quitar',  [\App\Http\Controllers\Api\TmsRutaApiController::class, 'quitarPunto']);
+        Route::get('/mercados-opciones',     [\App\Http\Controllers\Api\TmsRutaApiController::class, 'mercados']);
+        Route::get('/clientes-buscar',       [\App\Http\Controllers\Api\TmsRutaApiController::class, 'buscarClientes']);
+
+        // Despachos
+        Route::get('/despachos/opciones',          [\App\Http\Controllers\Api\TmsDespachoApiController::class, 'opciones']);
+        Route::post('/despachos/pedidos-pendientes',[\App\Http\Controllers\Api\TmsDespachoApiController::class, 'pedidosPendientes']);
+        Route::get('/despachos',                   [\App\Http\Controllers\Api\TmsDespachoApiController::class, 'listar']);
+        Route::post('/despachos',                  [\App\Http\Controllers\Api\TmsDespachoApiController::class, 'guardar']);
+        Route::get('/despachos/{id}',              [\App\Http\Controllers\Api\TmsDespachoApiController::class, 'detalle']);
+        Route::post('/despachos/estado',           [\App\Http\Controllers\Api\TmsDespachoApiController::class, 'cambiarEstado']);
+        Route::post('/despachos/reordenar',        [\App\Http\Controllers\Api\TmsDespachoApiController::class, 'reordenar']);
+        Route::post('/despachos/entrega',          [\App\Http\Controllers\Api\TmsDespachoApiController::class, 'registrarEntrega']);
+        Route::get('/despachos/{id}/costos',       [\App\Http\Controllers\Api\TmsDespachoApiController::class, 'costos']);
+        Route::get('/despachos/{id}/reporte',      [\App\Http\Controllers\Api\TmsDespachoApiController::class, 'reporte']);
+        Route::post('/despachos/costos',           [\App\Http\Controllers\Api\TmsDespachoApiController::class, 'agregarCosto']);
+        Route::post('/despachos/costos/quitar',    [\App\Http\Controllers\Api\TmsDespachoApiController::class, 'quitarCosto']);
+    });
 });

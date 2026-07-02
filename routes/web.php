@@ -93,6 +93,16 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/apertura',     [\App\Http\Controllers\CajaController::class, 'apertura'])->name('apertura');
     });
 
+    // ── TMS (Transporte / Despacho) ────────────────────────────────────────
+    Route::prefix('tms')->name('tms.')->group(function () {
+        Route::get('/mercados',    [\App\Http\Controllers\TmsController::class, 'mercados'])->name('mercados');
+        Route::get('/vehiculos',   [\App\Http\Controllers\TmsController::class, 'vehiculos'])->name('vehiculos');
+        Route::get('/conductores', [\App\Http\Controllers\TmsController::class, 'conductores'])->name('conductores');
+        Route::get('/rutas',       [\App\Http\Controllers\TmsController::class, 'rutas'])->name('rutas');
+        Route::get('/armar-despacho', [\App\Http\Controllers\TmsController::class, 'armarDespacho'])->name('armar');
+        Route::get('/despachos',      [\App\Http\Controllers\TmsController::class, 'despachos'])->name('despachos');
+    });
+
     // ── Compras ───────────────────────────────────────────────────────────
     Route::prefix('compras')->name('compras.')->group(function () {
         Route::get('/',     [ComprasController::class, 'index'])->name('index');

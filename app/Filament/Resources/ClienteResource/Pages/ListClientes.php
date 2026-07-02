@@ -13,7 +13,12 @@ class ListClientes extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+                ->mutateDataUsing(function (array $data): array {
+                    $data['id_empresa'] = (int) session('id_empresa');
+
+                    return $data;
+                }),
             \Filament\Actions\Action::make('excel')
                 ->label('Excel')
                 ->icon('heroicon-o-table-cells')

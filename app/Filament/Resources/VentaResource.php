@@ -212,6 +212,7 @@ class VentaResource extends Resource
     {
         return [
             'index'  => Pages\ListVentas::route('/'),
+            'create' => Pages\CreateVenta::route('/create'),
             'view'   => Pages\ViewVenta::route('/{record}'),
         ];
     }

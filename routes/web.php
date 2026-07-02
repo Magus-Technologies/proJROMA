@@ -136,10 +136,11 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/producto/excel',       [ReportesController::class, 'exportarExcelProducto'])->name('excel.producto');
         Route::get('/caja/excel/{id}',      [ReportesController::class, 'exportarExcelCaja'])->name('excel.caja');
         Route::get('/compras/pdf/{id}',     [ReportesController::class, 'reporteCompra'])->name('compra.pdf');
-        Route::get('/clientes/{id}',        [ReportesController::class, 'reporteCliente'])->name('cliente');
+        Route::get('/clientes/{id}',        [ReportesController::class, 'reporteCliente'])->whereNumber('id')->name('cliente');
         Route::get('/clientes/diavisita/pdf',[ClientesController::class,'exportarClientesVisitaPdf'])->name('clientes.visita');
         Route::get('/cobranzas/xls',        [CobranzasController::class,'exportarExcel'])->name('cobranzas.xls');
         Route::get('/clientes/xls',         [ClientesController::class, 'exportarExcel'])->name('clientes.xls');
+        Route::get('/proveedores/xls',      [ProveedoresController::class, 'exportarExcel'])->name('proveedores.xls');
         Route::get('/pedidos/camion',        [ReportesController::class,'pedidoCamion'])->name('pedidos.camion');
         Route::get('/pedido/{numero}',       [ReportesController::class,'comprobantePedido'])->name('pedido');
         Route::get('/pedido/logistico',      [ReportesController::class,'reporteLogistico'])->name('logistico');

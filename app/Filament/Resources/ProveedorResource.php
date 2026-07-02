@@ -5,15 +5,18 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ProveedorResource\Pages;
 use App\Models\Proveedor;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rules\Unique;
 
 class ProveedorResource extends Resource
@@ -37,11 +40,63 @@ class ProveedorResource extends Resource
                 ->unique(
                     ignoreRecord: true,
                     modifyRuleUsing: fn (Unique $rule) => $rule->where('id_empresa', (int) session('id_empresa')),
+                )
+                ->suffixAction(
+                    Action::make('consultar_doc')
+                        ->icon('heroicon-m-magnifying-glass')
+                        ->tooltip('Consultar SUNAT / RENIEC')
+                        ->action(function ($state, $set) {
+                            $doc   = trim($state ?? '');
+                            $len   = strlen($doc);
+                            $url   = config('apisperu.url');
+                            $token = config('apisperu.token');
+
+                            if (!in_array($len, [8, 11])) {
+                                Notification::make()->warning()->title('Ingresá 8 dígitos (DNI) o 11 dígitos (RUC).')->send();
+                                return;
+                            }
+
+                            try {
+                                if ($len === 8) {
+                                    $data = Http::timeout(8)->get("{$url}/dni/{$doc}", ['token' => $token])->json();
+                                    $nombre = trim(implode(' ', array_filter([
+                                        $data['nombres'] ?? '', $data['apellidoPaterno'] ?? '', $data['apellidoMaterno'] ?? '',
+                                    ])));
+                                    if (!$nombre) {
+                                        Notification::make()->warning()->title($data['message'] ?? 'DNI no encontrado.')->send();
+                                        return;
+                                    }
+                                    $set('razon_social', $nombre);
+                                    Notification::make()->success()->title('Datos cargados desde RENIEC')->send();
+                                } else {
+                                    $data = Http::timeout(8)->get("{$url}/ruc/{$doc}", ['token' => $token])->json();
+                                    if (empty($data['razonSocial'])) {
+                                        Notification::make()->warning()->title('RUC no encontrado.')->send();
+                                        return;
+                                    }
+                                    $dir = collect([
+                                        $data['direccion'] ?? '', $data['distrito'] ?? '',
+                                        $data['provincia'] ?? '', $data['departamento'] ?? '',
+                                    ])->filter()->implode(', ');
+                                    $set('razon_social', $data['razonSocial']);
+                                    $set('direccion', $dir);
+                                    Notification::make()->success()->title('Datos cargados desde SUNAT')->send();
+                                }
+                            } catch (\Throwable) {
+                                Notification::make()->warning()->title('Error al consultar. Intentá de nuevo.')->send();
+                            }
+                        })
                 ),
             TextInput::make('razon_social')->label('Razón Social')->required()->maxLength(200)->columnSpanFull(),
             TextInput::make('nombre_comercial')->label('Nombre Comercial')->maxLength(255)->columnSpanFull(),
             TextInput::make('direccion')->label('Dirección')->maxLength(100)->columnSpanFull(),
-            TextInput::make('telefono')->label('Teléfono')->maxLength(100),
+            TextInput::make('telefono')
+                ->label('Teléfono')
+                ->tel()
+                ->mask('99999999999999999999')
+                ->maxLength(20)
+                ->regex('/^[0-9]*$/')
+                ->validationMessages(['regex' => 'El teléfono solo puede contener números.']),
             TextInput::make('email')->label('Email')->email()->maxLength(150),
         ]);
     }
@@ -72,9 +127,7 @@ class ProveedorResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => Pages\ListProveedores::route('/'),
-            'create' => Pages\CreateProveedor::route('/create'),
-            'edit'   => Pages\EditProveedor::route('/{record}/edit'),
+            'index' => Pages\ListProveedores::route('/'),
         ];
     }
 }

@@ -1,6 +1,7 @@
 @php
     $porArticulo = $data['por_articulo'];
     $porCliente  = $data['por_cliente'];
+    $porMercado  = $data['por_mercado'] ?? collect();
     $totKilos = $porArticulo->sum('kilos');
     $totCant  = $porArticulo->sum('cantidad');
     $totMonto = $porCliente->sum('total');
@@ -86,4 +87,55 @@
             </table>
         </div>
     </div>
+
+    {{-- Por mercado --}}
+    @if($porMercado->isNotEmpty())
+    <div>
+        <h3 class="mb-2 font-bold text-gray-700 dark:text-gray-200">Por mercado (carga por zona)</h3>
+        @foreach($porMercado as $mercadoNombre => $items)
+            @php
+                $mTotCant = $items->sum('cantidad');
+                $mTotKilos = $items->sum('kilos');
+                $mercadoId = $items->first()->mercado_id ?? 0;
+            @endphp
+            <div class="mb-4 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="bg-gray-100 dark:bg-gray-800 px-3 py-2 font-semibold text-sm flex justify-between items-center">
+                    <span>{{ $mercadoNombre }}</span>
+                    @if($mercadoId)
+                        <a href="{{ route('tms.despacho.pdf.mercado', [$despacho->id, $mercadoId]) }}" target="_blank" class="text-xs text-blue-600 hover:underline font-normal">
+                            Descargar PDF
+                        </a>
+                    @endif
+                </div>
+                <table class="w-full text-xs">
+                    <thead class="bg-gray-50 text-gray-500 dark:bg-gray-800">
+                        <tr>
+                            <th class="px-3 py-2 text-left">Código</th>
+                            <th class="px-3 py-2 text-left">Descripción</th>
+                            <th class="px-3 py-2 text-right">Cant.</th>
+                            <th class="px-3 py-2 text-right">Kilos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($items as $a)
+                            <tr class="border-t border-gray-100 dark:border-gray-700">
+                                <td class="px-3 py-1.5">{{ $a->codigo }}</td>
+                                <td class="px-3 py-1.5">{{ $a->descripcion }}</td>
+                                <td class="px-3 py-1.5 text-right">{{ number_format((float) $a->cantidad, 2) }}</td>
+                                <td class="px-3 py-1.5 text-right">{{ number_format((float) $a->kilos, 2) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                    <tfoot>
+                        <tr class="border-t border-gray-300 bg-gray-50 font-bold dark:bg-gray-800">
+                            <td class="px-3 py-2" colspan="2">Subtotal {{ $mercadoNombre }}</td>
+                            <td class="px-3 py-2 text-right">{{ number_format((float) $mTotCant, 2) }}</td>
+                            <td class="px-3 py-2 text-right">{{ number_format((float) $mTotKilos, 2) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        @endforeach
+    </div>
+    @endif
 </div>

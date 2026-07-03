@@ -183,6 +183,10 @@
                                         <tr class="border-t border-gray-50 hover:bg-blue-50/30 transition-colors">
                                             <td class="px-4 py-2.5">
                                                 <p class="font-medium text-gray-800" x-text="item.descripcion||('Producto #'+item.id_producto)"></p>
+                                                <p class="text-[10px] mt-0.5" :class="item.prod_coti_id?'text-gray-400':'text-emerald-600 font-semibold'"
+                                                   x-text="item.prod_coti_id
+                                                        ? 'Registrado: '+(item.fecha_registro ? new Date(item.fecha_registro).toLocaleString('es-PE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—')
+                                                        : 'Nuevo — se registrará al guardar'"></p>
                                             </td>
                                             <td class="px-3 py-2.5 text-center">
                                                 <input type="number" :value="item.cantidad" min="0.01" step="1"
@@ -257,6 +261,7 @@ function cotiEditApp() {
                 }
                 if(detalle.productos) {
                     this.productosCoti = detalle.productos.map(p => ({
+                        prod_coti_id: p.prod_coti_id,
                         id_producto: p.id_producto,
                         descripcion: p.producto?.descripcion || ('Producto #'+p.id_producto),
                         cantidad: parseFloat(p.cantidad),
@@ -267,6 +272,7 @@ function cotiEditApp() {
                         medida: p.medida || 'Unidad',
                         presenta: p.presenta || 1,
                         presenta_cnt: p.presenta_cnt || 1,
+                        fecha_registro: p.fecha_registro || null,
                     }));
                     this.recalcular();
                 }
@@ -297,14 +303,16 @@ function cotiEditApp() {
         },
 
         agregarProducto(p) {
-            const idx=this.productosCoti.findIndex(i=>i.id_producto===p.id_producto);
+            // Solo fusiona con líneas NUEVAS (sin prod_coti_id). Si el producto ya
+            // estaba registrado, el aumento va como línea aparte con su propia fecha.
+            const idx=this.productosCoti.findIndex(i=>i.id_producto===p.id_producto && !i.prod_coti_id);
             if(idx>=0){
                 this.productosCoti[idx].cantidad++;
                 this.productosCoti[idx].total=parseFloat((this.productosCoti[idx].cantidad*this.productosCoti[idx].precio).toFixed(2));
             } else {
-                this.productosCoti.push({id_producto:p.id_producto,descripcion:p.descripcion,cantidad:1,
+                this.productosCoti.push({prod_coti_id:null,id_producto:p.id_producto,descripcion:p.descripcion,cantidad:1,
                     precio:parseFloat(p.precio),total:parseFloat(p.precio),costo:parseFloat(p.costo||0),
-                    stock_disponible:p.cantidad,medida:'Unidad',presenta:1,presenta_cnt:1});
+                    stock_disponible:p.cantidad,medida:'Unidad',presenta:1,presenta_cnt:1,fecha_registro:null});
             }
             this.productosLista=[]; document.getElementById('inpProducto').value='';
             this.recalcular();
@@ -344,7 +352,8 @@ function cotiEditApp() {
                     id_tido:parseInt(this.coti.id_tido), id_tipo_pago:parseInt(this.coti.id_tipo_pago),
                     fecha:this.coti.fecha, id_cliente:this.coti.id_cliente,
                     total:this.totalFinal, observacion:this.coti.observacion,
-                    productos:this.productosCoti.map(p=>({id_producto:p.id_producto,
+                    productos:this.productosCoti.map(p=>({prod_coti_id:p.prod_coti_id||null,
+                        id_producto:p.id_producto,
                         cantidad:p.cantidad,precio:p.precio,costo:p.costo,
                         medida:p.medida,presenta:p.presenta,presenta_cnt:p.presenta_cnt})),
                 };

@@ -398,6 +398,8 @@ class CreateCotizacion extends CreateRecord
                     'medida'       => $producto->medida ?? 'Unidad',
                     'presenta'     => 1,
                     'presenta_cnt' => 1,
+                    'fecha_registro' => now(),
+                    'id_usuario'     => $usuario,
                 ]);
             }
 

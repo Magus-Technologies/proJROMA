@@ -153,6 +153,36 @@ class ReportesController extends Controller
     public function reporteCliente(int $id): \Illuminate\View\View { return view('reportes.cliente',compact('id')); }
     public function reporteCompra(int $id): \Illuminate\View\View  { return view('reportes.compra',compact('id')); }
     public function ingresosEgresos(int $id): \Illuminate\View\View{ return view('reportes.ingresos-egresos',compact('id')); }
+    public function despachoReportePdf(int $id, ?int $mercadoId = null): \Illuminate\Http\Response
+    {
+        $despacho = \App\Models\TmsDespacho::with(['ruta', 'vehiculo', 'conductor', 'pedidos'])->findOrFail($id);
+        $empresa  = $this->getEmpresa() ?? Empresa::find($despacho->id_empresa);
+        $data     = app(\App\Services\TmsDespachoService::class)->reporte($id);
+
+        $porMercado = $data['por_mercado'] ?? collect();
+
+        // Filtrar por un mercado específico si se pasa el parámetro
+        $mercadoFiltro = null;
+        if ($mercadoId) {
+            $mercadoFiltro = \App\Models\TmsMercado::find($mercadoId);
+            if ($mercadoFiltro) {
+                $nombre = $mercadoFiltro->nombre;
+                $items  = $porMercado->get($nombre, collect());
+                $porMercado = collect([$nombre => $items]);
+            }
+        }
+
+        return PdfService::a4()
+            ->generar('pdf.despacho-reporte', [
+                'despacho'     => $despacho,
+                'empresa'      => $empresa,
+                'porArticulo'  => $data['por_articulo'],
+                'porCliente'   => $data['por_cliente'],
+                'porMercado'   => $porMercado,
+                'mercadoFiltro' => $mercadoFiltro,
+            ], "hoja-ruta-{$despacho->codigo}.pdf");
+    }
+
     public function exportarExcel(string $fecha): \Symfony\Component\HttpFoundation\Response
     {
         // $fecha llega como 'YYYY-MM' (mes a exportar)

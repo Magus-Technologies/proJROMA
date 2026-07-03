@@ -199,6 +199,29 @@ class TmsDespachoService
             ->orderBy('cl.datos')
             ->get();
 
-        return ['por_articulo' => $porArticulo, 'por_cliente' => $porCliente];
+        // ── Por mercado (productos agrupados por mercado) ────────────────
+        $porMercado = collect();
+        if ($cotIds) {
+            $porMercado = DB::table('productos_cotis as pc')
+                ->join('productos as p', 'p.id_producto', '=', 'pc.id_producto')
+                ->join('tms_despacho_pedidos as dp', 'dp.id_cotizacion', '=', 'pc.id_coti')
+                ->join('tms_mercados as m', 'm.id', '=', 'dp.id_mercado')
+                ->where('dp.id_despacho', $idDespacho)
+                ->groupBy('m.id', 'm.nombre', 'p.id_producto', 'p.codigo', 'p.descripcion')
+                ->select('m.id as mercado_id', 'm.nombre as mercado_nombre',
+                    'p.codigo', 'p.descripcion',
+                    DB::raw('SUM(pc.cantidad) as cantidad'),
+                    DB::raw('SUM(pc.cantidad * COALESCE(p.peso_bruto, 0)) as kilos'))
+                ->orderBy('m.nombre')
+                ->orderBy('p.descripcion')
+                ->get()
+                ->groupBy('mercado_nombre');
+        }
+
+        return [
+            'por_articulo' => $porArticulo,
+            'por_cliente'  => $porCliente,
+            'por_mercado'  => $porMercado,
+        ];
     }
 }

@@ -28,6 +28,7 @@ class Producto extends Model
         'precio_unidad' => 'float',
         'precio_mayor'  => 'float',
         'precio_menor'  => 'float',
+        'peso_bruto'    => 'float',
         'cantidad'      => 'integer',
         'ultima_salida' => 'date',
     ];

@@ -70,6 +70,13 @@ class DespachoResource extends Resource
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Cerrar'),
 
+                Action::make('pdf')
+                    ->label('Descargar PDF')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->url(fn (TmsDespacho $record): string => route('tms.despacho.pdf', $record->id))
+                    ->openUrlInNewTab(),
+
                 ActionGroup::make([
                     Action::make('cargar')->label('Cargar')->icon('heroicon-o-inbox-arrow-down')->color('warning')
                         ->visible(fn (TmsDespacho $r) => $r->estado === 'PLANIFICADO')

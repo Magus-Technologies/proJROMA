@@ -142,6 +142,8 @@ class CotizacionesApiController extends Controller
                     'medida'     => $item['medida'] ?? 'Unidad',
                     'presenta'   => $item['presenta'] ?? 1,
                     'presenta_cnt' => $item['presenta_cnt'] ?? 1,
+                    'fecha_registro' => now(),
+                    'id_usuario'     => auth()->id(),
                 ]);
             }
 
@@ -198,18 +200,57 @@ class CotizacionesApiController extends Controller
                 'observacion'  => $request->observacion ?? $coti->observacion,
             ]);
 
-            DB::table('productos_cotis')->where('id_coti', $coti->cotizacion_id)->delete();
+            // Edición incremental: las líneas existentes conservan su fecha de registro.
+            // Un aumento de cantidad genera una LÍNEA NUEVA con su propia fecha/hora,
+            // para poder despachar solo lo faltante.
+            $existentes = DB::table('productos_cotis')
+                ->where('id_coti', $coti->cotizacion_id)
+                ->get()
+                ->keyBy('prod_coti_id');
+            $conservadas = [];
+
             foreach ($request->productos as $item) {
-                DB::table('productos_cotis')->insert([
-                    'id_coti'    => $coti->cotizacion_id,
-                    'id_producto'=> $item['id_producto'],
-                    'cantidad'   => $item['cantidad'],
-                    'precio'     => $item['precio'],
-                    'costo'      => $item['costo'] ?? 0,
-                    'medida'     => $item['medida'] ?? 'Unidad',
-                    'presenta'   => $item['presenta'] ?? 1,
-                    'presenta_cnt' => $item['presenta_cnt'] ?? 1,
+                $lineaNueva = [
+                    'id_coti'        => $coti->cotizacion_id,
+                    'id_producto'    => $item['id_producto'],
+                    'cantidad'       => $item['cantidad'],
+                    'precio'         => $item['precio'],
+                    'costo'          => $item['costo'] ?? 0,
+                    'medida'         => $item['medida'] ?? 'Unidad',
+                    'presenta'       => $item['presenta'] ?? 1,
+                    'presenta_cnt'   => $item['presenta_cnt'] ?? 1,
+                    'fecha_registro' => now(),
+                    'id_usuario'     => auth()->id(),
+                ];
+
+                $lineId = $item['prod_coti_id'] ?? null;
+                $orig   = $lineId ? $existentes->get($lineId) : null;
+
+                if (! $orig) {
+                    DB::table('productos_cotis')->insert($lineaNueva);
+                    continue;
+                }
+
+                $conservadas[] = $orig->prod_coti_id;
+                $cantOrig  = (float) $orig->cantidad;
+                $cantNueva = (float) $item['cantidad'];
+
+                DB::table('productos_cotis')->where('prod_coti_id', $orig->prod_coti_id)->update([
+                    'precio'   => $item['precio'],
+                    'costo'    => $item['costo'] ?? $orig->costo,
+                    'cantidad' => min($cantNueva, $cantOrig),
                 ]);
+
+                if ($cantNueva > $cantOrig) {
+                    $lineaNueva['cantidad'] = $cantNueva - $cantOrig;
+                    DB::table('productos_cotis')->insert($lineaNueva);
+                }
+            }
+
+            // Líneas quitadas en la edición.
+            $quitadas = $existentes->keys()->diff($conservadas);
+            if ($quitadas->isNotEmpty()) {
+                DB::table('productos_cotis')->whereIn('prod_coti_id', $quitadas->all())->delete();
             }
 
             if ($request->has('cuotas')) {

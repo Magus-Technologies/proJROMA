@@ -56,6 +56,9 @@ class ProductoResource extends Resource
             TextInput::make('descripcion')->label('Descripción')->required()->maxLength(200)->columnSpanFull(),
             TextInput::make('precio')->label('Precio')->numeric()->prefix('S/'),
             TextInput::make('costo')->label('Costo')->numeric()->prefix('S/'),
+            TextInput::make('peso_bruto')->label('Peso')->numeric()->suffix('kg')
+                ->required()->minValue(0.01)
+                ->helperText('Peso por unidad. Se usa para asignar vehículo en despachos según su capacidad de carga.'),
             Select::make('medida')->label('Unidad de medida')
                 ->options(fn () => UnidadMedida::where('id_empresa', (int) session('id_empresa'))
                     ->where('estado', 1)->orderBy('nombre')->pluck('nombre', 'nombre'))
@@ -186,6 +189,8 @@ class ProductoResource extends Resource
                 TextColumn::make('codigo')->label('Código')->searchable()->sortable(query: $sortUsing('codigo')),
                 TextColumn::make('descripcion')->label('Descripción')->searchable()->sortable(query: $sortUsing('descripcion'))->wrap(),
                 TextColumn::make('medida')->label('Medida')->toggleable(),
+                TextColumn::make('peso_bruto')->label('Peso')->toggleable()
+                    ->formatStateUsing(fn ($state) => $state > 0 ? number_format((float) $state, 2) . ' kg' : '—'),
                 TextColumn::make('categoria.nombre')->label('Categoría')->sortable()->toggleable(),
                 TextColumn::make('marca.nombre')->label('Marca')->sortable()->toggleable(),
                 TextColumn::make('precio')->label('Precio')->money('PEN')->sortable(query: $sortUsing('precio')),
@@ -262,8 +267,13 @@ class ProductoResource extends Resource
                 DB::raw('MIN(cod_barra) as cod_barra'),
                 DB::raw('MIN(descripcion) as descripcion'),
                 DB::raw('MIN(medida) as medida'),
+                DB::raw('MIN(presentaciones) as presentaciones'),
+                DB::raw('MIN(cnt_presenta) as cnt_presenta'),
+                DB::raw('MIN(peso_bruto) as peso_bruto'),
                 DB::raw('MIN(id_categoria) as id_categoria'),
+                DB::raw('MIN(id_subcategoria) as id_subcategoria'),
                 DB::raw('MIN(id_marca) as id_marca'),
+                DB::raw('MIN(id_submarca) as id_submarca'),
                 DB::raw('MIN(precio) as precio'),
                 DB::raw('MIN(costo) as costo'),
                 DB::raw('SUM(cantidad) as cantidad'),

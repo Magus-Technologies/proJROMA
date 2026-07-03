@@ -7,6 +7,7 @@ use App\Models\CajaMovimiento;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -69,14 +70,11 @@ class RegistroCajaResource extends Resource
                     ->money('PEN')
                     ->toggleable(),
 
-                TextColumn::make('estado')
+                IconColumn::make('estado')
                     ->label('Estado')
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'CONFIRMADO' => 'success',
-                        'ANULADO'    => 'danger',
-                        default      => 'gray',
-                    }),
+                    ->boolean()
+                    ->getStateUsing(fn ($record): bool => $record->estado === 'CONFIRMADO')
+                    ->tooltip(fn ($record): string => ucfirst(strtolower($record->estado ?? ''))),
             ])
             ->filters([
                 SelectFilter::make('tipo')

@@ -14,6 +14,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -79,9 +80,7 @@ class MercadoResource extends Resource
                 TextColumn::make('direccion')->label('Dirección')->placeholder('—')->wrap()->limit(50),
                 TextColumn::make('distrito')->label('Distrito')->placeholder('—'),
                 TextColumn::make('telefono')->label('Teléfono')->placeholder('—'),
-                TextColumn::make('estado')->label('Estado')->badge()
-                    ->formatStateUsing(fn (int $state): string => $state ? 'Activo' : 'Inactivo')
-                    ->color(fn (int $state): string => $state ? 'success' : 'danger'),
+                IconColumn::make('estado')->label('Estado')->boolean(),
             ])
             ->actions([
                 EditAction::make()

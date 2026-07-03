@@ -14,6 +14,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -98,14 +99,11 @@ class GestionCajasResource extends Resource
                     ->money('PEN')
                     ->sortable(),
 
-                TextColumn::make('estado')
+                IconColumn::make('estado')
                     ->label('Estado')
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'ACTIVA'   => 'success',
-                        'INACTIVA' => 'danger',
-                        default    => 'gray',
-                    }),
+                    ->boolean()
+                    ->getStateUsing(fn ($record): bool => $record->estado === 'ACTIVA')
+                    ->tooltip(fn ($record): string => ucfirst(strtolower($record->estado ?? ''))),
             ])
             ->filters([
                 SelectFilter::make('estado')

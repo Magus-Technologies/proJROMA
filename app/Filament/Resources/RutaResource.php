@@ -13,6 +13,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -94,9 +95,7 @@ class RutaResource extends Resource
                 TextColumn::make('descripcion')->label('Descripción')->placeholder('—')->wrap()->limit(60),
                 TextColumn::make('puntos_count')->label('Puntos')->badge()
                     ->counts('puntos'),
-                TextColumn::make('estado')->label('Estado')->badge()
-                    ->formatStateUsing(fn (int $state): string => $state ? 'Activa' : 'Inactiva')
-                    ->color(fn (int $state): string => $state ? 'success' : 'danger'),
+                IconColumn::make('estado')->label('Estado')->boolean(),
             ])
             ->actions([
                 EditAction::make(),

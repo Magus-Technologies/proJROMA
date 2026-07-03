@@ -11,6 +11,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -50,9 +51,7 @@ class ConductorResource extends Resource
                 TextColumn::make('licencia_vence')->label('Vence')->date('d/m/Y')->placeholder('—')
                     ->color(fn ($state): string => $state && $state->isPast() ? 'danger' : 'gray'),
                 TextColumn::make('telefono')->label('Teléfono')->placeholder('—'),
-                TextColumn::make('estado')->label('Estado')->badge()
-                    ->formatStateUsing(fn (int $state): string => $state ? 'Activo' : 'Inactivo')
-                    ->color(fn (int $state): string => $state ? 'success' : 'danger'),
+                IconColumn::make('estado')->label('Estado')->boolean(),
             ])
             ->actions([
                 EditAction::make(),

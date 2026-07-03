@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             MotivosMovimientoSeeder::class,
             TipoVehiculoSeeder::class,
+            TmsSeeder::class,
         ]);
     }
 }

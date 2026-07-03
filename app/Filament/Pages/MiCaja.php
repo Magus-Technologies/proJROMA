@@ -12,6 +12,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -94,14 +95,11 @@ class MiCaja extends Page implements HasTable
                     ->label('Saldo')
                     ->money('PEN'),
 
-                TextColumn::make('estado')
+                IconColumn::make('estado')
                     ->label('Estado')
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'CONFIRMADO' => 'success',
-                        'ANULADO'    => 'danger',
-                        default      => 'gray',
-                    }),
+                    ->boolean()
+                    ->getStateUsing(fn ($record): bool => $record->estado === 'CONFIRMADO')
+                    ->tooltip(fn ($record): string => ucfirst(strtolower($record->estado ?? ''))),
             ])
             ->defaultSort('id', 'desc');
     }

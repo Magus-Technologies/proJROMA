@@ -14,6 +14,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -101,9 +102,7 @@ class VehiculoResource extends Resource
                     ->formatStateUsing(fn ($state): string => $state ? number_format((float) $state, 2) . ' m³' : '—'),
                 TextColumn::make('soat_vence')->label('SOAT')->date('d/m/Y')->placeholder('—')
                     ->color(fn ($state): string => $state && $state->isPast() ? 'danger' : 'gray'),
-                TextColumn::make('estado')->label('Estado')->badge()
-                    ->formatStateUsing(fn (int $state): string => $state ? 'Activo' : 'Inactivo')
-                    ->color(fn (int $state): string => $state ? 'success' : 'danger'),
+                IconColumn::make('estado')->label('Estado')->boolean(),
             ])
             ->actions([
                 EditAction::make(),

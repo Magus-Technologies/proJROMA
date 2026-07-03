@@ -67,10 +67,35 @@ class ListDespachos extends ListRecords
                         ->columnSpanFull(),
 
                     Select::make('id_vehiculo')->label('Vehículo')
-                        ->options(fn () => TmsVehiculo::with('tipo')->where('id_empresa', $empresa)->where('sucursal', $sucursal)
-                            ->where('estado', 1)->orderBy('placa')->get()
-                            ->mapWithKeys(fn ($v) => [$v->id => "{$v->placa} · {$v->tipo?->nombre} (" . number_format((float) $v->capacidad_kg, 0) . ' kg)'])
-                            ->toArray())
+                        ->options(function (callable $get) use ($svc, $empresa, $sucursal) {
+                            $sel  = $get('pedidos') ?: [];
+                            $peso = $sel ? array_sum($svc->pesosPorPedido(array_map('intval', $sel))) : 0;
+
+                            return TmsVehiculo::with('tipo')->where('id_empresa', $empresa)->where('sucursal', $sucursal)
+                                ->where('estado', 1)->orderBy('placa')->get()
+                                ->mapWithKeys(function ($v) use ($peso) {
+                                    $cap   = (float) $v->capacidad_kg;
+                                    $extra = $peso > 0
+                                        ? ($cap >= $peso ? ' ✓' : ' ⚠ NO ALCANZA')
+                                        : '';
+
+                                    return [$v->id => "{$v->placa} · {$v->tipo?->nombre} (" . number_format($cap, 0) . " kg){$extra}"];
+                                })
+                                ->toArray();
+                        })
+                        ->live()
+                        ->helperText(function (callable $get) use ($svc, $empresa) {
+                            $sel = $get('pedidos') ?: [];
+                            if (! $sel || ! $get('id_vehiculo')) return null;
+
+                            $peso = array_sum($svc->pesosPorPedido(array_map('intval', $sel)));
+                            $cap  = (float) TmsVehiculo::where('id_empresa', $empresa)->where('id', $get('id_vehiculo'))->value('capacidad_kg');
+                            $dif  = $cap - $peso;
+
+                            return $dif >= 0
+                                ? 'Carga: ' . number_format($peso, 2) . ' kg de ' . number_format($cap, 0) . ' kg — quedan ' . number_format($dif, 2) . ' kg libres.'
+                                : '⚠ Sobrepeso: la carga (' . number_format($peso, 2) . ' kg) excede la capacidad en ' . number_format(abs($dif), 2) . ' kg.';
+                        })
                         ->searchable()->required(),
 
                     Select::make('id_conductor')->label('Conductor')

@@ -13,6 +13,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -47,9 +48,8 @@ class SubmarcaResource extends Resource
             ->columns([
                 TextColumn::make('nombre')->label('Nombre')->searchable()->sortable(),
                 TextColumn::make('marca.nombre')->label('Marca')->placeholder('—')->sortable(),
-                TextColumn::make('estado')->label('Estado')->badge()
-                    ->formatStateUsing(fn ($state): string => (string) $state === '1' ? 'Activo' : 'Inactivo')
-                    ->color(fn ($state): string => (string) $state === '1' ? 'success' : 'danger'),
+                IconColumn::make('estado')->label('Estado')->boolean()
+                    ->state(fn (Submarca $r): bool => (string) $r->estado === '1'),
             ])
             ->actions([
                 EditAction::make(),

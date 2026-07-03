@@ -229,7 +229,7 @@ class ProductoResource extends Resource
                                     ->columns(2),
                             ])
                     ),
-                IconColumn::make('activo')->label('Activo')->boolean()->toggleable(),
+                IconColumn::make('activo')->label('Estado')->boolean()->toggleable(),
             ])
             ->filters([
                 TernaryFilter::make('activo')->label('Estado'),

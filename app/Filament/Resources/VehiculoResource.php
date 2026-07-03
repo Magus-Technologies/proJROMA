@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Clusters\Tms;
 use App\Filament\Resources\VehiculoResource\Pages;
 use App\Models\TmsTipoVehiculo;
 use App\Models\TmsVehiculo;
@@ -21,13 +22,14 @@ class VehiculoResource extends Resource
 {
     protected static ?string $model = TmsVehiculo::class;
 
+    protected static ?string $cluster = Tms::class;
+
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-truck';
     protected static ?string $navigationLabel = 'Vehículos';
-    protected static string|\UnitEnum|null $navigationGroup = 'Transporte (TMS)';
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 0;
     protected static ?string $label = 'Vehículo';
     protected static ?string $pluralLabel = 'Vehículos';
-    protected static ?string $slug = 'tms-vehiculos';
+    protected static ?string $slug = 'vehiculos';
 
     public static function form(Schema $schema): Schema
     {

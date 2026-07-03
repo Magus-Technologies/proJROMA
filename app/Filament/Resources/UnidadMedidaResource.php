@@ -11,6 +11,7 @@ use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -43,9 +44,7 @@ class UnidadMedidaResource extends Resource
             ->columns([
                 TextColumn::make('nombre')->label('Nombre')->searchable()->sortable(),
                 TextColumn::make('abreviatura')->label('Abreviatura')->placeholder('—'),
-                TextColumn::make('estado')->label('Estado')->badge()
-                    ->formatStateUsing(fn (int $state): string => $state ? 'Activo' : 'Inactivo')
-                    ->color(fn (int $state): string => $state ? 'success' : 'danger'),
+                IconColumn::make('estado')->label('Estado')->boolean(),
             ])
             ->actions([
                 EditAction::make(),

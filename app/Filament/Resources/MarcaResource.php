@@ -11,6 +11,7 @@ use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -41,9 +42,8 @@ class MarcaResource extends Resource
             ->columns([
                 TextColumn::make('nombre')->label('Nombre')->searchable()->sortable(),
                 TextColumn::make('descripcion')->label('Descripción')->placeholder('—')->wrap()->limit(60),
-                TextColumn::make('estado')->label('Estado')->badge()
-                    ->formatStateUsing(fn ($state): string => (string) $state === '1' ? 'Activo' : 'Inactivo')
-                    ->color(fn ($state): string => (string) $state === '1' ? 'success' : 'danger'),
+                IconColumn::make('estado')->label('Estado')->boolean()
+                    ->state(fn (Marca $r): bool => (string) $r->estado === '1'),
             ])
             ->actions([
                 EditAction::make(),

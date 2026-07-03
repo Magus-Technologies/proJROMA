@@ -6,6 +6,8 @@ use App\Models\Categoria;
 use App\Models\Marca;
 use App\Models\Presentacion;
 use App\Models\Producto;
+use App\Models\Subcategoria;
+use App\Models\Submarca;
 use App\Models\UnidadMedida;
 use App\Filament\Clusters\Productos;
 use App\Filament\Resources\ProductoResource\Pages;
@@ -15,6 +17,7 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
@@ -46,7 +49,6 @@ class ProductoResource extends Resource
             TextInput::make('descripcion')->label('Descripción')->required()->maxLength(200)->columnSpanFull(),
             TextInput::make('precio')->label('Precio')->numeric()->prefix('S/'),
             TextInput::make('costo')->label('Costo')->numeric()->prefix('S/'),
-            TextInput::make('cantidad')->label('Stock')->numeric(),
             Select::make('medida')->label('Unidad de medida')
                 ->options(fn () => UnidadMedida::where('id_empresa', (int) session('id_empresa'))
                     ->where('estado', 1)->orderBy('nombre')->pluck('nombre', 'nombre'))
@@ -81,6 +83,8 @@ class ProductoResource extends Resource
                     ->pluck('nombre', 'id_categoria'))
                 ->searchable()
                 ->nullable()
+                ->live()
+                ->afterStateUpdated(fn (Select $set) => $set('id_subcategoria', null))
                 ->createOptionForm([
                     TextInput::make('nombre')->label('Nombre')->required()->maxLength(100),
                 ])
@@ -91,12 +95,33 @@ class ProductoResource extends Resource
                         'estado'      => '1',
                     ])->id_categoria;
                 }),
+            Select::make('id_subcategoria')
+                ->label('Subcategoría')
+                ->options(fn (Get $get) => Subcategoria::where('id_empresa', (int) session('id_empresa'))
+                    ->where('id_categoria', $get('id_categoria'))
+                    ->pluck('nombre', 'id_subcategoria'))
+                ->searchable()
+                ->nullable()
+                ->disabled(fn (Get $get) => ! $get('id_categoria'))
+                ->createOptionForm([
+                    TextInput::make('nombre')->label('Nombre')->required()->maxLength(100),
+                ])
+                ->createOptionUsing(function (array $data, Get $get): int {
+                    return Subcategoria::create([
+                        'nombre'       => $data['nombre'],
+                        'id_categoria' => $get('id_categoria'),
+                        'id_empresa'   => (int) session('id_empresa'),
+                        'estado'       => '1',
+                    ])->id_subcategoria;
+                }),
             Select::make('id_marca')
                 ->label('Marca')
                 ->options(fn () => Marca::where('id_empresa', (int) session('id_empresa'))
                     ->pluck('nombre', 'id_marca'))
                 ->searchable()
                 ->nullable()
+                ->live()
+                ->afterStateUpdated(fn (Select $set) => $set('id_submarca', null))
                 ->createOptionForm([
                     TextInput::make('nombre')->label('Nombre')->required()->maxLength(100),
                 ])
@@ -106,6 +131,25 @@ class ProductoResource extends Resource
                         'id_empresa' => (int) session('id_empresa'),
                         'estado'     => '1',
                     ])->id_marca;
+                }),
+            Select::make('id_submarca')
+                ->label('Submarca')
+                ->options(fn (Get $get) => Submarca::where('id_empresa', (int) session('id_empresa'))
+                    ->where('id_marca', $get('id_marca'))
+                    ->pluck('nombre', 'id_submarca'))
+                ->searchable()
+                ->nullable()
+                ->disabled(fn (Get $get) => ! $get('id_marca'))
+                ->createOptionForm([
+                    TextInput::make('nombre')->label('Nombre')->required()->maxLength(100),
+                ])
+                ->createOptionUsing(function (array $data, Get $get): int {
+                    return Submarca::create([
+                        'nombre'     => $data['nombre'],
+                        'id_marca'   => $get('id_marca'),
+                        'id_empresa' => (int) session('id_empresa'),
+                        'estado'     => '1',
+                    ])->id_submarca;
                 }),
             Toggle::make('activo')->label('Activo')->default(true),
             FileUpload::make('imagen')

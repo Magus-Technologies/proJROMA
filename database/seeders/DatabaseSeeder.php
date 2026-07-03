@@ -12,6 +12,9 @@ class DatabaseSeeder extends Seeder
             MotivosMovimientoSeeder::class,
             TipoVehiculoSeeder::class,
             TmsSeeder::class,
+            TmsConductorSeeder::class,
+            TmsVehiculoSeeder::class,
+            TmsRutaSeeder::class,
         ]);
     }
 }

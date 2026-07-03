@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TmsVehiculo extends Model
 {
@@ -20,4 +21,9 @@ class TmsVehiculo extends Model
         'rev_tecnica_vence' => 'date',
         'estado'            => 'integer',
     ];
+
+    public function tipo(): BelongsTo
+    {
+        return $this->belongsTo(TmsTipoVehiculo::class, 'id_tipo');
+    }
 }

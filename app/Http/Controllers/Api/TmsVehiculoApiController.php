@@ -16,12 +16,16 @@ class TmsVehiculoApiController extends Controller
     public function listar(Request $r): mixed
     {
         $q = DB::table('tms_vehiculos')
-            ->where('id_empresa', $this->empresa())
-            ->where('sucursal', $this->sucursal())
+            ->join('tms_tipos_vehiculo', 'tms_vehiculos.id_tipo', '=', 'tms_tipos_vehiculo.id')
+            ->where('tms_vehiculos.id_empresa', $this->empresa())
+            ->where('tms_vehiculos.sucursal', $this->sucursal())
             ->select(
-                'id', 'placa', 'tipo', 'marca', 'modelo', 'anio',
-                'capacidad_kg', 'tara_kg', 'largo_m', 'ancho_m', 'alto_m', 'capacidad_m3',
-                'soat_vence', 'rev_tecnica_vence', 'estado'
+                'tms_vehiculos.id', 'tms_vehiculos.placa', 'tms_tipos_vehiculo.nombre as tipo',
+                'tms_vehiculos.marca', 'tms_vehiculos.modelo', 'tms_vehiculos.anio',
+                'tms_vehiculos.capacidad_kg', 'tms_vehiculos.tara_kg',
+                'tms_vehiculos.largo_m', 'tms_vehiculos.ancho_m', 'tms_vehiculos.alto_m',
+                'tms_vehiculos.capacidad_m3',
+                'tms_vehiculos.soat_vence', 'tms_vehiculos.rev_tecnica_vence', 'tms_vehiculos.estado'
             );
 
         return DataTables::of($q)->make(true);
@@ -31,7 +35,7 @@ class TmsVehiculoApiController extends Controller
     {
         return [
             'placa'             => 'required|string|max:15',
-            'tipo'             => 'required|in:CAMIONETA,FURGONETA,CAMION,MOTO,OTRO',
+            'id_tipo'          => 'required|integer|exists:tms_tipos_vehiculo,id',
             'marca'            => 'nullable|string|max:60',
             'modelo'           => 'nullable|string|max:60',
             'anio'             => 'nullable|integer',
@@ -50,7 +54,7 @@ class TmsVehiculoApiController extends Controller
     {
         return [
             'placa'             => strtoupper(trim($r->placa)),
-            'tipo'              => $r->tipo,
+            'id_tipo'           => $r->id_tipo,
             'marca'             => $r->marca ?? null,
             'modelo'            => $r->modelo ?? null,
             'anio'              => $r->anio ?? null,

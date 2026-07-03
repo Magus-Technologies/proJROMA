@@ -67,9 +67,9 @@ class ListDespachos extends ListRecords
                         ->columnSpanFull(),
 
                     Select::make('id_vehiculo')->label('Vehículo')
-                        ->options(fn () => TmsVehiculo::where('id_empresa', $empresa)->where('sucursal', $sucursal)
+                        ->options(fn () => TmsVehiculo::with('tipo')->where('id_empresa', $empresa)->where('sucursal', $sucursal)
                             ->where('estado', 1)->orderBy('placa')->get()
-                            ->mapWithKeys(fn ($v) => [$v->id => "{$v->placa} · {$v->tipo} (" . number_format((float) $v->capacidad_kg, 0) . ' kg)'])
+                            ->mapWithKeys(fn ($v) => [$v->id => "{$v->placa} · {$v->tipo?->nombre} (" . number_format((float) $v->capacidad_kg, 0) . ' kg)'])
                             ->toArray())
                         ->searchable()->required(),
 

@@ -26,9 +26,10 @@ class TmsDespachoApiController extends Controller
             ->where('estado', 1)->orderBy('nombre')->get(['id', 'nombre']);
 
         $vehiculos = DB::table('tms_vehiculos')
-            ->where('id_empresa', $this->empresa())->where('sucursal', $this->sucursal())
-            ->where('estado', 1)->orderBy('placa')
-            ->get(['id', 'placa', 'tipo', 'capacidad_kg']);
+            ->join('tms_tipos_vehiculo', 'tms_vehiculos.id_tipo', '=', 'tms_tipos_vehiculo.id')
+            ->where('tms_vehiculos.id_empresa', $this->empresa())->where('tms_vehiculos.sucursal', $this->sucursal())
+            ->where('tms_vehiculos.estado', 1)->orderBy('tms_vehiculos.placa')
+            ->get(['tms_vehiculos.id', 'tms_vehiculos.placa', 'tms_tipos_vehiculo.nombre as tipo', 'tms_vehiculos.capacidad_kg']);
 
         $conductores = DB::table('tms_conductores')
             ->where('id_empresa', $this->empresa())->where('sucursal', $this->sucursal())
@@ -135,12 +136,13 @@ class TmsDespachoApiController extends Controller
             ->pluck('id_vehiculo')->all();
 
         $vehiculos = DB::table('tms_vehiculos')
-            ->where('id_empresa', $this->empresa())->where('sucursal', $this->sucursal())
-            ->where('estado', 1)
-            ->where('capacidad_kg', '>=', $pesoTotal)
-            ->when($ocupados, fn ($q) => $q->whereNotIn('id', $ocupados))
-            ->orderBy('capacidad_kg')
-            ->get(['id', 'placa', 'tipo', 'capacidad_kg']);
+            ->join('tms_tipos_vehiculo', 'tms_vehiculos.id_tipo', '=', 'tms_tipos_vehiculo.id')
+            ->where('tms_vehiculos.id_empresa', $this->empresa())->where('tms_vehiculos.sucursal', $this->sucursal())
+            ->where('tms_vehiculos.estado', 1)
+            ->where('tms_vehiculos.capacidad_kg', '>=', $pesoTotal)
+            ->when($ocupados, fn ($q) => $q->whereNotIn('tms_vehiculos.id', $ocupados))
+            ->orderBy('tms_vehiculos.capacidad_kg')
+            ->get(['tms_vehiculos.id', 'tms_vehiculos.placa', 'tms_tipos_vehiculo.nombre as tipo', 'tms_vehiculos.capacidad_kg']);
 
         return response()->json([
             'res'       => true,

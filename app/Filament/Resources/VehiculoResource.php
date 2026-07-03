@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\VehiculoResource\Pages;
+use App\Models\TmsTipoVehiculo;
 use App\Models\TmsVehiculo;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -28,19 +29,44 @@ class VehiculoResource extends Resource
     protected static ?string $pluralLabel = 'Vehículos';
     protected static ?string $slug = 'tms-vehiculos';
 
-    private const TIPOS = [
-        'CAMIONETA' => 'Camioneta',
-        'FURGONETA' => 'Furgoneta',
-        'CAMION'    => 'Camión',
-        'MOTO'      => 'Moto',
-        'OTRO'      => 'Otro',
-    ];
-
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
             TextInput::make('placa')->label('Placa')->required()->maxLength(15),
-            Select::make('tipo')->label('Tipo')->options(self::TIPOS)->default('CAMIONETA')->required(),
+            Select::make('id_tipo')->label('Tipo')
+                ->options(function (): array {
+                    $empresa = (int) session('id_empresa');
+                    $tipos = TmsTipoVehiculo::where('id_empresa', $empresa)
+                        ->where('estado', 1)->orderBy('nombre')->pluck('nombre', 'id');
+
+                    if ($tipos->isEmpty()) {
+                        foreach (['CAMIONETA', 'FURGONETA', 'CAMION', 'MOTO', 'OTRO'] as $nombre) {
+                            TmsTipoVehiculo::create([
+                                'nombre'     => $nombre,
+                                'id_empresa' => $empresa,
+                                'estado'     => 1,
+                            ]);
+                        }
+                        return TmsTipoVehiculo::where('id_empresa', $empresa)
+                            ->where('estado', 1)->orderBy('nombre')->pluck('nombre', 'id')->toArray();
+                    }
+
+                    return $tipos->toArray();
+                })
+                ->searchable()
+                ->required()
+                ->default(fn () => TmsTipoVehiculo::where('id_empresa', (int) session('id_empresa'))
+                    ->where('nombre', 'CAMIONETA')->value('id'))
+                ->createOptionForm([
+                    TextInput::make('nombre')->label('Nombre')->required()->maxLength(60),
+                ])
+                ->createOptionUsing(function (array $data): int {
+                    return TmsTipoVehiculo::create([
+                        'nombre'     => strtoupper(trim($data['nombre'])),
+                        'id_empresa' => (int) session('id_empresa'),
+                        'estado'     => 1,
+                    ])->id;
+                }),
             TextInput::make('marca')->label('Marca')->maxLength(60),
             TextInput::make('modelo')->label('Modelo')->maxLength(60),
             TextInput::make('anio')->label('Año')->numeric()->integer()->minValue(1980)->maxValue(2100),
@@ -64,8 +90,7 @@ class VehiculoResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('placa')->label('Placa')->searchable()->sortable(),
-                TextColumn::make('tipo')->label('Tipo')->badge()
-                    ->formatStateUsing(fn (string $state): string => self::TIPOS[$state] ?? $state),
+                TextColumn::make('tipo.nombre')->label('Tipo')->badge(),
                 TextColumn::make('marca')->label('Marca / Modelo')->placeholder('—')
                     ->formatStateUsing(fn ($state, TmsVehiculo $r): string => trim(($r->marca ?? '') . ' ' . ($r->modelo ?? '')) ?: '—'),
                 TextColumn::make('capacidad_kg')->label('Capacidad')->sortable()

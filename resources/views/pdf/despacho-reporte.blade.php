@@ -59,6 +59,16 @@
             <td colspan="3">{{ $despacho->observaciones }}</td>
         </tr>
         @endif
+        @if(!empty($filtroMercados) || !empty($filtroMedidas))
+        <tr>
+            <td class="label" style="background:#fde68a;">Carga parcial</td>
+            <td colspan="3" style="background:#fef9c3;">
+                @if(!empty($filtroMercados))Mercados: {{ $filtroMercados }}@endif
+                @if(!empty($filtroMercados) && !empty($filtroMedidas)) — @endif
+                @if(!empty($filtroMedidas))Medidas: {{ $filtroMedidas }}@endif
+            </td>
+        </tr>
+        @endif
     </table>
 
     <div style="font-size: 10pt; font-weight: bold; margin: 12px 0 6px;">Por artículo (carga)</div>
@@ -69,27 +79,50 @@
     <table class="data">
         <thead>
             <tr>
-                <th style="width:15%">Código</th>
-                <th style="width:50%">Descripción</th>
-                <th style="width:15%">Cant.</th>
-                <th style="width:20%">Kilos</th>
+                <th style="width:12%">Código</th>
+                <th style="width:40%">Producto</th>
+                <th style="width:12%">Medida</th>
+                <th style="width:12%">Tamaño pedido</th>
+                <th style="width:8%">N° ped.</th>
+                <th style="width:8%">Total</th>
+                <th style="width:8%">Kilos</th>
             </tr>
         </thead>
         <tbody>
             @forelse($porArticulo as $a)
-            <tr>
-                <td>{{ $a->codigo }}</td>
-                <td>{{ $a->descripcion }}</td>
-                <td class="text-right">{{ number_format((float) $a->cantidad, 2) }}</td>
-                <td class="text-right">{{ number_format((float) $a->kilos, 2) }}</td>
-            </tr>
+                @php $filas = max(1, ($a->detalle ?? collect())->count()); @endphp
+                @forelse($a->detalle ?? collect() as $i => $d)
+                <tr>
+                    @if($loop->first)
+                    <td rowspan="{{ $filas }}">{{ $a->codigo }}</td>
+                    <td rowspan="{{ $filas }}">{{ $a->descripcion }}</td>
+                    @endif
+                    <td class="text-center">{{ $d->medida ?: 'Unidad' }}</td>
+                    <td class="text-right">{{ rtrim(rtrim(number_format((float) $d->tamano, 2), '0'), '.') }}</td>
+                    <td class="text-center">{{ $d->pedidos }}</td>
+                    <td class="text-right">{{ rtrim(rtrim(number_format((float) $d->total, 2), '0'), '.') }}</td>
+                    @if($loop->first)
+                    <td rowspan="{{ $filas }}" class="text-right" style="vertical-align:middle;">{{ number_format((float) $a->kilos, 2) }}</td>
+                    @endif
+                </tr>
+                @empty
+                <tr>
+                    <td>{{ $a->codigo }}</td>
+                    <td>{{ $a->descripcion }}</td>
+                    <td class="text-center">-</td>
+                    <td class="text-right">-</td>
+                    <td class="text-center">-</td>
+                    <td class="text-right">{{ number_format((float) $a->cantidad, 2) }}</td>
+                    <td class="text-right">{{ number_format((float) $a->kilos, 2) }}</td>
+                </tr>
+                @endforelse
             @empty
-            <tr><td colspan="4" class="text-center" style="color:#999;padding:12px;">Sin artículos.</td></tr>
+            <tr><td colspan="7" class="text-center" style="color:#999;padding:12px;">Sin artículos.</td></tr>
             @endforelse
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="2">Total general</td>
+                <td colspan="5">Total general</td>
                 <td class="text-right">{{ number_format((float) $totCant, 2) }}</td>
                 <td class="text-right">{{ number_format((float) $totKilos, 2) }}</td>
             </tr>

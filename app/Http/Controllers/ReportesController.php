@@ -153,34 +153,77 @@ class ReportesController extends Controller
     public function reporteCliente(int $id): \Illuminate\View\View { return view('reportes.cliente',compact('id')); }
     public function reporteCompra(int $id): \Illuminate\View\View  { return view('reportes.compra',compact('id')); }
     public function ingresosEgresos(int $id): \Illuminate\View\View{ return view('reportes.ingresos-egresos',compact('id')); }
+    /**
+     * Guías de reparto del despacho: un ticket PEDIDO (original + copia)
+     * por cada cliente, en un solo PDF para impresión masiva.
+     */
+    public function despachoGuiasPdf(int $id): \Illuminate\Http\Response
+    {
+        $despacho = \App\Models\TmsDespacho::with(['ruta', 'vehiculo', 'conductor'])->findOrFail($id);
+        $empresa  = $this->getEmpresa() ?? Empresa::find($despacho->id_empresa);
+
+        $mercadoIds = collect(explode(',', (string) request('mercados')))
+            ->filter()->map(fn ($v) => (int) $v)->values()->all();
+
+        $cotIds = \Illuminate\Support\Facades\DB::table('tms_despacho_pedidos')
+            ->where('id_despacho', $id)
+            ->when($mercadoIds, fn ($q) => $q->whereIn('id_mercado', $mercadoIds))
+            ->orderBy('orden')->pluck('id_cotizacion')->all();
+
+        $pedidos = Cotizacion::with(['cliente', 'productos.producto', 'usuario'])
+            ->whereIn('cotizacion_id', $cotIds)
+            ->get()
+            ->sortBy(fn ($c) => array_search($c->cotizacion_id, $cotIds))
+            ->values();
+
+        $mercados = \App\Models\TmsMercado::where('id_empresa', $despacho->id_empresa)
+            ->pluck('nombre', 'id');
+
+        $serie = DocumentoEmpresa::where('id_empresa', $despacho->id_empresa)
+            ->where('sucursal', $despacho->sucursal)
+            ->where('id_tido', 6)->value('serie') ?? 'NV';
+
+        return PdfService::a4()
+            ->generar('pdf.despacho-guias', [
+                'despacho'   => $despacho,
+                'empresa'    => $empresa,
+                'pedidos'    => $pedidos,
+                'mercados'   => $mercados,
+                'serie'      => $serie,
+                'logoBase64' => $this->getLogoBase64($empresa),
+            ], "guias-reparto-{$despacho->codigo}.pdf");
+    }
+
     public function despachoReportePdf(int $id, ?int $mercadoId = null): \Illuminate\Http\Response
     {
         $despacho = \App\Models\TmsDespacho::with(['ruta', 'vehiculo', 'conductor', 'pedidos'])->findOrFail($id);
         $empresa  = $this->getEmpresa() ?? Empresa::find($despacho->id_empresa);
-        $data     = app(\App\Services\TmsDespachoService::class)->reporte($id);
 
-        $porMercado = $data['por_mercado'] ?? collect();
+        // Filtros: ?mercados=1,2&medidas=Kilos,Unidad (o el mercado de la ruta legada).
+        $mercadoIds = collect(explode(',', (string) request('mercados')))
+            ->filter()->map(fn ($v) => (int) $v)->values()->all();
+        if ($mercadoId) $mercadoIds = [$mercadoId];
 
-        // Filtrar por un mercado específico si se pasa el parámetro
-        $mercadoFiltro = null;
-        if ($mercadoId) {
-            $mercadoFiltro = \App\Models\TmsMercado::find($mercadoId);
-            if ($mercadoFiltro) {
-                $nombre = $mercadoFiltro->nombre;
-                $items  = $porMercado->get($nombre, collect());
-                $porMercado = collect([$nombre => $items]);
-            }
-        }
+        $medidas = collect(explode(',', (string) request('medidas')))
+            ->map(fn ($v) => trim($v))->filter()->values()->all();
+
+        $data = app(\App\Services\TmsDespachoService::class)->reporte($id, $mercadoIds, $medidas);
+
+        $nombresMercados = $mercadoIds
+            ? \App\Models\TmsMercado::whereIn('id', $mercadoIds)->pluck('nombre')->implode(', ')
+            : null;
 
         return PdfService::a4()
             ->generar('pdf.despacho-reporte', [
-                'despacho'     => $despacho,
-                'empresa'      => $empresa,
-                'porArticulo'  => $data['por_articulo'],
-                'porCliente'   => $data['por_cliente'],
-                'porMercado'   => $porMercado,
-                'mercadoFiltro' => $mercadoFiltro,
-            ], "hoja-ruta-{$despacho->codigo}.pdf");
+                'despacho'      => $despacho,
+                'empresa'       => $empresa,
+                'porArticulo'   => $data['por_articulo'],
+                'porCliente'    => $data['por_cliente'],
+                'porMercado'    => $data['por_mercado'],
+                'mercadoFiltro' => null,
+                'filtroMercados' => $nombresMercados,
+                'filtroMedidas'  => $medidas ? implode(', ', $medidas) : null,
+            ], "hoja-carga-{$despacho->codigo}.pdf");
     }
 
     public function exportarExcel(string $fecha): \Symfony\Component\HttpFoundation\Response

@@ -9,7 +9,8 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
-use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Actions\Action;
@@ -89,7 +90,9 @@ class EmpresaResource extends Resource
             ])
             ->actions([
                 ActionGroup::make([
-                    EditAction::make(),
+                    EditAction::make()
+                        ->modalWidth('5xl')
+                        ->modalHeading(fn (Empresa $record): string => 'Editar — ' . $record->razon_social),
                     Action::make('toggle')
                         ->label('Activar/Desactivar')
                         ->icon('heroicon-o-power')
@@ -123,153 +126,126 @@ class EmpresaResource extends Resource
     {
         return $schema
             ->schema([
-                Section::make('Logo')
-                    ->icon('heroicon-o-photo')
-                    ->schema([
-                        FileUpload::make('logo')
-                            ->label('Logo de la empresa')
-                            ->image()
-                            ->disk('public')
-                            ->imagePreviewHeight('120')
-                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'])
-                            ->directory('logos')
-                            ->maxSize(2048)
-                            ->columnSpanFull(),
-                    ]),
-
-                Section::make('Datos Principales')
-                    ->icon('heroicon-o-building-office-2')
-                    ->schema([
-                        Grid::make(3)
+                Tabs::make('empresa')
+                    ->columnSpanFull()
+                    ->tabs([
+                        Tab::make('Datos')
+                            ->icon('heroicon-o-building-office-2')
                             ->schema([
-                                TextInput::make('ruc')
-                                    ->label('RUC')
-                                    ->required()
-                                    ->maxLength(11)
-                                    ->minLength(11)
-                                    ->unique(ignoreRecord: true),
+                                Grid::make(3)
+                                    ->schema([
+                                        TextInput::make('ruc')
+                                            ->label('RUC')
+                                            ->required()
+                                            ->maxLength(11)
+                                            ->minLength(11)
+                                            ->unique(ignoreRecord: true),
 
-                                TextInput::make('razon_social')
-                                    ->label('Razón Social')
-                                    ->required()
-                                    ->maxLength(245),
+                                        TextInput::make('razon_social')
+                                            ->label('Razón Social')
+                                            ->required()
+                                            ->maxLength(245)
+                                            ->columnSpan(2),
 
-                                TextInput::make('comercial')
-                                    ->label('Nombre Comercial')
-                                    ->maxLength(245),
+                                        TextInput::make('comercial')
+                                            ->label('Nombre Comercial')
+                                            ->maxLength(245)
+                                            ->columnSpan(2),
+
+                                        TextInput::make('cod_sucursal')
+                                            ->label('Cód. Sucursal')
+                                            ->maxLength(4),
+                                    ]),
+                                FileUpload::make('logo')
+                                    ->label('Logo (sale en el encabezado de todos los PDF)')
+                                    ->image()
+                                    ->disk('public')
+                                    ->imagePreviewHeight('90')
+                                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'])
+                                    ->directory('logos')
+                                    ->maxSize(2048),
                             ]),
-                    ]),
 
-                Section::make('Ubicación')
-                    ->icon('heroicon-o-map-pin')
-                    ->schema([
-                        Grid::make(3)
+                        Tab::make('Ubicación y Contacto')
+                            ->icon('heroicon-o-map-pin')
                             ->schema([
                                 TextInput::make('direccion')
-                                    ->label('Dirección')
-                                    ->maxLength(245)
-                                    ->columnSpan(2),
-
-                                TextInput::make('cod_sucursal')
-                                    ->label('Código Sucursal')
-                                    ->maxLength(4),
+                                    ->label('Dirección (domicilio fiscal)')
+                                    ->maxLength(245),
+                                Grid::make(4)
+                                    ->schema([
+                                        TextInput::make('distrito')->label('Distrito')->maxLength(45),
+                                        TextInput::make('provincia')->label('Provincia')->maxLength(45),
+                                        TextInput::make('departamento')->label('Departamento')->maxLength(45),
+                                        TextInput::make('ubigeo')->label('Ubigeo')->maxLength(6),
+                                    ]),
+                                Grid::make(2)
+                                    ->schema([
+                                        TextInput::make('email')->label('Email')->email()->maxLength(145),
+                                        TextInput::make('telefono')->label('Teléfono 1')->maxLength(30),
+                                        TextInput::make('telefono2')->label('Teléfono 2')->maxLength(30),
+                                        TextInput::make('telefono3')->label('Teléfono 3')->maxLength(30),
+                                    ]),
                             ]),
-                        Grid::make(4)
+
+                        Tab::make('SUNAT')
+                            ->icon('heroicon-o-key')
                             ->schema([
-                                TextInput::make('distrito')
-                                    ->label('Distrito')
-                                    ->maxLength(45),
-                                TextInput::make('provincia')
-                                    ->label('Provincia')
-                                    ->maxLength(45),
-                                TextInput::make('departamento')
-                                    ->label('Departamento')
-                                    ->maxLength(45),
-                                TextInput::make('ubigeo')
-                                    ->label('Ubigeo')
-                                    ->maxLength(6),
+                                Grid::make(2)
+                                    ->schema([
+                                        TextInput::make('user_sol')
+                                            ->label('Usuario SOL')
+                                            ->maxLength(45),
+                                        TextInput::make('clave_sol')
+                                            ->label('Clave SOL')
+                                            ->password()
+                                            ->revealable()
+                                            ->maxLength(45),
+                                    ]),
+                                FileUpload::make('certificado')
+                                    ->label('Certificado Digital (.pem / .pfx / .p12)')
+                                    ->acceptedFileTypes(['.pem', '.pfx', '.p12'])
+                                    ->directory('certificados')
+                                    ->maxSize(512)
+                                    ->visible(fn ($record) => $record !== null),
                             ]),
-                    ]),
 
-                Section::make('Contacto')
-                    ->icon('heroicon-o-phone')
-                    ->schema([
-                        Grid::make(4)
+                        Tab::make('Configuración')
+                            ->icon('heroicon-o-cog-6-tooth')
                             ->schema([
-                                TextInput::make('email')
-                                    ->label('Email')
-                                    ->email()
-                                    ->maxLength(145),
-                                TextInput::make('telefono')
-                                    ->label('Teléfono 1')
-                                    ->maxLength(30),
-                                TextInput::make('telefono2')
-                                    ->label('Teléfono 2')
-                                    ->maxLength(30),
-                                TextInput::make('telefono3')
-                                    ->label('Teléfono 3')
-                                    ->maxLength(30),
-                            ]),
-                    ]),
+                                Grid::make(3)
+                                    ->schema([
+                                        TextInput::make('igv')
+                                            ->label('IGV')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->maxValue(1)
+                                            ->default(0.18)
+                                            ->step(0.01),
 
-                Section::make('Credenciales SUNAT')
-                    ->icon('heroicon-o-key')
-                    ->schema([
-                        Grid::make(2)
-                            ->schema([
-                                TextInput::make('user_sol')
-                                    ->label('Usuario SOL')
-                                    ->maxLength(45),
-                                TextInput::make('clave_sol')
-                                    ->label('Clave SOL')
-                                    ->maxLength(45),
-                            ]),
-                        FileUpload::make('certificado')
-                            ->label('Certificado Digital (.pem)')
-                            ->acceptedFileTypes(['.pem', '.pfx', '.p12'])
-                            ->directory('certificados')
-                            ->maxSize(512)
-                            ->columnSpanFull()
-                            ->visible(fn ($record) => $record !== null),
-                    ]),
+                                        Select::make('tipo_impresion')
+                                            ->label('Tipo de impresión')
+                                            ->options([
+                                                '1' => 'A4',
+                                                '2' => '8cm (Voucher)',
+                                            ])
+                                            ->default('1'),
 
-                Section::make('Configuración')
-                    ->icon('heroicon-o-cog-6-tooth')
-                    ->schema([
-                        Grid::make(4)
-                            ->schema([
-                                TextInput::make('igv')
-                                    ->label('IGV')
-                                    ->numeric()
-                                    ->minValue(0)
-                                    ->maxValue(1)
-                                    ->default(0.18)
-                                    ->step(0.01),
-
-                                Select::make('tipo_impresion')
-                                    ->label('Tipo Impresión')
-                                    ->options([
-                                        '1' => 'A4',
-                                        '2' => '8cm (Voucher)',
-                                    ])
-                                    ->default('1'),
-
-                                Select::make('modo')
-                                    ->label('Modo')
-                                    ->options([
-                                        'produccion' => 'Producción',
-                                        'beta' => 'Beta',
-                                    ])
-                                    ->default('produccion'),
-
+                                        Select::make('modo')
+                                            ->label('Modo')
+                                            ->options([
+                                                'produccion' => 'Producción',
+                                                'beta' => 'Beta',
+                                            ])
+                                            ->default('produccion'),
+                                    ]),
+                                TextInput::make('propaganda')
+                                    ->label('Propaganda / Lema')
+                                    ->maxLength(250),
                                 Toggle::make('estado')
-                                    ->label('Activo')
+                                    ->label('Empresa activa')
                                     ->default(true),
                             ]),
-                        TextInput::make('propaganda')
-                            ->label('Propaganda / Lema')
-                            ->maxLength(250)
-                            ->columnSpanFull(),
                     ]),
             ]);
     }
@@ -278,8 +254,6 @@ class EmpresaResource extends Resource
     {
         return [
             'index' => Pages\ListEmpresas::route('/'),
-            'create' => Pages\CreateEmpresa::route('/create'),
-            'edit' => Pages\EditEmpresa::route('/{record}/edit'),
         ];
     }
 }

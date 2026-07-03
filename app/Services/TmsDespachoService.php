@@ -172,27 +172,54 @@ class TmsDespachoService
         return ['id' => $id, 'peso_total' => round($pesoTotal, 2), 'advertencias' => $advertencias];
     }
 
-    /** Consolidados del reporte RES DESPACHO. */
-    public function reporte(int $idDespacho): array
+    /**
+     * Consolidados del reporte RES DESPACHO.
+     *
+     * @param array $mercadoIds  Filtra a pedidos de estos mercados (vacío = todos).
+     * @param array $medidas     Filtra a líneas con estas unidades de medida (vacío = todas).
+     */
+    public function reporte(int $idDespacho, array $mercadoIds = [], array $medidas = []): array
     {
-        $cotIds = DB::table('tms_despacho_pedidos')->where('id_despacho', $idDespacho)->pluck('id_cotizacion')->all();
+        $cotIds = DB::table('tms_despacho_pedidos')
+            ->where('id_despacho', $idDespacho)
+            ->when($mercadoIds, fn ($q) => $q->whereIn('id_mercado', $mercadoIds))
+            ->pluck('id_cotizacion')->all();
 
         $porArticulo = collect();
         if ($cotIds) {
             $porArticulo = DB::table('productos_cotis as pc')
                 ->join('productos as p', 'p.id_producto', '=', 'pc.id_producto')
                 ->whereIn('pc.id_coti', $cotIds)
+                ->when($medidas, fn ($q) => $q->whereIn('pc.medida', $medidas))
                 ->groupBy('p.id_producto', 'p.codigo', 'p.descripcion')
-                ->select('p.codigo', 'p.descripcion',
+                ->select('p.id_producto', 'p.codigo', 'p.descripcion',
                     DB::raw('SUM(pc.cantidad) as cantidad'),
                     DB::raw('SUM(pc.cantidad * COALESCE(p.peso_bruto, 0)) as kilos'))
                 ->orderBy('p.descripcion')
                 ->get();
+
+            // Desglose por tamaño de pedido: cuántos pedidos llevan X cantidad
+            // de cada producto (el almacén arma los bultos por pedido).
+            $porTamano = DB::table('productos_cotis as pc')
+                ->join('productos as p', 'p.id_producto', '=', 'pc.id_producto')
+                ->whereIn('pc.id_coti', $cotIds)
+                ->when($medidas, fn ($q) => $q->whereIn('pc.medida', $medidas))
+                ->groupBy('p.id_producto', 'pc.cantidad', 'pc.medida')
+                ->select('p.id_producto', 'pc.medida',
+                    'pc.cantidad as tamano',
+                    DB::raw('COUNT(*) as pedidos'),
+                    DB::raw('SUM(pc.cantidad) as total'))
+                ->orderBy('pc.cantidad')
+                ->get()
+                ->groupBy('id_producto');
+
+            $porArticulo->each(fn ($a) => $a->detalle = $porTamano->get($a->id_producto, collect()));
         }
 
         $porCliente = DB::table('tms_despacho_pedidos as dp')
             ->leftJoin('clientes as cl', 'cl.id_cliente', '=', 'dp.id_cliente')
             ->where('dp.id_despacho', $idDespacho)
+            ->when($mercadoIds, fn ($q) => $q->whereIn('dp.id_mercado', $mercadoIds))
             ->groupBy('dp.id_cliente', 'cl.documento', 'cl.datos')
             ->select('cl.documento', DB::raw("COALESCE(cl.datos, '-') as denominacion"),
                 DB::raw('COUNT(*) as pedidos'), DB::raw('SUM(dp.peso) as kilos'), DB::raw('SUM(dp.monto) as total'))
@@ -207,6 +234,8 @@ class TmsDespachoService
                 ->join('tms_despacho_pedidos as dp', 'dp.id_cotizacion', '=', 'pc.id_coti')
                 ->join('tms_mercados as m', 'm.id', '=', 'dp.id_mercado')
                 ->where('dp.id_despacho', $idDespacho)
+                ->when($mercadoIds, fn ($q) => $q->whereIn('dp.id_mercado', $mercadoIds))
+                ->when($medidas, fn ($q) => $q->whereIn('pc.medida', $medidas))
                 ->groupBy('m.id', 'm.nombre', 'p.id_producto', 'p.codigo', 'p.descripcion')
                 ->select('m.id as mercado_id', 'm.nombre as mercado_nombre',
                     'p.codigo', 'p.descripcion',

@@ -9,6 +9,7 @@ use App\Services\TmsDespachoService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -71,11 +72,54 @@ class DespachoResource extends Resource
                     ->modalCancelActionLabel('Cerrar'),
 
                 Action::make('pdf')
-                    ->label('Descargar PDF')
+                    ->label('Hoja de carga')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('gray')
-                    ->url(fn (TmsDespacho $record): string => route('tms.despacho.pdf', $record->id))
-                    ->openUrlInNewTab(),
+                    ->modalHeading(fn (TmsDespacho $record): string => 'Hoja de carga — ' . $record->codigo)
+                    ->modalDescription('Deja los filtros vacíos para sacar TODA la carga del despacho, o elige mercados/medidas para sacarla por partes.')
+                    ->modalSubmitActionLabel('Generar PDF')
+                    ->form([
+                        CheckboxList::make('mercados')
+                            ->label('Solo estos mercados (vacío = todos)')
+                            ->options(fn (TmsDespacho $record) => self::mercadosDelDespacho($record))
+                            ->columns(2)
+                            ->bulkToggleable(),
+                        CheckboxList::make('medidas')
+                            ->label('Solo estas unidades de medida (vacío = todas)')
+                            ->options(fn (TmsDespacho $record) => self::medidasDelDespacho($record))
+                            ->columns(3)
+                            ->bulkToggleable(),
+                    ])
+                    ->action(function (array $data, TmsDespacho $record, $livewire): void {
+                        $qs = http_build_query(array_filter([
+                            'mercados' => implode(',', $data['mercados'] ?? []),
+                            'medidas'  => implode(',', $data['medidas'] ?? []),
+                        ]));
+                        $url = route('tms.despacho.pdf', $record->id) . ($qs ? "?{$qs}" : '');
+                        $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
+                    }),
+
+                Action::make('guias')
+                    ->label('Guías de reparto')
+                    ->icon('heroicon-o-ticket')
+                    ->color('info')
+                    ->modalHeading(fn (TmsDespacho $record): string => 'Guías de reparto — ' . $record->codigo)
+                    ->modalDescription('Deja el filtro vacío para imprimir las guías de TODOS los pedidos, o elige mercados para imprimir solo esos.')
+                    ->modalSubmitActionLabel('Generar PDF')
+                    ->form([
+                        CheckboxList::make('mercados')
+                            ->label('Solo estos mercados (vacío = todos)')
+                            ->options(fn (TmsDespacho $record) => self::mercadosDelDespacho($record))
+                            ->columns(2)
+                            ->bulkToggleable(),
+                    ])
+                    ->action(function (array $data, TmsDespacho $record, $livewire): void {
+                        $qs = http_build_query(array_filter([
+                            'mercados' => implode(',', $data['mercados'] ?? []),
+                        ]));
+                        $url = route('tms.despacho.guias', $record->id) . ($qs ? "?{$qs}" : '');
+                        $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
+                    }),
 
                 ActionGroup::make([
                     Action::make('cargar')->label('Cargar')->icon('heroicon-o-inbox-arrow-down')->color('warning')
@@ -194,6 +238,31 @@ class DespachoResource extends Resource
                 ])->label('Acciones')->icon('heroicon-m-ellipsis-vertical')->button(),
             ])
             ->defaultSort('id', 'desc');
+    }
+
+    /** Mercados presentes en los pedidos del despacho, para el filtro del PDF. */
+    public static function mercadosDelDespacho(TmsDespacho $despacho): array
+    {
+        return DB::table('tms_despacho_pedidos as dp')
+            ->join('tms_mercados as m', 'm.id', '=', 'dp.id_mercado')
+            ->where('dp.id_despacho', $despacho->id)
+            ->distinct()
+            ->orderBy('m.nombre')
+            ->pluck('m.nombre', 'm.id')
+            ->toArray();
+    }
+
+    /** Unidades de medida presentes en las líneas de los pedidos del despacho. */
+    public static function medidasDelDespacho(TmsDespacho $despacho): array
+    {
+        return DB::table('productos_cotis as pc')
+            ->join('tms_despacho_pedidos as dp', 'dp.id_cotizacion', '=', 'pc.id_coti')
+            ->where('dp.id_despacho', $despacho->id)
+            ->whereNotNull('pc.medida')->where('pc.medida', '<>', '')
+            ->distinct()
+            ->orderBy('pc.medida')
+            ->pluck('pc.medida', 'pc.medida')
+            ->toArray();
     }
 
     public static function getEloquentQuery(): Builder

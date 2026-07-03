@@ -13,7 +13,10 @@ class ListEmpresas extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            CreateAction::make()
+                ->modalWidth('5xl')
+                ->modalHeading('Nueva Empresa')
+                ->createAnother(false),
         ];
     }
 }

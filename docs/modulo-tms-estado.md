@@ -1,15 +1,38 @@
 # Módulo TMS — Estado actual y brechas
 
-> Fecha: 2026-07-01
+> Fecha: 2026-07-01 · **Actualizado: 2026-07-02**
 > Basado en análisis del código fuente y el archivo `CUADRO DE PROGRAMACION.xlsx`
+
+---
+
+## 0. Actualización 2026-07-02 — Migración a Filament
+
+El módulo se **reconstruyó en el panel Filament** (`/panel`), que es hacia donde va
+todo el sistema. Con esto se cerraron varias brechas de la versión anterior:
+
+- ✅ **Todos los Filament Resources** creados: `Mercado`, `Vehiculo`, `Conductor`,
+  `Ruta` (con Repeater de puntos), `Despacho` (armar, estados, entregas, reporte,
+  **costos**). Además catálogos `UnidadMedida` y `Presentacion`.
+- ✅ **Asignar mercado al cliente**: `ClienteResource` ahora tiene un Select
+  "Mercado / Zona (TMS)" (brecha §3.2 resuelta).
+- ✅ **Costos del despacho en Filament**: acciones "Agregar costo" (con egreso a
+  caja) y "Ver costos".
+- ✅ Catálogo de productos: unidades de medida y presentaciones como CRUD, integrados
+  al formulario de Producto.
+
+La versión Blade antigua (`/tms/*`) queda como legado y puede eliminarse.
+
+**Brechas que siguen abiertas:** nombres reales de mercados (§3.1), importador de
+Excel (§3.3), Guía de Remisión SUNAT (§3.5), dashboard de vencimientos (§3.6),
+validación por volumen (§3.7).
 
 ---
 
 ## 1. Resumen
 
-El módulo TMS (Transportation Management System) está implementado en su lógica
-principal pero **carece de datos reales** y de algunos componentes de integración
-necesarios para operar con la información del negocio.
+El módulo TMS (Transportation Management System) está **implementado y operativo en
+Filament**. El flujo principal funciona; lo que resta es sobre todo **carga de datos
+reales** (nombres de mercados, importación del Excel) e integraciones de fase 2.
 
 ---
 
@@ -69,18 +92,15 @@ solo crea registros genéricos "Mercado N".
   con los nombres reales.
 - O bien agregar un importador desde Excel.
 
-### 3.2 Asignación de mercado al cliente (CRUD Clientes)
+### 3.2 Asignación de mercado al cliente (CRUD Clientes) — ✅ RESUELTO (2026-07-02)
 
-Hoy `clientes.mercado` es un `int` sin FK ni interfaz de edición. No hay un select
-en el CRUD de clientes para elegir el `tms_mercados` al que pertenece cada cliente.
+`ClienteResource` (Filament) ahora incluye un Select **"Mercado / Zona (TMS)"** que
+guarda `clientes.mercado`, más una columna en la tabla. El modelo `Cliente` tiene la
+relación `mercadoTms()`. Con esto "Armar Despacho" ya puede encontrar los pedidos de
+los clientes de una ruta (siempre que se les asigne su mercado).
 
-**Impacto:** Sin esta relación, el algoritmo "Armar Despacho" no encuentra los pedidos
-de los clientes al seleccionar una ruta.
-
-**Archivos involucrados:**
-- `app/Http/Controllers/Api/ClientesApiController.php`
-- `resources/views/clientes/` (vistas del CRUD)
-- `app/Models/Clientes.php` (campo `mercado`)
+**Pendiente operativo:** asignar el mercado a los clientes existentes (dato), ya sea a
+mano desde el CRUD o vía el importador del Excel (§3.3).
 
 ### 3.3 Importación del Excel al sistema
 
@@ -92,17 +112,18 @@ El `CUADRO DE PROGRAMACION.xlsx` tiene 3 hojas útiles:
 Actualmente no hay ningún proceso batch para cargar estos datos. Esto es necesario
 para la migración inicial o carga periódica.
 
-### 3.4 Filament Resources incompletos
+### 3.4 Filament Resources — ✅ RESUELTO (2026-07-02)
 
-Solo existe `MercadoResource.php`. Faltan:
+Todos los Resources creados:
 
 | Resource | Estado |
 |---|---|
 | `MercadoResource` | ✅ |
-| `VehiculoResource` | ❌ |
-| `ConductorResource` | ❌ |
-| `RutaResource` | ❌ |
-| `DespachoResource` | ❌ |
+| `VehiculoResource` | ✅ |
+| `ConductorResource` | ✅ |
+| `RutaResource` (Repeater de puntos) | ✅ |
+| `DespachoResource` (armar, estados, entregas, reporte, costos) | ✅ |
+| `UnidadMedidaResource` / `PresentacionResource` (catálogo productos) | ✅ |
 
 ### 3.5 Generación de Guía de Remisión (fase 2)
 
@@ -180,10 +201,11 @@ POST        /tms/despachos/costos        → agregar/quitar costo
 
 | Prioridad | Brecha | Depende de |
 |---|---|---|
-| 🔴 **Alta** | 3.1 — Poblar mercados con nombres reales | — |
-| 🔴 **Alta** | 3.2 — Asignar mercado a clientes | 3.1 |
-| 🟡 **Media** | 3.4 — Filament Resources faltantes | — |
+| ✅ hecho | 3.2 — Campo mercado en cliente (Filament) | — |
+| ✅ hecho | 3.4 — Filament Resources | — |
+| 🔴 **Alta** | 3.1 — Poblar mercados con nombres reales (o renombrar en el CRUD) | — |
+| 🔴 **Alta** | Asignar mercado a los clientes existentes (dato) | 3.1 |
 | 🟡 **Media** | 3.3 — Importador de Excel | — |
-| 🟢 **Baja** | 3.5 — Guía de Remisión | Despacho funcional |
+| 🟢 **Baja** | 3.5 — Guía de Remisión | decisión SUNAT |
 | 🟢 **Baja** | 3.6 — Alertas vencimientos | — |
 | 🟢 **Baja** | 3.7 — Validación por volumen | Productos con volumen |

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Clusters\Productos;
 use App\Filament\Resources\PresentacionResource\Pages;
 use App\Models\Presentacion;
 use BackedEnum;
@@ -17,11 +18,11 @@ use Illuminate\Database\Eloquent\Builder;
 class PresentacionResource extends Resource
 {
     protected static ?string $model = Presentacion::class;
+    protected static ?string $cluster = Productos::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-cube-transparent';
     protected static ?string $navigationLabel = 'Presentaciones';
-    protected static string|\UnitEnum|null $navigationGroup = 'Almacén';
-    protected static ?int $navigationSort = 9;
+    protected static ?int $navigationSort = 6;
     protected static ?string $label = 'Presentación';
     protected static ?string $pluralLabel = 'Presentaciones';
     protected static ?string $slug = 'presentaciones';

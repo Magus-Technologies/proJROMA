@@ -8,4 +8,9 @@ class Submarca extends Model
     protected $primaryKey = 'id_submarca';
     public    $timestamps = false;
     protected $fillable   = ['nombre', 'descripcion', 'id_marca', 'id_empresa', 'estado'];
+
+    public function marca()
+    {
+        return $this->belongsTo(Marca::class, 'id_marca', 'id_marca');
+    }
 }

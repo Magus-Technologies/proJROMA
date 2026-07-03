@@ -8,4 +8,9 @@ class Subcategoria extends Model
     protected $primaryKey = 'id_subcategoria';
     public    $timestamps = false;
     protected $fillable   = ['nombre', 'descripcion', 'id_categoria', 'id_empresa', 'estado'];
+
+    public function categoria()
+    {
+        return $this->belongsTo(Categoria::class, 'id_categoria', 'id_categoria');
+    }
 }

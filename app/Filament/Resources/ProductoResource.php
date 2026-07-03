@@ -7,6 +7,7 @@ use App\Models\Marca;
 use App\Models\Presentacion;
 use App\Models\Producto;
 use App\Models\UnidadMedida;
+use App\Filament\Clusters\Productos;
 use App\Filament\Resources\ProductoResource\Pages;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
@@ -29,11 +30,11 @@ use Illuminate\Database\Eloquent\Builder;
 class ProductoResource extends Resource
 {
     protected static ?string $model = Producto::class;
+    protected static ?string $cluster = Productos::class;
 
     protected static string|BackedEnum|null $navigationIcon  = 'heroicon-o-cube';
     protected static ?string $navigationLabel = 'Productos';
-    protected static string|\UnitEnum|null $navigationGroup  = 'Almacén';
-    protected static ?int    $navigationSort  = 1;
+    protected static ?int    $navigationSort  = 0;
     protected static ?string $label           = 'Producto';
     protected static ?string $pluralLabel     = 'Productos';
 

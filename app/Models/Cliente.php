@@ -17,9 +17,10 @@ class Cliente extends Model
 
     protected $casts = ['ultima_venta'=>'date','total_venta'=>'float'];
 
-    public function empresa() { return $this->belongsTo(Empresa::class,'id_empresa','id_empresa'); }
-    public function ventas()  { return $this->hasMany(Venta::class,'id_cliente','id_cliente'); }
-    public function ruta()    { return $this->belongsTo(RutaVendedor::class,'id_ruta','id_ruta'); }
+    public function empresa()   { return $this->belongsTo(Empresa::class,'id_empresa','id_empresa'); }
+    public function ventas()    { return $this->hasMany(Venta::class,'id_cliente','id_cliente'); }
+    public function ruta()      { return $this->belongsTo(RutaVendedor::class,'id_ruta','id_ruta'); }
+    public function mercadoTms() { return $this->belongsTo(TmsMercado::class,'mercado','id'); }
 
     public function scopeDeEmpresa(Builder $q, int $id): Builder
     {

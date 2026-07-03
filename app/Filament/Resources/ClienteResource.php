@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Models\Cliente;
+use App\Models\TmsMercado;
 use App\Filament\Resources\ClienteResource\Pages;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -10,6 +11,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -84,6 +86,13 @@ class ClienteResource extends Resource
             TextInput::make('datos')->label('Razón Social / Nombre')->required()->maxLength(200)->columnSpanFull(),
             TextInput::make('direccion')->label('Dirección')->maxLength(200)->columnSpanFull(),
             TextInput::make('distrito')->label('Distrito')->maxLength(100),
+            Select::make('mercado')
+                ->label('Mercado / Zona (TMS)')
+                ->options(fn () => TmsMercado::where('id_empresa', (int) session('id_empresa'))
+                    ->orderBy('nombre')->pluck('nombre', 'id'))
+                ->searchable()
+                ->nullable()
+                ->helperText('Zona/mercado al que pertenece el cliente. Se usa para armar los despachos.'),
             TextInput::make('telefono')
                 ->label('Teléfono')
                 ->tel()
@@ -102,6 +111,7 @@ class ClienteResource extends Resource
                 TextColumn::make('documento')->label('RUC/DNI')->searchable()->sortable(),
                 TextColumn::make('datos')->label('Nombre / Razón Social')->searchable()->sortable()->wrap(),
                 TextColumn::make('distrito')->label('Distrito')->toggleable(),
+                TextColumn::make('mercadoTms.nombre')->label('Mercado / Zona')->placeholder('—')->toggleable(),
                 TextColumn::make('telefono')->label('Teléfono')->toggleable(),
                 TextColumn::make('email')->label('Email')->toggleable(),
                 TextColumn::make('ultima_venta')->label('Última venta')->date('d/m/Y')->sortable()->toggleable(),
@@ -127,6 +137,7 @@ class ClienteResource extends Resource
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
         return parent::getEloquentQuery()
+            ->with('mercadoTms')
             ->where('id_empresa', (int) session('id_empresa'));
     }
 

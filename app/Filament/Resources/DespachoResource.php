@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\DespachoResource\Pages;
 use App\Models\TmsDespacho;
+use App\Services\CajaService;
 use App\Services\TmsDespachoService;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -50,6 +51,8 @@ class DespachoResource extends Resource
                 TextColumn::make('pedidos_count')->label('Pedidos')->counts('pedidos')->badge(),
                 TextColumn::make('peso_total')->label('Peso')->sortable()
                     ->formatStateUsing(fn ($state): string => number_format((float) $state, 2) . ' kg'),
+                TextColumn::make('costos_sum_monto')->label('Costos')->sum('costos', 'monto')->toggleable()
+                    ->formatStateUsing(fn ($state): string => 'S/ ' . number_format((float) $state, 2)),
                 TextColumn::make('estado')->label('Estado')->badge()
                     ->color(fn (string $state): string => self::ESTADO_COLOR[$state] ?? 'gray')
                     ->formatStateUsing(fn (string $state): string => ucfirst(strtolower(str_replace('_', ' ', $state)))),
@@ -121,6 +124,60 @@ class DespachoResource extends Resource
                             }
                             Notification::make()->success()->title('Entregas actualizadas.')->send();
                         }),
+
+                    Action::make('agregar_costo')->label('Agregar costo')->icon('heroicon-o-banknotes')->color('gray')
+                        ->visible(fn (TmsDespacho $r) => $r->estado !== 'ANULADO')
+                        ->form([
+                            TextInput::make('concepto')->label('Concepto')->required()->maxLength(120)
+                                ->placeholder('Combustible, peaje, viáticos...'),
+                            TextInput::make('monto')->label('Monto (S/)')->required()->numeric()->minValue(0.01),
+                            Select::make('id_caja')->label('Cargar a caja (opcional)')
+                                ->options(fn () => DB::table('cajas')->where('id_empresa', (int) session('id_empresa'))
+                                    ->where('estado', 'ACTIVA')->orderBy('nombre')->pluck('nombre', 'id'))
+                                ->helperText('Si eliges una caja, se registra como EGRESO real en ella.'),
+                        ])
+                        ->action(function (array $data, TmsDespacho $record): void {
+                            $idMov = null;
+                            if (!empty($data['id_caja'])) {
+                                try {
+                                    $idMov = app(CajaService::class)->registrarMovimiento([
+                                        'id_caja'     => $data['id_caja'],
+                                        'fecha'       => now()->toDateString(),
+                                        'tipo'        => 'EGRESO',
+                                        'categoria'   => 'TMS',
+                                        'descripcion' => 'Costo despacho ' . ($record->codigo ?? $record->id) . ': ' . $data['concepto'],
+                                        'monto'       => $data['monto'],
+                                        'id_usuario'  => (int) (auth()->user()->usuario_id ?? 0),
+                                    ]);
+                                } catch (\RuntimeException $e) {
+                                    Notification::make()->danger()->title($e->getMessage())->send();
+                                    return;
+                                }
+                            }
+                            DB::table('tms_despacho_costos')->insert([
+                                'id_despacho'        => $record->id,
+                                'concepto'           => $data['concepto'],
+                                'monto'              => $data['monto'],
+                                'id_caja'            => $data['id_caja'] ?? null,
+                                'id_movimiento_caja' => $idMov,
+                                'id_usuario'         => (int) (auth()->user()->usuario_id ?? 0),
+                                'created_at'         => now(),
+                                'updated_at'         => now(),
+                            ]);
+                            Notification::make()->success()->title('Costo agregado.')->send();
+                        }),
+
+                    Action::make('ver_costos')->label('Ver costos')->icon('heroicon-o-list-bullet')->color('gray')
+                        ->modalHeading(fn (TmsDespacho $r): string => 'Costos de ' . $r->codigo)
+                        ->modalContent(fn (TmsDespacho $r) => view('filament.tms.despacho-costos', [
+                            'costos' => DB::table('tms_despacho_costos as c')
+                                ->leftJoin('cajas as ca', 'ca.id', '=', 'c.id_caja')
+                                ->where('c.id_despacho', $r->id)
+                                ->orderBy('c.id')
+                                ->select('c.id', 'c.concepto', 'c.monto', DB::raw("COALESCE(ca.nombre, '—') as caja"))
+                                ->get(),
+                        ]))
+                        ->modalSubmitAction(false)->modalCancelActionLabel('Cerrar'),
 
                     Action::make('anular')->label('Anular')->icon('heroicon-o-x-circle')->color('danger')
                         ->visible(fn (TmsDespacho $r) => in_array($r->estado, ['PLANIFICADO', 'CARGADO'], true))

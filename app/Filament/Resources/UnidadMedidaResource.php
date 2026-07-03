@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Clusters\Productos;
 use App\Filament\Resources\UnidadMedidaResource\Pages;
 use App\Models\UnidadMedida;
 use BackedEnum;
@@ -17,11 +18,11 @@ use Illuminate\Database\Eloquent\Builder;
 class UnidadMedidaResource extends Resource
 {
     protected static ?string $model = UnidadMedida::class;
+    protected static ?string $cluster = Productos::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-scale';
     protected static ?string $navigationLabel = 'Unidades de medida';
-    protected static string|\UnitEnum|null $navigationGroup = 'Almacén';
-    protected static ?int $navigationSort = 8;
+    protected static ?int $navigationSort = 5;
     protected static ?string $label = 'Unidad de medida';
     protected static ?string $pluralLabel = 'Unidades de medida';
     protected static ?string $slug = 'unidades-medida';

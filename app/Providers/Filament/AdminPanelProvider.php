@@ -12,6 +12,7 @@ use App\Filament\Widgets\StatsOverview;
 use App\Filament\Widgets\TopClientesWidget;
 use App\Filament\Widgets\UltimasVentasWidget;
 use App\Filament\Widgets\VentasChart;
+use Filament\Navigation\NavigationGroup;
 use Filament\Navigation\NavigationItem;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -60,6 +61,17 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
+            ])
+            ->navigationGroups([
+                NavigationGroup::make('Facturación')->icon('heroicon-o-document-text'),
+                NavigationGroup::make('Cotizaciones')->icon('heroicon-o-clipboard-document-list'),
+                NavigationGroup::make('Cobranzas')->icon('heroicon-o-banknotes'),
+                NavigationGroup::make('Pagos')->icon('heroicon-o-credit-card'),
+                NavigationGroup::make('Caja')->icon('heroicon-o-calculator'),
+                NavigationGroup::make('Almacén')->icon('heroicon-o-cube'),
+                NavigationGroup::make('Transporte (TMS)')->icon('heroicon-o-truck'),
+                NavigationGroup::make('Maestros')->icon('heroicon-o-users'),
+                NavigationGroup::make('Administración')->icon('heroicon-o-cog-6-tooth'),
             ])
             ->navigationItems([
                 // ── Facturación ──────────────────────────────────────────

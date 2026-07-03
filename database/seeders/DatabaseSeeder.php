@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             TmsConductorSeeder::class,
             TmsVehiculoSeeder::class,
             TmsRutaSeeder::class,
+            TmsDespachoSeeder::class,
         ]);
     }
 }

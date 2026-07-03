@@ -13,40 +13,36 @@ class TmsDespachoSeeder extends Seeder
 {
     public function run(): void
     {
-        $empresa = 1;
+        $empresa = 12;
         $sucursal = 1;
 
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
-        DB::table('tms_despacho_costos')->truncate();
-        DB::table('tms_despacho_pedidos')->truncate();
-        DB::table('tms_despachos')->truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1');
-
-        $rutas = TmsRuta::where('id_empresa', $empresa)->get();
-        $vehiculos = TmsVehiculo::where('id_empresa', $empresa)->get();
-        $conductores = TmsConductor::where('id_empresa', $empresa)->get();
+        $rutas = TmsRuta::where('id_empresa', $empresa)->pluck('id');
+        $vehiculos = TmsVehiculo::where('id_empresa', $empresa)->pluck('id');
+        $conductores = TmsConductor::where('id_empresa', $empresa)->pluck('id');
 
         if ($rutas->isEmpty() || $vehiculos->isEmpty() || $conductores->isEmpty()) {
-            $this->command->error('Ejecuta primero TmsSeeder (faltan rutas, vehículos o conductores).');
+            $this->command->error('Faltan datos maestros (rutas, vehículos o conductores).');
             return;
         }
 
         $despachosData = [
-            ['codigo' => 'DESP-001', 'fecha_reparto' => '2026-07-01', 'estado' => 'CERRADO',   'obs' => 'Primer despacho del mes'],
-            ['codigo' => 'DESP-002', 'fecha_reparto' => '2026-07-02', 'estado' => 'CERRADO',   'obs' => null],
-            ['codigo' => 'DESP-003', 'fecha_reparto' => '2026-07-03', 'estado' => 'EN_RUTA',   'obs' => 'Salida 6:00 am'],
-            ['codigo' => 'DESP-004', 'fecha_reparto' => '2026-07-03', 'estado' => 'CARGADO',   'obs' => 'Esperando confirmación de salida'],
-            ['codigo' => 'DESP-005', 'fecha_reparto' => '2026-07-04', 'estado' => 'PLANIFICADO', 'obs' => null],
-            ['codigo' => 'DESP-006', 'fecha_reparto' => '2026-07-04', 'estado' => 'PLANIFICADO', 'obs' => 'Requiere refrigeración'],
-            ['codigo' => 'DESP-007', 'fecha_reparto' => '2026-07-05', 'estado' => 'PLANIFICADO', 'obs' => null],
-            ['codigo' => 'DESP-008', 'fecha_reparto' => '2026-07-05', 'estado' => 'PLANIFICADO', 'obs' => null],
+            ['codigo' => 'DESP-009', 'fecha_reparto' => '2026-07-06', 'estado' => 'PLANIFICADO', 'obs' => null],
+            ['codigo' => 'DESP-010', 'fecha_reparto' => '2026-07-06', 'estado' => 'PLANIFICADO', 'obs' => 'Salida 5:30 am'],
+            ['codigo' => 'DESP-011', 'fecha_reparto' => '2026-07-07', 'estado' => 'PLANIFICADO', 'obs' => null],
+            ['codigo' => 'DESP-012', 'fecha_reparto' => '2026-07-07', 'estado' => 'PLANIFICADO', 'obs' => 'Carga frágil'],
+            ['codigo' => 'DESP-013', 'fecha_reparto' => '2026-07-08', 'estado' => 'PLANIFICADO', 'obs' => null],
+            ['codigo' => 'DESP-014', 'fecha_reparto' => '2026-07-08', 'estado' => 'PLANIFICADO', 'obs' => 'Requiere refrigeración'],
+            ['codigo' => 'DESP-015', 'fecha_reparto' => '2026-07-09', 'estado' => 'PLANIFICADO', 'obs' => null],
+            ['codigo' => 'DESP-016', 'fecha_reparto' => '2026-07-09', 'estado' => 'PLANIFICADO', 'obs' => null],
+            ['codigo' => 'DESP-017', 'fecha_reparto' => '2026-07-10', 'estado' => 'PLANIFICADO', 'obs' => 'Entrega urgente'],
+            ['codigo' => 'DESP-018', 'fecha_reparto' => '2026-07-10', 'estado' => 'PLANIFICADO', 'obs' => null],
         ];
 
         foreach ($despachosData as $i => $dd) {
             $ruta = $rutas[$i % count($rutas)];
             $vehiculo = $vehiculos[$i % count($vehiculos)];
             $conductor = $conductores[$i % count($conductores)];
-            $pesoTotal = round(rand(200, 1500) + rand(0, 99) / 100, 2);
+            $pesoTotal = round(rand(200, 2000) + rand(0, 99) / 100, 2);
 
             $despachoId = DB::table('tms_despachos')->insertGetId([
                 'codigo'            => $dd['codigo'],
@@ -55,41 +51,44 @@ class TmsDespachoSeeder extends Seeder
                 'observaciones'     => $dd['obs'],
                 'id_empresa'        => $empresa,
                 'sucursal'          => $sucursal,
-                'id_ruta'           => $ruta->id,
-                'id_vehiculo'       => $vehiculo->id,
-                'id_conductor'      => $conductor->id,
+                'id_ruta'           => $ruta,
+                'id_vehiculo'       => $vehiculo,
+                'id_conductor'      => $conductor,
                 'peso_total'        => $pesoTotal,
                 'id_usuario_creacion' => 40,
                 'created_at'        => now(),
                 'updated_at'        => now(),
             ]);
 
+            // 2-4 pedidos por despacho
             $numPedidos = rand(2, 4);
-            $pedidoPeso = round($pesoTotal / $numPedidos, 2);
-            $mercadosRuta = TmsRutaPunto::where('id_ruta', $ruta->id)->where('tipo', 'MERCADO')->get();
+            $pedidoPeso = $pesoTotal / $numPedidos;
+            $puntosRuta = TmsRutaPunto::where('id_ruta', $ruta)
+                ->where('tipo', 'MERCADO')->get();
 
             for ($p = 0; $p < $numPedidos; $p++) {
-                $mercado = $mercadosRuta[$p % max(1, $mercadosRuta->count())];
+                $punto = $puntosRuta[$p % max(1, $puntosRuta->count())];
                 DB::table('tms_despacho_pedidos')->insert([
                     'id_despacho'    => $despachoId,
                     'id_cotizacion'  => rand(100, 999),
                     'id_cliente'     => rand(1, 100),
-                    'id_mercado'     => $mercado ? $mercado->id_mercado : null,
-                    'peso'           => $pedidoPeso,
-                    'monto'          => round(rand(50, 500) + rand(0, 99) / 100, 2),
+                    'id_mercado'     => $punto ? $punto->id_mercado : null,
+                    'peso'           => round($pedidoPeso, 2),
+                    'monto'          => round(rand(80, 800) + rand(0, 99) / 100, 2),
                     'orden'          => $p + 1,
-                    'estado_entrega' => $dd['estado'] === 'CERRADO' ? 'ENTREGADO' : 'PENDIENTE',
-                    'hora_entrega'   => $dd['estado'] === 'CERRADO' ? now()->subDays(rand(1, 3)) : null,
+                    'estado_entrega' => 'PENDIENTE',
+                    'hora_entrega'   => null,
                 ]);
             }
 
-            $conceptos = ['COMBUSTIBLE', 'PEAJE', 'VIATICOS'];
+            // 1-2 costos por despacho
+            $conceptos = ['COMBUSTIBLE', 'PEAJE', 'VIATICOS', 'LAVADO', 'ESTACIONAMIENTO'];
             $numCostos = rand(1, 2);
             for ($c = 0; $c < $numCostos; $c++) {
                 DB::table('tms_despacho_costos')->insert([
                     'id_despacho' => $despachoId,
                     'concepto'    => $conceptos[$c],
-                    'monto'       => round(rand(20, 200) + rand(0, 99) / 100, 2),
+                    'monto'       => round(rand(20, 250) + rand(0, 99) / 100, 2),
                     'id_usuario'  => 40,
                     'created_at'  => now(),
                     'updated_at'  => now(),
@@ -97,6 +96,6 @@ class TmsDespachoSeeder extends Seeder
             }
         }
 
-        $this->command->info('8 despachos creados con pedidos y costos.');
+        $this->command->info(count($despachosData) . ' despachos creados con pedidos y costos.');
     }
 }

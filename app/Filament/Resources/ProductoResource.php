@@ -22,6 +22,7 @@ use Filament\Forms\Components\Select;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
@@ -90,7 +91,7 @@ class ProductoResource extends Resource
                 ->searchable()
                 ->nullable()
                 ->live()
-                ->afterStateUpdated(fn (Select $set) => $set('id_subcategoria', null))
+                ->afterStateUpdated(fn (Set $set) => $set('id_subcategoria', null))
                 ->createOptionForm([
                     TextInput::make('nombre')->label('Nombre')->required()->maxLength(100),
                 ])
@@ -127,7 +128,7 @@ class ProductoResource extends Resource
                 ->searchable()
                 ->nullable()
                 ->live()
-                ->afterStateUpdated(fn (Select $set) => $set('id_submarca', null))
+                ->afterStateUpdated(fn (Set $set) => $set('id_submarca', null))
                 ->createOptionForm([
                     TextInput::make('nombre')->label('Nombre')->required()->maxLength(100),
                 ])

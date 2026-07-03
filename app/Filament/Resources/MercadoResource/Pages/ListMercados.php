@@ -19,7 +19,7 @@ class ListMercados extends ListRecords
                     $data['sucursal']   = (int) session('sucursal');
                     $data['estado']     = 1;
 
-                    return $data;
+                    return MercadoResource::completarDistrito($data);
                 }),
         ];
     }

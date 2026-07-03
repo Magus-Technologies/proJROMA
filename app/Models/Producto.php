@@ -34,6 +34,7 @@ class Producto extends Model
 
     public function categoria()     { return $this->belongsTo(Categoria::class, 'id_categoria', 'id_categoria'); }
     public function marca()         { return $this->belongsTo(Marca::class,     'id_marca',     'id_marca'); }
+    public function almacenActual() { return $this->belongsTo(Almacen::class,   'almacen',      'codigo'); }
 
     public function scopeActivos(Builder $q): Builder              { return $q->where('estado','1'); }
     public function scopeDeEmpresa(Builder $q, int $id): Builder   { return $q->where('id_empresa',$id); }

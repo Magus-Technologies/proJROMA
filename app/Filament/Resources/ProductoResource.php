@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Models\Almacen;
 use App\Models\Categoria;
 use App\Models\Marca;
 use App\Models\Presentacion;
@@ -12,16 +13,20 @@ use App\Models\UnidadMedida;
 use App\Filament\Clusters\Productos;
 use App\Filament\Resources\ProductoResource\Pages;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
+use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\IconPosition;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -29,6 +34,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class ProductoResource extends Resource
 {
@@ -165,6 +171,8 @@ class ProductoResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $sortUsing = fn (string $column) => fn (Builder $query, string $direction) => $query->orderBy($column, $direction);
+
         return $table
             ->columns([
                 ImageColumn::make('imagen')
@@ -173,16 +181,54 @@ class ProductoResource extends Resource
                     ->size(40)
                     ->defaultImageUrl(fn () => null)
                     ->toggleable(),
-                TextColumn::make('cod_barra')->label('Cód. Barra')->searchable()->sortable()->toggleable(),
-                TextColumn::make('codigo')->label('Código')->searchable()->sortable(),
-                TextColumn::make('descripcion')->label('Descripción')->searchable()->sortable()->wrap(),
+                TextColumn::make('cod_barra')->label('Cód. Barra')->searchable()->sortable(query: $sortUsing('cod_barra'))->toggleable(),
+                TextColumn::make('codigo')->label('Código')->searchable()->sortable(query: $sortUsing('codigo')),
+                TextColumn::make('descripcion')->label('Descripción')->searchable()->sortable(query: $sortUsing('descripcion'))->wrap(),
                 TextColumn::make('medida')->label('Medida')->toggleable(),
                 TextColumn::make('categoria.nombre')->label('Categoría')->sortable()->toggleable(),
                 TextColumn::make('marca.nombre')->label('Marca')->sortable()->toggleable(),
-                TextColumn::make('precio')->label('Precio')->money('PEN')->sortable(),
-                TextColumn::make('costo')->label('Costo')->money('PEN')->sortable()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('cantidad')->label('Stock')->sortable()
-                    ->color(fn ($state) => $state <= 0 ? 'danger' : ($state <= 5 ? 'warning' : 'success')),
+                TextColumn::make('precio')->label('Precio')->money('PEN')->sortable(query: $sortUsing('precio')),
+                TextColumn::make('costo')->label('Costo')->money('PEN')->sortable(query: $sortUsing('costo'))->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('cantidad')->label('Stock')->sortable(query: $sortUsing('cantidad'))
+                    ->color(fn ($state) => $state <= 0 ? 'danger' : ($state <= 5 ? 'warning' : 'success'))
+                    ->icon('heroicon-o-building-storefront')
+                    ->iconPosition(IconPosition::After)
+                    ->tooltip('Ver stock en todos los almacenes')
+                    ->action(
+                        Action::make('verStockAlmacenes')
+                            ->modalHeading(fn (Producto $record) => "Stock por almacén — {$record->descripcion}")
+                            ->modalSubmitAction(false)
+                            ->modalCancelActionLabel('Cerrar')
+                            ->schema(fn (Producto $record) => [
+                                TextEntry::make('total')->label('Total en todos los almacenes')
+                                    ->state($record->cantidad ?? 0)
+                                    ->badge()->color('primary')->size('lg'),
+                                RepeatableEntry::make('almacenes')
+                                    ->label('')
+                                    ->state(function () use ($record) {
+                                        $nombres = Almacen::where('id_empresa', (int) session('id_empresa'))
+                                            ->pluck('nombre', 'codigo');
+
+                                        $query = Producto::where('id_empresa', (int) session('id_empresa'));
+                                        $query = filled($record->codigo)
+                                            ? $query->where('codigo', $record->codigo)
+                                            : $query->where('id_producto', $record->id_producto);
+
+                                        return $query->orderBy('almacen')->get(['almacen', 'cantidad'])
+                                            ->map(fn ($p) => [
+                                                'nombre'   => $nombres[$p->almacen] ?? ($p->almacen ?: 'Sin almacén'),
+                                                'cantidad' => $p->cantidad ?? 0,
+                                            ])->all();
+                                    })
+                                    ->schema([
+                                        TextEntry::make('nombre')->label('Almacén'),
+                                        TextEntry::make('cantidad')->label('Cantidad')
+                                            ->badge()
+                                            ->color(fn ($state) => $state > 0 ? 'success' : 'gray'),
+                                    ])
+                                    ->columns(2),
+                            ])
+                    ),
                 IconColumn::make('activo')->label('Activo')->boolean()->toggleable(),
             ])
             ->filters([
@@ -198,14 +244,36 @@ class ProductoResource extends Resource
             ])
             ->actions([EditAction::make()])
             ->bulkActions([BulkActionGroup::make([DeleteBulkAction::make()])])
-            ->defaultSort('descripcion');
+            ->defaultSort('descripcion')
+            ->defaultKeySort(false);
     }
 
     public static function getEloquentQuery(): Builder
     {
+        // Un mismo producto (mismo "codigo") tiene una fila por almacén.
+        // Agrupamos para listar el catálogo una sola vez, sumando el stock de todos los almacenes.
+        $groupKey = "IF(codigo IS NULL OR codigo = '', CONCAT('_pid_', id_producto), codigo)";
+
         return parent::getEloquentQuery()
-            ->with(['categoria', 'marca'])
-            ->where('id_empresa', (int) session('id_empresa'));
+            ->select([
+                DB::raw('MIN(id_producto) as id_producto'),
+                DB::raw('MIN(codigo) as codigo'),
+                DB::raw('MIN(cod_barra) as cod_barra'),
+                DB::raw('MIN(descripcion) as descripcion'),
+                DB::raw('MIN(medida) as medida'),
+                DB::raw('MIN(id_categoria) as id_categoria'),
+                DB::raw('MIN(id_marca) as id_marca'),
+                DB::raw('MIN(precio) as precio'),
+                DB::raw('MIN(costo) as costo'),
+                DB::raw('SUM(cantidad) as cantidad'),
+                DB::raw('MIN(activo) as activo'),
+                DB::raw('MIN(imagen) as imagen'),
+                'id_empresa',
+            ])
+            ->where('id_empresa', (int) session('id_empresa'))
+            ->groupBy('id_empresa')
+            ->groupByRaw($groupKey)
+            ->with(['categoria', 'marca']);
     }
 
     public static function getRelations(): array { return []; }

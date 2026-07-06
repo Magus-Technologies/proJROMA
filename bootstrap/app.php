@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\CheckEmpresa;
+use App\Http\Middleware\CheckPermission;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SessionTimeout;
 use Illuminate\Foundation\Application;
@@ -42,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Usar throttle normal en su lugar
         $middleware->alias([
             'check.empresa'      => CheckEmpresa::class,
+            'check.permission'   => CheckPermission::class,
             'session.timeout'    => SessionTimeout::class,
         ]);
 

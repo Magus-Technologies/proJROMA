@@ -9,7 +9,6 @@ use App\Models\Traits\Auditable;
 class Caja extends Model
 {
     use Auditable;
-{
     protected $table = 'cajas';
     public $timestamps = false;
     protected $fillable = [

@@ -11,7 +11,6 @@ use App\Models\Traits\Auditable;
 class TmsDespacho extends Model
 {
     use Auditable;
-{
     protected $table = 'tms_despachos';
     protected $guarded = [];
 

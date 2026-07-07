@@ -7,7 +7,6 @@ use App\Models\Traits\Auditable;
 class Traslado extends Model
 {
     use Auditable;
-{
     protected $table      = 'traslados';
     protected $primaryKey = 'id_traslado';
     public    $timestamps = false;

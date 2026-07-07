@@ -101,16 +101,18 @@ return [
             'sslmode' => 'prefer',
         ],
 
-        'mongodb' => [
-            'driver' => 'mongodb',
-            'host' => env('MONGO_DB_HOST', '127.0.0.1'),
-            'port' => env('MONGO_DB_PORT', 27017),
-            'database' => env('MONGO_DB_DATABASE', 'projroma_audit'),
-            'username' => env('MONGO_DB_USERNAME', ''),
-            'password' => env('MONGO_DB_PASSWORD', ''),
-            'options' => [
-                'database' => env('MONGO_DB_AUTH_DB', 'admin'),
-            ],
+        'pgsql_audit' => [
+            'driver' => 'pgsql',
+            'host' => env('DB_AUDIT_HOST', '127.0.0.1'),
+            'port' => env('DB_AUDIT_PORT', '5432'),
+            'database' => env('DB_AUDIT_DATABASE', 'projroma_audit'),
+            'username' => env('DB_AUDIT_USERNAME', 'postgres'),
+            'password' => env('DB_AUDIT_PASSWORD', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
         ],
 
         'sqlsrv' => [

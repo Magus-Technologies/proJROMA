@@ -8,7 +8,6 @@ use App\Models\Traits\Auditable;
 class Compra extends Model
 {
     use Auditable;
-{
     protected $table      = 'compras';
     protected $primaryKey = 'id_compra';
     public    $timestamps = false;

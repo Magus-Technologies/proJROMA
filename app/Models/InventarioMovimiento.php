@@ -7,7 +7,7 @@ use App\Models\Traits\Auditable;
 class InventarioMovimiento extends Model
 {
     use Auditable;
-{
+
     protected $table      = 'inventario_movimientos';
     protected $primaryKey = 'id_movimiento';
     public    $timestamps = false;

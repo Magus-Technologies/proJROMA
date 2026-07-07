@@ -2,12 +2,12 @@
 
 namespace App\Models;
 
-use MongoDB\Laravel\Eloquent\Model;
+use Illuminate\Database\Eloquent\Model;
 
 class Audit extends Model
 {
-    protected $connection = 'mongodb';
-    protected $collection = 'audits';
+    protected $connection = 'pgsql_audit';
+    protected $table = 'audits';
 
     protected $fillable = [
         'user_id',
@@ -26,8 +26,8 @@ class Audit extends Model
     ];
 
     protected $casts = [
-        'old_values' => 'array',
-        'new_values' => 'array',
-        'created_at' => 'datetime',
+        'old_values'  => 'array',
+        'new_values'  => 'array',
+        'created_at'  => 'datetime',
     ];
 }

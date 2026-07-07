@@ -487,6 +487,7 @@ class CreateVenta extends CreateRecord
                     'total'       => $lineaTotal,
                     'igv_prod'    => 0,
                     'descuento'   => 0,
+                    'costo'       => (float) ($producto->costo ?? 0),
                 ]);
 
                 $anterior = (int) $producto->cantidad;

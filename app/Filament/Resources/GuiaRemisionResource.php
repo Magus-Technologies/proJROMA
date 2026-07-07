@@ -148,7 +148,8 @@ class GuiaRemisionResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListGuiasRemision::route('/'),
+            'index'  => Pages\ListGuiasRemision::route('/'),
+            'create' => Pages\CreateGuiaRemision::route('/create'),
         ];
     }
 }

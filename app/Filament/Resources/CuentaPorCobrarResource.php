@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\CuentaPorCobrarResource\Pages;
 use App\Models\DiasVenta;
+use App\Services\CajaService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
@@ -136,12 +137,28 @@ class CuentaPorCobrarResource extends Resource
                             ->required(),
                     ])
                     ->action(function (DiasVenta $record, array $data): void {
+                        $idUsuario = (int) auth()->user()->usuario_id;
+
                         $record->update([
                             'estado'          => '1',
                             'tipo_pago'       => $data['tipo_pago'],
                             'fecha_pago_real' => now()->toDateString(),
-                            'id_usuario'      => (int) auth()->user()->usuario_id,
+                            'id_usuario'      => $idUsuario,
                         ]);
+
+                        $documento = $record->venta
+                            ? "{$record->venta->serie}-" . str_pad($record->venta->numero, 8, '0', STR_PAD_LEFT)
+                            : "#{$record->id_venta}";
+
+                        app(CajaService::class)->registrarCobro(
+                            idUsuario:    $idUsuario,
+                            monto:        (float) $record->monto,
+                            tipoPago:     $data['tipo_pago'],
+                            idVenta:      $record->id_venta,
+                            documento:    $documento,
+                            idDiasVenta:  $record->dias_venta_id,
+                            categoria:    'COBRO',
+                        );
 
                         Notification::make()->success()->title('Cobro registrado')->send();
                     }),

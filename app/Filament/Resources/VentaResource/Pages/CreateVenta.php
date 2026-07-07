@@ -9,6 +9,7 @@ use App\Models\Cotizacion;
 use App\Models\CuotaCotizacion;
 use App\Models\DiasVenta;
 use App\Models\DocumentoEmpresa;
+use App\Services\CajaService;
 use App\Models\InventarioMovimiento;
 use App\Models\MotivoMovimiento;
 use App\Models\Producto;
@@ -509,7 +510,7 @@ class CreateVenta extends CreateRecord
             }
 
             foreach ($data['lista_pagos'] ?? [] as $pago) {
-                DiasVenta::create([
+                $dv = DiasVenta::create([
                     'id_venta'   => $venta->id_venta,
                     'fecha'      => $pago['fecha'],
                     'monto'      => $pago['monto'],
@@ -517,6 +518,18 @@ class CreateVenta extends CreateRecord
                     'tipo_pago'  => $pago['tipo_pago'] ?? 'EFECTIVO',
                     'id_usuario' => $usuario,
                 ]);
+
+                if (($pago['pagado'] ?? false)) {
+                    app(CajaService::class)->registrarCobro(
+                        idUsuario:   $usuario,
+                        monto:       (float) $pago['monto'],
+                        tipoPago:    $pago['tipo_pago'] ?? 'EFECTIVO',
+                        idVenta:     $venta->id_venta,
+                        documento:   $doc,
+                        idDiasVenta: $dv->dias_venta_id,
+                        categoria:   'VENTA',
+                    );
+                }
             }
 
             Cliente::where('id_cliente', $data['id_cliente'])->update([

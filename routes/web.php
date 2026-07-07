@@ -45,9 +45,7 @@ Route::middleware('auth')->group(function () {
 // ── Formularios POS aún en Blade (enlazados desde Filament) ────────────────────
 Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function () {
 
-    // Dashboard
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-   Route::get('/home', [DashboardController::class, 'index'])->name('home');
+
     // ── Ventas ────────────────────────────────────────────────────────────
     Route::prefix('ventas')->name('ventas.')->group(function () {
         Route::get('/',                       [VentasController::class, 'index'])->name('index');

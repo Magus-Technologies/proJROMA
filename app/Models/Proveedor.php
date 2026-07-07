@@ -2,8 +2,11 @@
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
+use App\Models\Traits\Auditable;
+
 class Proveedor extends Model
 {
+    use Auditable;
     protected $table      = 'proveedores';
     protected $primaryKey = 'proveedor_id';
     public    $timestamps = false;

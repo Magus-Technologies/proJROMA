@@ -2,8 +2,11 @@
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
+use App\Models\Traits\Auditable;
+
 class NotaElectronica extends Model
 {
+    use Auditable;
     protected $table      = 'notas_electronicas';
     protected $primaryKey = 'nota_id';
     public    $timestamps = false;

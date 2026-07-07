@@ -39,6 +39,16 @@ class EmpresaResource extends Resource
 
     protected static ?string $label = 'Empresa';
 
+    /**
+     * Por ahora el sistema admite UNA sola empresa. Este guard bloquea la
+     * creación tanto en el botón como en el acceso directo a la página de
+     * crear (por URL), mientras ya exista al menos una empresa.
+     */
+    public static function canCreate(): bool
+    {
+        return Empresa::count() === 0;
+    }
+
     public static function table(Table $table): Table
     {
         return $table

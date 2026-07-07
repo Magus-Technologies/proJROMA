@@ -12,6 +12,8 @@ class ListEmpresas extends ListRecords
 
     protected function getHeaderActions(): array
     {
+        // El botón "Crear" se oculta solo cuando ya existe una empresa:
+        // CreateAction respeta EmpresaResource::canCreate() (límite de 1).
         return [
             CreateAction::make()
                 ->modalWidth('5xl')

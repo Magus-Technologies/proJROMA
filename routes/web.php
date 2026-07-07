@@ -144,6 +144,7 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/compras/pdf/{id}', [ReportesController::class, 'reporteCompra'])->name('compra.pdf');
         Route::get('/clientes/{id}',    [ReportesController::class, 'reporteCliente'])->whereNumber('id')->name('cliente');
         Route::get('/clientes/xls',     [ClientesController::class, 'exportarExcel'])->name('clientes.xls');
+        Route::get('/cotizaciones',     [ReportesController::class, 'reporteCotizaciones'])->name('cotizaciones');
         Route::get('/proveedores/xls',  [ProveedoresController::class, 'exportarExcel'])->name('proveedores.xls');
         Route::get('/ingresos/egresos/{id}', [ReportesController::class, 'ingresosEgresos'])->name('ingresos.egresos');
     });

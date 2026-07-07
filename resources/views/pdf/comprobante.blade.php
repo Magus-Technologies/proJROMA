@@ -40,6 +40,11 @@
                     <div style="font-size: 14pt; font-weight: bold; color: #dc2626; line-height: 1.1;">
                         {{ $empresa->razon_social ?? 'EMPRESA' }}
                     </div>
+                    @if(!empty($empresa->propaganda))
+                    <div style="font-size: 8pt; color: #666; font-style: italic; margin-top: 2px;">
+                        {{ $empresa->propaganda }}
+                    </div>
+                    @endif
                     <div style="font-size: 8pt; color: #555; margin-top: 5px; line-height: 1.6;">
                         {{ $empresa->direccion ?? '' }}<br>
                         @if($empresa->telefono ?? '')<span style="font-weight:bold;">TELEF.:</span> {{ $empresa->telefono }}<br>@endif

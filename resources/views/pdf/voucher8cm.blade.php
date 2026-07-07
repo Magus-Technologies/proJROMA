@@ -27,6 +27,9 @@
 <div style="text-align:center;margin-bottom:4px"><img src="{{ $logoBase64 }}" style="max-height:40px;max-width:160px;"></div>
 @endif
 <div class="empresa-nom">{{ $empresa?->razon_social ?? 'EMPRESA' }}</div>
+@if(!empty($empresa?->propaganda))
+<div class="center" style="font-size:8px;font-style:italic">{{ $empresa->propaganda }}</div>
+@endif
 <div class="center" style="font-size:8px">RUC: {{ $empresa?->ruc ?? '-' }}</div>
 <div class="center" style="font-size:8px">{{ $empresa?->direccion ?? '' }}</div>
 <div class="center" style="font-size:8px">Telf: {{ $empresa?->telefono ?? '' }}</div>

@@ -2,7 +2,11 @@
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
+use App\Models\Traits\Auditable;
+
 class ArqueoDiario extends Model
+{
+    use Auditable;
 {
     protected $table      = 'arqueos_diarios';
     protected $primaryKey = 'arqueo_id';

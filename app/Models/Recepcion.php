@@ -2,7 +2,11 @@
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
+use App\Models\Traits\Auditable;
+
 class Recepcion extends Model
+{
+    use Auditable;
 {
     protected $table      = 'recepciones';
     protected $primaryKey = 'id_recepcion';

@@ -12,12 +12,14 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use App\Models\Traits\Auditable;
 
 // ── Laravel 13: atributos PHP en lugar de propiedades de clase ────────
 #[Table('usuarios')]
+
 class User extends Authenticatable implements FilamentUser, HasAvatar
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, Auditable;
 
     // En Laravel 13 podemos usar #[Table] arriba, pero mantenemos estas
     // propiedades para compatibilidad con paquetes externos

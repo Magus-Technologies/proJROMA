@@ -3,7 +3,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 
+use App\Models\Traits\Auditable;
+
 class Compra extends Model
+{
+    use Auditable;
 {
     protected $table      = 'compras';
     protected $primaryKey = 'id_compra';

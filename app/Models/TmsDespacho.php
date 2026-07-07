@@ -6,7 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+use App\Models\Traits\Auditable;
+
 class TmsDespacho extends Model
+{
+    use Auditable;
 {
     protected $table = 'tms_despachos';
     protected $guarded = [];

@@ -3,7 +3,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 
+use App\Models\Traits\Auditable;
+
 class Cotizacion extends Model
+{
+    use Auditable;
 {
     protected $table      = 'cotizaciones';
     protected $primaryKey = 'cotizacion_id';

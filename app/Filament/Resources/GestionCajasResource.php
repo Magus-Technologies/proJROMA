@@ -90,10 +90,6 @@ class GestionCajasResource extends Resource
                     ->label('Responsable')
                     ->placeholder('— Sin responsable —'),
 
-                TextColumn::make('padre.nombre')
-                    ->label('Caja Padre')
-                    ->placeholder('—'),
-
                 TextColumn::make('saldo_actual')
                     ->label('Saldo Actual')
                     ->money('PEN')
@@ -192,7 +188,7 @@ class GestionCajasResource extends Resource
     {
         return parent::getEloquentQuery()
             ->where('id_empresa', (int) session('id_empresa'))
-            ->with(['responsable', 'padre']);
+            ->with(['responsable']);
     }
 
     public static function getRelations(): array

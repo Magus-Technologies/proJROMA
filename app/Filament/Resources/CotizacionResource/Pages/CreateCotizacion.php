@@ -209,7 +209,7 @@ class CreateCotizacion extends CreateRecord
                                         $falta = round($total - $enCuotas, 2);
 
                                         $cuadra = abs($falta) < 0.01;
-                                        $color  = $cuadra ? 'rgb(22,163,74)' : 'rgb(220,38,38)';
+                                        $rgb    = $cuadra ? '22,163,74' : '220,38,38';
                                         $estado = $cuadra
                                             ? '✓ Las cuotas cuadran con el total'
                                             : ($falta > 0
@@ -217,11 +217,11 @@ class CreateCotizacion extends CreateRecord
                                                 : 'Exceden en S/ ' . number_format(abs($falta), 2));
 
                                         return new HtmlString(
-                                            '<div style="display:flex;justify-content:space-between;gap:12px;'
-                                            . 'padding:10px 14px;border-radius:10px;border:1px solid ' . $color . '33;background:' . $color . '11">'
-                                            . '<span style="opacity:.8">Total: <strong>S/ ' . number_format($total, 2) . '</strong>'
+                                            '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;'
+                                            . 'padding:11px 14px;border-radius:12px;border:1px solid rgba(' . $rgb . ',.35);background:rgba(' . $rgb . ',.08)">'
+                                            . '<span style="opacity:.85;font-size:.85rem">Total: <strong>S/ ' . number_format($total, 2) . '</strong>'
                                             . ' &nbsp;·&nbsp; En cuotas: <strong>S/ ' . number_format($enCuotas, 2) . '</strong></span>'
-                                            . '<span style="font-weight:700;color:' . $color . '">' . $estado . '</span>'
+                                            . '<span style="font-weight:700;color:rgb(' . $rgb . ')">' . $estado . '</span>'
                                             . '</div>'
                                         );
                                     }),
@@ -302,39 +302,52 @@ class CreateCotizacion extends CreateRecord
 
                                         if ($clientes->isEmpty()) {
                                             return new HtmlString(
-                                                '<div style="padding:10px 12px;opacity:.5;font-size:.875rem">Sin coincidencias — usá el botón + para crear uno nuevo</div>'
+                                                '<div style="padding:12px 14px;border:1px dashed rgba(148,163,184,.5);border-radius:12px;'
+                                                . 'color:#94a3b8;font-size:.85rem;text-align:center">'
+                                                . 'Sin coincidencias · tocá el botón <strong>+</strong> para crear uno nuevo</div>'
                                             );
                                         }
 
                                         $filas = $clientes->map(fn (Cliente $c): string =>
-                                            '<button type="button" wire:click="seleccionarCliente(' . $c->id_cliente . ')"'
-                                            . ' style="display:flex;justify-content:space-between;gap:12px;width:100%;text-align:left;'
-                                            . 'padding:9px 12px;border-bottom:1px solid rgba(128,128,128,.15);cursor:pointer;font-size:.875rem">'
+                                            '<button type="button" wire:click="seleccionarCliente(' . $c->id_cliente . ')" '
+                                            . 'onmouseover="this.style.background=\'rgba(59,130,246,.08)\'" '
+                                            . 'onmouseout="this.style.background=\'transparent\'" '
+                                            . 'style="display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;'
+                                            . 'padding:10px 14px;border:0;border-bottom:1px solid rgba(148,163,184,.18);background:transparent;'
+                                            . 'cursor:pointer;font-size:.875rem;transition:background .12s">'
                                             . '<span style="font-weight:600">' . e($c->datos) . '</span>'
-                                            . '<span style="white-space:nowrap;opacity:.65">' . e($c->documento ?: '—') . '</span>'
+                                            . '<span style="white-space:nowrap;opacity:.6;font-family:monospace;font-size:.8rem">' . e($c->documento ?: '—') . '</span>'
                                             . '</button>'
                                         )->implode('');
 
                                         return new HtmlString(
-                                            '<div style="border:1px solid rgba(128,128,128,.25);border-radius:10px;overflow:hidden">'
-                                            . $filas . '</div>'
+                                            '<div style="border:1px solid rgba(148,163,184,.35);border-radius:12px;overflow:hidden;'
+                                            . 'box-shadow:0 4px 12px rgba(0,0,0,.06)">' . $filas . '</div>'
                                         );
                                     }),
 
                                 Placeholder::make('cliente_elegido')
-                                    ->label('Cliente')
+                                    ->hiddenLabel()
                                     ->visible(fn (callable $get): bool => filled($get('id_cliente')))
                                     ->content(function (callable $get): HtmlString {
                                         $cliente = Cliente::find($get('id_cliente'));
+                                        $inicial = mb_strtoupper(mb_substr($cliente?->datos ?? 'C', 0, 1));
 
                                         return new HtmlString(
-                                            '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;'
-                                            . 'padding:10px 14px;border-radius:10px;border:1px solid rgb(59,130,246)33;background:rgb(59,130,246)11">'
-                                            . '<div><strong>' . e($cliente?->datos ?? 'Cliente') . '</strong>'
-                                            . ($cliente?->documento ? '<br><span style="opacity:.65;font-size:.8rem">' . e($cliente->documento) . '</span>' : '')
+                                            '<div style="display:flex;align-items:center;gap:12px;'
+                                            . 'padding:12px 14px;border-radius:12px;border:1px solid rgba(59,130,246,.35);background:rgba(59,130,246,.07)">'
+                                            . '<div style="flex-shrink:0;width:38px;height:38px;border-radius:50%;background:rgb(59,130,246);'
+                                            . 'color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem">'
+                                            . e($inicial) . '</div>'
+                                            . '<div style="flex:1;min-width:0">'
+                                            . '<div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' . e($cliente?->datos ?? 'Cliente') . '</div>'
+                                            . ($cliente?->documento
+                                                ? '<div style="opacity:.6;font-size:.8rem;font-family:monospace">' . e($cliente->documento) . '</div>'
+                                                : '')
                                             . '</div>'
                                             . '<button type="button" wire:click="limpiarCliente" '
-                                            . 'style="font-size:.8rem;color:rgb(220,38,38);white-space:nowrap;cursor:pointer">✕ Cambiar</button>'
+                                            . 'style="flex-shrink:0;font-size:.78rem;font-weight:600;color:rgb(220,38,38);white-space:nowrap;cursor:pointer;'
+                                            . 'padding:5px 10px;border-radius:8px;border:1px solid rgba(220,38,38,.3);background:transparent">✕ Cambiar</button>'
                                             . '</div>'
                                         );
                                     })

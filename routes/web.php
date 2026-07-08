@@ -11,8 +11,10 @@ use App\Http\Controllers\VentasController;
 use Illuminate\Support\Facades\Route;
 
 // ── Todo el sistema vive en el panel de Filament ──────────────────────────────
-Route::redirect('/', '/panel')->name('dashboard');
-Route::redirect('/home', '/panel')->name('home');
+// Usamos url('/panel') (no una ruta literal) para que respete la subcarpeta
+// del despliegue — ej. /molitalia/panel en el servidor.
+Route::get('/', fn () => redirect(url('/panel')))->name('dashboard');
+Route::get('/home', fn () => redirect(url('/panel')))->name('home');
 
 // Login del panel servido también en /login (misma página Livewire de Filament)
 Route::get('/login', \App\Filament\Pages\Auth\Login::class)

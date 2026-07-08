@@ -182,7 +182,7 @@ class NotaElectronicaApiController extends Controller
         $apiUrl = config('sunat.api_url');
 
         try {
-            $genResp = Http::timeout(30)->post("{$apiUrl}/v1/generar/nota", $payload);
+            $genResp = Http::timeout(30)->post("{$apiUrl}/api/v1/generar/nota", $payload);
             $genData = $genResp->json();
 
             if (!($genData['estado'] ?? false)) {
@@ -193,7 +193,7 @@ class NotaElectronicaApiController extends Controller
             $hash          = $genData['data']['hash'];
             $nombreArchivo = $genData['data']['nombre_archivo'];
 
-            $envResp = Http::timeout(30)->post("{$apiUrl}/v1/enviar/documento/electronico", [
+            $envResp = Http::timeout(30)->post("{$apiUrl}/api/v1/enviar/documento/electronico", [
                 'ruc'                 => $cred['ruc'],
                 'usuario'             => $cred['usuario'],
                 'clave'               => $cred['clave'],

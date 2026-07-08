@@ -167,6 +167,23 @@ class VentaResource extends Resource
                 )->iconButton()->tooltip('Ver comprobante'),
 
                 ActionGroup::make([
+                Action::make('regenerar_xml')
+                    ->label('Regenerar XML')
+                    ->icon('heroicon-m-arrow-path')
+                    ->color('warning')
+                    ->visible(fn (Venta $record): bool =>
+                        $record->estado !== '0'
+                        && in_array((int) $record->id_tido, [1, 2], true)
+                        && $record->sunat_estado !== 'aceptado')
+                    ->requiresConfirmation()
+                    ->modalHeading('¿Regenerar el XML del comprobante?')
+                    ->modalDescription('Vuelve a generar el XML con los datos actuales. Útil tras corregir datos o cambios en el sistema.')
+                    ->action(function (Venta $record): void {
+                        $res = app(\App\Services\VentaSunatService::class)->generarXml($record);
+                        $n = Notification::make()->title($res['msg']);
+                        $res['ok'] ? $n->success()->send() : $n->danger()->persistent()->send();
+                    }),
+
                 Action::make('enviar_sunat')
                     ->label('Enviar a SUNAT')
                     ->icon('heroicon-m-paper-airplane')

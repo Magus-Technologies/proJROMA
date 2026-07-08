@@ -9,9 +9,8 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Emisión electrónica de facturas y boletas a SUNAT vía api-sunat-laravel.
- * Flujo sincrónico:
- *   1. generar/comprobante  → XML firmado (se guarda en storage local)
- *   2. enviar/documento/electronico → devuelve el CDR de inmediato
+ *   generarXml() → firma el XML y lo guarda en storage (NO envía)
+ *   enviar()     → manda a SUNAT el XML ya generado y guarda el CDR (sincrónico)
  */
 class VentaSunatService
 {
@@ -22,7 +21,8 @@ class VentaSunatService
         $this->apiUrl = rtrim((string) config('sunat.api_url'), '/');
     }
 
-    public function enviar(Venta $venta): array
+    /** Genera y firma el XML, lo guarda en el storage local. No envía a SUNAT. */
+    public function generarXml(Venta $venta): array
     {
         $venta->loadMissing(['cliente', 'productosVenta']);
         $empresa = Empresa::find($venta->id_empresa);
@@ -31,22 +31,15 @@ class VentaSunatService
             return ['ok' => false, 'msg' => 'No se encontró la empresa de la venta.'];
         }
 
-        // Solo factura (id_tido 2) y boleta (id_tido 1) van a SUNAT
-        $documento = match ((int) $venta->id_tido) {
-            2       => 'factura',
-            1       => 'boleta',
-            default => null,
-        };
-
+        $documento = $this->tipoDocumento($venta);
         if (! $documento) {
             return ['ok' => false, 'msg' => 'Este tipo de documento no se envía a SUNAT (solo factura o boleta).'];
         }
 
         $cred = $empresa->credencialesSunat();
 
-        // ── 1) Generar el XML firmado ──────────────────────────────────────
         try {
-            $gen = Http::timeout(30)->post("{$this->apiUrl}/v1/generar/comprobante", $this->payload($venta, $empresa, $cred, $documento));
+            $gen = Http::timeout(30)->post("{$this->apiUrl}/api/v1/generar/comprobante", $this->payload($venta, $empresa, $cred, $documento));
             $genData = $gen->json();
         } catch (\Throwable $e) {
             return ['ok' => false, 'msg' => 'No se pudo conectar con el servicio SUNAT (generar).'];
@@ -60,13 +53,50 @@ class VentaSunatService
         $xml    = $genData['data']['contenido_xml'];
         $hash   = $genData['data']['hash'] ?? null;
 
-        // Guardar el XML en el storage de ESTE sistema
+        // Guardar el XML (crudo, legible) en el storage de ESTE sistema
         $xmlRuta = "sunat/xml/{$cred['ruc']}/{$nombre}.xml";
-        Storage::disk('local')->put($xmlRuta, base64_decode($xml, true) ?: $xml);
+        Storage::disk('local')->put($xmlRuta, $xml);
 
-        // ── 2) Enviar a SUNAT (CDR inmediato) ──────────────────────────────
+        $venta->update([
+            'xml_ruta'      => $xmlRuta,
+            'hash_cpe'      => $hash,
+            // No pisar un estado ya aceptado
+            'sunat_estado'  => $venta->sunat_estado === 'aceptado' ? 'aceptado' : 'pendiente',
+            'sunat_mensaje' => $venta->sunat_estado === 'aceptado' ? $venta->sunat_mensaje : 'XML generado, pendiente de envío.',
+        ]);
+
+        return ['ok' => true, 'msg' => "XML generado y guardado ({$nombre}.xml).", 'nombre' => $nombre, 'xml' => $xml];
+    }
+
+    /** Envía a SUNAT el XML ya generado (lo genera si aún no existe) y guarda el CDR. */
+    public function enviar(Venta $venta): array
+    {
+        $empresa = Empresa::find($venta->id_empresa);
+        if (! $empresa) {
+            return ['ok' => false, 'msg' => 'No se encontró la empresa de la venta.'];
+        }
+
+        if (! $this->tipoDocumento($venta)) {
+            return ['ok' => false, 'msg' => 'Este tipo de documento no se envía a SUNAT (solo factura o boleta).'];
+        }
+
+        $cred = $empresa->credencialesSunat();
+
+        // Usar el XML ya generado (el que revisó el usuario); si no existe, generarlo ahora.
+        if (blank($venta->xml_ruta) || ! Storage::disk('local')->exists($venta->xml_ruta)) {
+            $gen = $this->generarXml($venta);
+            if (! $gen['ok']) {
+                return $gen;
+            }
+            $nombre = $gen['nombre'];
+            $xml    = $gen['xml'];
+        } else {
+            $nombre = pathinfo($venta->xml_ruta, PATHINFO_FILENAME);
+            $xml    = Storage::disk('local')->get($venta->xml_ruta);
+        }
+
         try {
-            $env = Http::timeout(40)->post("{$this->apiUrl}/v1/enviar/documento/electronico", [
+            $env = Http::timeout(40)->post("{$this->apiUrl}/api/v1/enviar/documento/electronico", [
                 'ruc'                 => $cred['ruc'],
                 'usuario'             => $cred['usuario'],
                 'clave'               => $cred['clave'],
@@ -76,15 +106,11 @@ class VentaSunatService
             ]);
             $envData = $env->json();
         } catch (\Throwable $e) {
-            $venta->update(['xml_ruta' => $xmlRuta, 'hash_cpe' => $hash]);
-
             return ['ok' => false, 'msg' => 'No se pudo conectar con el servicio SUNAT (enviar).'];
         }
 
         if (! ($envData['estado'] ?? false)) {
             $venta->update([
-                'xml_ruta'      => $xmlRuta,
-                'hash_cpe'      => $hash,
                 'sunat_estado'  => 'rechazado',
                 'sunat_mensaje' => $envData['mensaje'] ?? 'Rechazado por SUNAT.',
             ]);
@@ -100,9 +126,7 @@ class VentaSunatService
         }
 
         $venta->update([
-            'xml_ruta'      => $xmlRuta,
             'cdr_ruta'      => $cdrRuta,
-            'hash_cpe'      => $hash,
             'enviado_sunat' => '1',
             'sunat_estado'  => 'aceptado',
             'sunat_mensaje' => 'Aceptado por SUNAT.',
@@ -111,13 +135,21 @@ class VentaSunatService
         return ['ok' => true, 'msg' => 'Comprobante aceptado por SUNAT.'];
     }
 
+    /** 'factura' | 'boleta' | null según el tipo de documento de la venta. */
+    private function tipoDocumento(Venta $venta): ?string
+    {
+        return match ((int) $venta->id_tido) {
+            2       => 'factura',
+            1       => 'boleta',
+            default => null,
+        };
+    }
+
     /** Arma el JSON que espera api-sunat-laravel para generar el comprobante. */
     private function payload(Venta $venta, Empresa $empresa, array $cred, string $documento): array
     {
         $cliente = $venta->cliente;
         $docCli  = (string) ($cliente?->documento ?? '');
-
-        // Boleta: cliente puede ser genérico (DNI). Factura: exige RUC.
         $tipoDocCli = strlen($docCli) === 11 ? '6' : '1';
 
         return [
@@ -148,7 +180,7 @@ class VentaSunatService
                 'descripcion'  => $p->descripcion ?: 'Producto',
                 'unidad'       => $p->medida ?: 'NIU',
                 'cantidad'     => (float) $p->cantidad,
-                'precio'       => (float) $p->precio, // precio con IGV incluido; la API desglosa
+                'precio'       => (float) $p->precio,
             ])->values()->toArray(),
         ];
     }

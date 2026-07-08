@@ -531,6 +531,33 @@ class CreateVenta extends CreateRecord
         });
     }
 
+    protected function afterCreate(): void
+    {
+        // Generar el XML del comprobante al crear la venta (sin enviar). Es
+        // best-effort: si el servicio SUNAT falla, la venta ya quedó creada y
+        // se puede regenerar después con el botón "Regenerar XML".
+        $venta = $this->getRecord();
+
+        if (! in_array((int) $venta->id_tido, [1, 2], true)) {
+            return; // solo factura/boleta
+        }
+
+        try {
+            $res = app(\App\Services\VentaSunatService::class)->generarXml($venta);
+            if (! $res['ok']) {
+                Notification::make()->warning()
+                    ->title('Venta creada, pero el XML no se generó')
+                    ->body($res['msg'] . ' Podés regenerarlo desde la lista.')
+                    ->send();
+            }
+        } catch (\Throwable $e) {
+            Notification::make()->warning()
+                ->title('Venta creada, pero el XML no se generó')
+                ->body('Podés regenerarlo desde la lista con "Regenerar XML".')
+                ->send();
+        }
+    }
+
     protected function getRedirectUrl(): string
     {
         // La lista abre automáticamente el modal de vista previa del comprobante

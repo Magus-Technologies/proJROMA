@@ -14,6 +14,9 @@ class TmsDespachoApiController extends Controller
     /** id_tido que representa un "pedido" (Nota de Venta). */
     private const TIDO_PEDIDO = 6;
 
+    /** Estado de cotización cuando ya fue convertida a boleta/factura. */
+    private const ESTADO_FACTURADO = '3';
+
     private function empresa(): int  { return (int) session('id_empresa'); }
     private function sucursal(): int { return (int) session('sucursal'); }
     private function usuarioId(): int { return (int) (auth()->user()->usuario_id ?? 0); }
@@ -103,6 +106,7 @@ class TmsDespachoApiController extends Controller
             ->whereDate('c.fecha', '>=', $r->fecha_desde)
             ->whereDate('c.fecha', '<=', $r->fecha_hasta)
             ->where('c.id_tido', self::TIDO_PEDIDO)
+            ->where('c.estado', self::ESTADO_FACTURADO)
             ->when($yaDespachados, fn ($q) => $q->whereNotIn('c.cotizacion_id', $yaDespachados))
             ->orderBy('cl.mercado')
             ->select(
@@ -208,10 +212,19 @@ class TmsDespachoApiController extends Controller
             ->join('clientes as cl', 'cl.id_cliente', '=', 'c.id_cliente')
             ->where('c.id_empresa', $this->empresa())
             ->whereIn('c.cotizacion_id', $r->pedidos)
-            ->select('c.cotizacion_id', 'c.total', 'c.id_cliente', 'cl.mercado as id_mercado')
+            ->select('c.cotizacion_id', 'c.numero', 'c.estado', 'c.total', 'c.id_cliente', 'cl.mercado as id_mercado')
             ->get();
 
         if ($rows->isEmpty()) return response()->json(['res' => false, 'msg' => 'No hay pedidos válidos.'], 422);
+
+        $sinFacturar = $rows->filter(fn ($row) => (string) $row->estado !== self::ESTADO_FACTURADO)->pluck('numero');
+        if ($sinFacturar->isNotEmpty()) {
+            return response()->json([
+                'res' => false,
+                'msg' => 'Pedidos sin facturar: ' . $sinFacturar->implode(', ') .
+                    '. Solo se pueden despachar pedidos convertidos a boleta o factura.',
+            ], 422);
+        }
 
         $pesos = $this->pesosPorPedido($rows->pluck('cotizacion_id')->all());
         $pesoTotal = 0;

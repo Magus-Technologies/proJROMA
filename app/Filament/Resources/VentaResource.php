@@ -39,7 +39,7 @@ class VentaResource extends Resource
                     ->label('#')
                     ->sortable(),
 
-                TextColumn::make('tipoDocumento.tipo_doc')
+                TextColumn::make('tipoDocSunat.nombre')
                     ->label('Tipo')
                     ->placeholder('—')
                     ->toggleable(),

@@ -160,11 +160,13 @@ class UsuarioResource extends Resource
                     ->defaultImageUrl(fn (User $record) => 'https://ui-avatars.com/api/?name='.urlencode($record->nombre_completo).'&color=ffffff&background=3b82f6&size=36'),
                 TextColumn::make('nombre_completo')
                     ->label('Nombre')
-                    ->searchable(query: fn ($q, $s) =>
-                        $q->where('nombres', 'like', "%{$s}%")
-                          ->orWhere('apellidos', 'like', "%{$s}%")
+                    ->searchable(query: fn ($query, $search) =>
+                        $query->where(fn ($q) => $q
+                            ->where('nombres', 'like', "%{$search}%")
+                            ->orWhere('apellidos', 'like', "%{$search}%")
+                        )
                     )
-                    ->sortable(query: fn ($q, $d) => $q->orderBy('nombres', $d)),
+                    ->sortable(query: fn ($query, $direction) => $query->orderBy('nombres', $direction)),
                 TextColumn::make('usuario')
                     ->label('Usuario')->searchable()->sortable(),
                 TextColumn::make('email')

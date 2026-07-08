@@ -520,6 +520,8 @@ class CreateVenta extends CreateRecord
 
     protected function getRedirectUrl(): string
     {
-        return VentaResource::getUrl('view', ['record' => $this->getRecord()]);
+        // La lista abre automáticamente el modal de vista previa del comprobante
+        // recién creado; al cerrarlo, el usuario queda en el listado de ventas.
+        return VentaResource::getUrl('index', ['previsualizar' => $this->getRecord()->id_venta]);
     }
 }

@@ -69,16 +69,20 @@ class VentaResource extends Resource
                     ->money('PEN')
                     ->sortable(),
 
-                TextColumn::make('estado_sunat')
+                TextColumn::make('sunat_estado')
                     ->label('SUNAT')
                     ->badge()
-                    ->getStateUsing(fn (Venta $record): string =>
-                        $record->sunat?->estado_sunat ?? 'NO ENVIADO')
-                    ->color(fn (string $state): string => match ($state) {
-                        'ACEPTADO'   => 'success',
-                        'NO ENVIADO' => 'danger',
-                        default      => 'warning',
-                    }),
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'aceptado'  => 'Aceptado',
+                        'rechazado' => 'Rechazado',
+                        default     => 'Pendiente',
+                    })
+                    ->color(fn (?string $state): string => match ($state) {
+                        'aceptado'  => 'success',
+                        'rechazado' => 'danger',
+                        default     => 'warning',
+                    })
+                    ->tooltip(fn (Venta $record): ?string => $record->sunat_mensaje),
 
                 TextColumn::make('estado')
                     ->label('Estado')
@@ -163,6 +167,39 @@ class VentaResource extends Resource
                 )->iconButton()->tooltip('Ver comprobante'),
 
                 ActionGroup::make([
+                Action::make('enviar_sunat')
+                    ->label('Enviar a SUNAT')
+                    ->icon('heroicon-m-paper-airplane')
+                    ->color('success')
+                    ->visible(fn (Venta $record): bool =>
+                        $record->estado !== '0'
+                        && in_array((int) $record->id_tido, [1, 2], true)
+                        && $record->sunat_estado !== 'aceptado')
+                    ->requiresConfirmation()
+                    ->modalHeading('¿Enviar este comprobante a SUNAT?')
+                    ->modalDescription('Se generará el XML, se guardará y se enviará. Verás el resultado (CDR) al instante.')
+                    ->action(function (Venta $record): void {
+                        $res = app(\App\Services\VentaSunatService::class)->enviar($record);
+                        $n = Notification::make()->title($res['msg']);
+                        $res['ok'] ? $n->success()->send() : $n->danger()->persistent()->send();
+                    }),
+
+                Action::make('descargar_xml')
+                    ->label('Descargar XML')
+                    ->icon('heroicon-m-code-bracket')
+                    ->color('gray')
+                    ->visible(fn (Venta $record): bool => filled($record->xml_ruta))
+                    ->action(fn (Venta $record) =>
+                        response()->download(storage_path('app/' . $record->xml_ruta))),
+
+                Action::make('descargar_cdr')
+                    ->label('Descargar CDR')
+                    ->icon('heroicon-m-document-check')
+                    ->color('gray')
+                    ->visible(fn (Venta $record): bool => filled($record->cdr_ruta))
+                    ->action(fn (Venta $record) =>
+                        response()->download(storage_path('app/' . $record->cdr_ruta))),
+
                 Action::make('crear_guia')
                     ->label('Crear guía de remisión')
                     ->icon('heroicon-m-truck')

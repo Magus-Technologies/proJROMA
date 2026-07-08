@@ -9,10 +9,29 @@ use Filament\Forms\Components\Select;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Grid;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\On;
 
 class ListVentas extends ListRecords
 {
     protected static string $resource = VentaResource::class;
+
+    public function mount(): void
+    {
+        parent::mount();
+
+        // Al crear una venta se redirige acá con ?previsualizar={id}; abrimos
+        // el modal del comprobante y limpiamos la URL para que un refresh no lo reabra.
+        if ($id = (int) request()->query('previsualizar')) {
+            $this->dispatch('abrir-vista-previa', id: $id);
+            $this->js("history.replaceState({}, '', '" . VentaResource::getUrl('index') . "')");
+        }
+    }
+
+    #[On('abrir-vista-previa')]
+    public function abrirVistaPrevia(int $id): void
+    {
+        $this->mountTableAction('vista_previa', (string) $id);
+    }
 
     protected function getHeaderActions(): array
     {

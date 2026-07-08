@@ -18,6 +18,7 @@ class Venta extends Model
         'subtotal','estado','enviado_sunat','id_empresa','sucursal',
         'apli_igv','observacion','igv','medoto_pago_id','pagado',
         'id_vendedor','id_coti',
+        'sunat_estado','sunat_mensaje','hash_cpe','xml_ruta','cdr_ruta',
     ];
 
     protected $casts = [

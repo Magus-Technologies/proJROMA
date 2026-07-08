@@ -255,30 +255,88 @@ class CreateCotizacion extends CreateRecord
                                     ->required()
                                     ->columnSpanFull(),
 
-                                Select::make('id_cliente')
+                                Hidden::make('id_cliente'),
+
+                                TextInput::make('buscador_cliente')
                                     ->label('Cliente')
-                                    ->placeholder('Buscar por nombre o documento…')
-                                    ->searchable()
-                                    ->getSearchResultsUsing(fn (string $search): array => Cliente::where('id_empresa', (int) session('id_empresa'))
-                                        ->where(fn ($q) => $q
-                                            ->where('datos', 'like', "%{$search}%")
-                                            ->orWhere('documento', 'like', "%{$search}%"))
-                                        ->limit(30)
-                                        ->get()
-                                        ->mapWithKeys(fn (Cliente $c) => [
-                                            $c->id_cliente => $c->datos . ($c->documento ? " — {$c->documento}" : ''),
-                                        ])
-                                        ->toArray())
-                                    ->getOptionLabelUsing(fn ($value): ?string => Cliente::find($value)?->datos)
-                                    ->createOptionForm([
-                                        TextInput::make('documento')->label('RUC / DNI')->maxLength(15),
-                                        TextInput::make('datos')->label('Nombre / Razón Social')->required()->maxLength(200),
-                                        TextInput::make('telefono')->label('Teléfono')->tel()->maxLength(20),
-                                    ])
-                                    ->createOptionUsing(fn (array $data): int => Cliente::create(array_merge($data, [
-                                        'id_empresa' => (int) session('id_empresa'),
-                                    ]))->id_cliente)
-                                    ->required()
+                                    ->placeholder('🔍 Buscar cliente por nombre o documento…')
+                                    ->autocomplete(false)
+                                    ->dehydrated(false)
+                                    ->live(debounce: 300)
+                                    ->visible(fn (callable $get): bool => blank($get('id_cliente')))
+                                    ->suffixAction(
+                                        Action::make('nuevo_cliente')
+                                            ->icon('heroicon-m-user-plus')
+                                            ->tooltip('Crear cliente nuevo')
+                                            ->form([
+                                                TextInput::make('documento')->label('RUC / DNI')->maxLength(15),
+                                                TextInput::make('datos')->label('Nombre / Razón Social')->required()->maxLength(200),
+                                                TextInput::make('telefono')->label('Teléfono')->tel()->maxLength(20),
+                                            ])
+                                            ->action(function (array $data, callable $set): void {
+                                                $cliente = Cliente::create(array_merge($data, [
+                                                    'id_empresa' => (int) session('id_empresa'),
+                                                ]));
+                                                $set('id_cliente', $cliente->id_cliente);
+                                                $set('buscador_cliente', null);
+                                            })
+                                    )
+                                    ->columnSpanFull(),
+
+                                Placeholder::make('cliente_resultados')
+                                    ->hiddenLabel()
+                                    ->visible(fn (callable $get): bool => filled($get('buscador_cliente')) && blank($get('id_cliente')))
+                                    ->content(function (callable $get): HtmlString {
+                                        $busqueda = trim((string) $get('buscador_cliente'));
+                                        if ($busqueda === '') {
+                                            return new HtmlString('');
+                                        }
+
+                                        $clientes = Cliente::where('id_empresa', (int) session('id_empresa'))
+                                            ->where(fn ($q) => $q
+                                                ->where('datos', 'like', "%{$busqueda}%")
+                                                ->orWhere('documento', 'like', "%{$busqueda}%"))
+                                            ->limit(8)
+                                            ->get();
+
+                                        if ($clientes->isEmpty()) {
+                                            return new HtmlString(
+                                                '<div style="padding:10px 12px;opacity:.5;font-size:.875rem">Sin coincidencias — usá el botón + para crear uno nuevo</div>'
+                                            );
+                                        }
+
+                                        $filas = $clientes->map(fn (Cliente $c): string =>
+                                            '<button type="button" wire:click="seleccionarCliente(' . $c->id_cliente . ')"'
+                                            . ' style="display:flex;justify-content:space-between;gap:12px;width:100%;text-align:left;'
+                                            . 'padding:9px 12px;border-bottom:1px solid rgba(128,128,128,.15);cursor:pointer;font-size:.875rem">'
+                                            . '<span style="font-weight:600">' . e($c->datos) . '</span>'
+                                            . '<span style="white-space:nowrap;opacity:.65">' . e($c->documento ?: '—') . '</span>'
+                                            . '</button>'
+                                        )->implode('');
+
+                                        return new HtmlString(
+                                            '<div style="border:1px solid rgba(128,128,128,.25);border-radius:10px;overflow:hidden">'
+                                            . $filas . '</div>'
+                                        );
+                                    }),
+
+                                Placeholder::make('cliente_elegido')
+                                    ->label('Cliente')
+                                    ->visible(fn (callable $get): bool => filled($get('id_cliente')))
+                                    ->content(function (callable $get): HtmlString {
+                                        $cliente = Cliente::find($get('id_cliente'));
+
+                                        return new HtmlString(
+                                            '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;'
+                                            . 'padding:10px 14px;border-radius:10px;border:1px solid rgb(59,130,246)33;background:rgb(59,130,246)11">'
+                                            . '<div><strong>' . e($cliente?->datos ?? 'Cliente') . '</strong>'
+                                            . ($cliente?->documento ? '<br><span style="opacity:.65;font-size:.8rem">' . e($cliente->documento) . '</span>' : '')
+                                            . '</div>'
+                                            . '<button type="button" wire:click="limpiarCliente" '
+                                            . 'style="font-size:.8rem;color:rgb(220,38,38);white-space:nowrap;cursor:pointer">✕ Cambiar</button>'
+                                            . '</div>'
+                                        );
+                                    })
                                     ->columnSpanFull(),
 
                                 DatePicker::make('fecha')
@@ -329,6 +387,24 @@ class CreateCotizacion extends CreateRecord
         ]);
     }
 
+    public function seleccionarCliente(int $idCliente): void
+    {
+        $existe = Cliente::where('id_empresa', (int) session('id_empresa'))
+            ->where('id_cliente', $idCliente)
+            ->exists();
+
+        if ($existe) {
+            $this->data['id_cliente']       = $idCliente;
+            $this->data['buscador_cliente'] = null;
+        }
+    }
+
+    public function limpiarCliente(): void
+    {
+        $this->data['id_cliente']       = null;
+        $this->data['buscador_cliente'] = null;
+    }
+
     public function agregarProducto(int $idProducto): void
     {
         $p = Producto::where('id_empresa', (int) session('id_empresa'))->find($idProducto);
@@ -367,6 +443,12 @@ class CreateCotizacion extends CreateRecord
             $empresa  = (int) session('id_empresa');
             $sucursal = (int) session('sucursal');
             $usuario  = (int) auth()->user()->usuario_id;
+
+            if (blank($data['id_cliente'] ?? null)) {
+                throw ValidationException::withMessages([
+                    'buscador_cliente' => 'Seleccioná un cliente para la cotización.',
+                ]);
+            }
 
             $total  = 0.0;
             $lineas = [];

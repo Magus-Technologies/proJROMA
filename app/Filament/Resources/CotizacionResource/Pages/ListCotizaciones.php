@@ -26,8 +26,6 @@ class ListCotizaciones extends ListRecords
         if ($id = (int) request()->query('previsualizar')) {
             $this->recienCreada = $id;
             $this->dispatch('abrir-vista-previa', id: $id);
-            // Clean the URL so a refresh doesn't reopen the modal
-            $this->js("history.replaceState({}, '', '" . CotizacionResource::getUrl('index') . "')");
         }
     }
 
@@ -35,6 +33,8 @@ class ListCotizaciones extends ListRecords
     public function abrirVistaPrevia(int $id): void
     {
         $this->mountTableAction('vista_previa', (string) $id);
+        // Clean the URL (real Livewire cycle) so a refresh doesn't reopen the modal
+        $this->js("window.history.replaceState({}, '', window.location.pathname)");
     }
 
     protected function getHeaderActions(): array

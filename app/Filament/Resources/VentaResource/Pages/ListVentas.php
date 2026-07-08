@@ -20,10 +20,10 @@ class ListVentas extends ListRecords
         parent::mount();
 
         // Al crear una venta se redirige acá con ?previsualizar={id}; abrimos
-        // el modal del comprobante y limpiamos la URL para que un refresh no lo reabra.
+        // el modal del comprobante (el round-trip del dispatch garantiza que la
+        // tabla ya esté booteada cuando corre el listener).
         if ($id = (int) request()->query('previsualizar')) {
             $this->dispatch('abrir-vista-previa', id: $id);
-            $this->js("history.replaceState({}, '', '" . VentaResource::getUrl('index') . "')");
         }
     }
 
@@ -31,6 +31,8 @@ class ListVentas extends ListRecords
     public function abrirVistaPrevia(int $id): void
     {
         $this->mountTableAction('vista_previa', (string) $id);
+        // Limpiar la URL acá (ciclo Livewire real) para que un refresh no reabra el modal.
+        $this->js("window.history.replaceState({}, '', window.location.pathname)");
     }
 
     protected function getHeaderActions(): array

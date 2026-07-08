@@ -35,6 +35,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreateVenta extends CreateRecord
 {
+    use \App\Filament\Concerns\HasClienteBuscador;
+
     protected static string $resource = VentaResource::class;
 
     protected static ?string $title = 'Nueva Venta';
@@ -282,31 +284,7 @@ class CreateVenta extends CreateRecord
                                     ->required()
                                     ->columnSpanFull(),
 
-                                Select::make('id_cliente')
-                                    ->label('Cliente')
-                                    ->placeholder('Buscar por nombre o documento…')
-                                    ->searchable()
-                                    ->getSearchResultsUsing(fn (string $search): array => Cliente::where('id_empresa', (int) session('id_empresa'))
-                                        ->where(fn ($q) => $q
-                                            ->where('datos', 'like', "%{$search}%")
-                                            ->orWhere('documento', 'like', "%{$search}%"))
-                                        ->limit(30)
-                                        ->get()
-                                        ->mapWithKeys(fn (Cliente $c) => [
-                                            $c->id_cliente => $c->datos . ($c->documento ? " — {$c->documento}" : ''),
-                                        ])
-                                        ->toArray())
-                                    ->getOptionLabelUsing(fn ($value): ?string => Cliente::find($value)?->datos)
-                                    ->createOptionForm([
-                                        TextInput::make('documento')->label('RUC / DNI')->maxLength(15),
-                                        TextInput::make('datos')->label('Nombre / Razón Social')->required()->maxLength(200),
-                                        TextInput::make('telefono')->label('Teléfono')->tel()->maxLength(20),
-                                    ])
-                                    ->createOptionUsing(fn (array $data): int => Cliente::create(array_merge($data, [
-                                        'id_empresa' => (int) session('id_empresa'),
-                                    ]))->id_cliente)
-                                    ->required()
-                                    ->columnSpanFull(),
+                                ...static::clienteBuscadorSchema(),
 
                                 DatePicker::make('fecha')
                                     ->label('Fecha emisión')
@@ -409,6 +387,12 @@ class CreateVenta extends CreateRecord
             $empresa  = (int) session('id_empresa');
             $sucursal = (int) session('sucursal');
             $usuario  = (int) auth()->user()->usuario_id;
+
+            if (blank($data['id_cliente'] ?? null)) {
+                throw ValidationException::withMessages([
+                    'buscador_cliente' => 'Seleccioná un cliente para la venta.',
+                ]);
+            }
 
             // Validate stock before touching anything
             $lineas = [];

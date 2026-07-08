@@ -201,19 +201,51 @@ class CreateGuiaRemision extends CreateRecord
                                         . static::proximoNumero() . '</span>'
                                     )),
 
+                                Select::make('motivo_traslado')
+                                    ->label('Motivo de traslado')
+                                    ->options([
+                                        '01' => 'Venta',
+                                        '02' => 'Compra',
+                                        '04' => 'Traslado entre establecimientos',
+                                        '08' => 'Importación',
+                                        '09' => 'Exportación',
+                                        '13' => 'Otros',
+                                        '14' => 'Venta sujeta a confirmación',
+                                        '18' => 'Traslado emisor itinerante',
+                                    ])
+                                    ->default('01')
+                                    ->required(),
+
                                 DatePicker::make('fecha_emision')
                                     ->label('Fecha de emisión')
                                     ->default(now())
                                     ->required(),
 
+                                DatePicker::make('fecha_traslado')
+                                    ->label('Fecha de inicio de traslado')
+                                    ->default(now())
+                                    ->required(),
+
+                                TextInput::make('dir_partida')
+                                    ->label('Dirección de partida (origen)')
+                                    ->helperText('Si se deja vacío, se usa la dirección de la empresa.')
+                                    ->maxLength(220),
+
+                                TextInput::make('ubigeo_partida')
+                                    ->label('Ubigeo de partida')
+                                    ->helperText('6 dígitos. Vacío = ubigeo de la empresa.')
+                                    ->maxLength(6),
+
                                 TextInput::make('dir_llegada')
                                     ->label('Dirección de llegada')
+                                    ->required()
                                     ->maxLength(220)
                                     ->columnSpanFull(),
 
                                 TextInput::make('ubigeo')
-                                    ->label('Ubigeo')
-                                    ->maxLength(10),
+                                    ->label('Ubigeo de llegada')
+                                    ->required()
+                                    ->maxLength(6),
 
                                 TextInput::make('nro_bultos')
                                     ->label('N° de bultos')
@@ -225,8 +257,9 @@ class CreateGuiaRemision extends CreateRecord
                                 TextInput::make('peso')
                                     ->label('Peso total (kg)')
                                     ->numeric()
-                                    ->minValue(0)
-                                    ->default(0)
+                                    ->minValue(0.001)
+                                    ->default(1)
+                                    ->required()
                                     ->columnSpanFull(),
                             ]),
 
@@ -241,24 +274,56 @@ class CreateGuiaRemision extends CreateRecord
                                         '2' => 'Transporte Público',
                                     ])
                                     ->default('1')
+                                    ->live()
                                     ->required()
                                     ->columnSpanFull(),
 
+                                // ── Transporte Público: datos del transportista ──
                                 TextInput::make('ruc_transporte')
                                     ->label('RUC transportista')
+                                    ->required(fn (callable $get): bool => $get('tipo_transporte') === '2')
+                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '2')
                                     ->maxLength(11),
 
                                 TextInput::make('razon_transporte')
                                     ->label('Razón social transportista')
+                                    ->required(fn (callable $get): bool => $get('tipo_transporte') === '2')
+                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '2')
                                     ->maxLength(200),
 
+                                TextInput::make('transportista_nro_mtc')
+                                    ->label('N° de registro MTC')
+                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '2')
+                                    ->maxLength(30)
+                                    ->columnSpanFull(),
+
+                                // ── Transporte Privado: vehículo + conductor ──
                                 TextInput::make('vehiculo')
                                     ->label('Placa del vehículo')
-                                    ->maxLength(20),
+                                    ->required(fn (callable $get): bool => $get('tipo_transporte') === '1')
+                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '1')
+                                    ->maxLength(20)
+                                    ->columnSpanFull(),
 
-                                TextInput::make('chofer_brevete')
-                                    ->label('Chofer / Brevete')
-                                    ->maxLength(100),
+                                TextInput::make('conductor_documento')
+                                    ->label('DNI del conductor')
+                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '1')
+                                    ->maxLength(15),
+
+                                TextInput::make('conductor_licencia')
+                                    ->label('Licencia de conducir')
+                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '1')
+                                    ->maxLength(30),
+
+                                TextInput::make('conductor_nombres')
+                                    ->label('Nombres del conductor')
+                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '1')
+                                    ->maxLength(150),
+
+                                TextInput::make('conductor_apellidos')
+                                    ->label('Apellidos del conductor')
+                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '1')
+                                    ->maxLength(150),
                             ]),
                     ])->columnSpan(1),
                 ]),
@@ -281,23 +346,33 @@ class CreateGuiaRemision extends CreateRecord
                 ->max('numero')) + 1;
 
             $guia = GuiaRemision::create([
-                'id_venta'         => $data['id_venta'],
-                'fecha_emision'    => $data['fecha_emision'],
-                'dir_llegada'      => $data['dir_llegada'] ?? null,
-                'ubigeo'           => $data['ubigeo'] ?? null,
-                'tipo_transporte'  => $data['tipo_transporte'] ?? '1',
-                'ruc_transporte'   => $data['ruc_transporte'] ?? null,
-                'razon_transporte' => $data['razon_transporte'] ?? null,
-                'vehiculo'         => $data['vehiculo'] ?? null,
-                'chofer_brevete'   => $data['chofer_brevete'] ?? null,
-                'peso'             => $data['peso'] ?? 0,
-                'nro_bultos'       => $data['nro_bultos'] ?? 1,
-                'serie'            => 'T001',
-                'numero'           => $numero,
-                'estado'           => '1',
-                'enviado_sunat'    => '0',
-                'id_empresa'       => $empresa,
-                'sucursal'         => $sucursal,
+                'id_venta'              => $data['id_venta'],
+                'motivo_traslado'       => $data['motivo_traslado'] ?? '01',
+                'fecha_emision'         => $data['fecha_emision'],
+                'fecha_traslado'        => $data['fecha_traslado'] ?? $data['fecha_emision'],
+                'dir_llegada'           => $data['dir_llegada'] ?? null,
+                'ubigeo'                => $data['ubigeo'] ?? null,
+                'dir_partida'           => $data['dir_partida'] ?? null,
+                'ubigeo_partida'        => $data['ubigeo_partida'] ?? null,
+                'tipo_transporte'       => $data['tipo_transporte'] ?? '1',
+                'ruc_transporte'        => $data['ruc_transporte'] ?? null,
+                'razon_transporte'      => $data['razon_transporte'] ?? null,
+                'transportista_nro_mtc' => $data['transportista_nro_mtc'] ?? null,
+                'vehiculo'              => $data['vehiculo'] ?? null,
+                'conductor_documento'   => $data['conductor_documento'] ?? null,
+                'conductor_nombres'     => $data['conductor_nombres'] ?? null,
+                'conductor_apellidos'   => $data['conductor_apellidos'] ?? null,
+                'conductor_licencia'    => $data['conductor_licencia'] ?? null,
+                'peso'                  => $data['peso'] ?? 1,
+                'und_peso_total'        => 'KGM',
+                'nro_bultos'            => $data['nro_bultos'] ?? 1,
+                'serie'                 => 'T001',
+                'numero'                => $numero,
+                'estado'                => '1',
+                'enviado_sunat'         => '0',
+                'estado_gre'            => 'pendiente',
+                'id_empresa'            => $empresa,
+                'sucursal'              => $sucursal,
             ]);
 
             foreach ($data['productos'] as $linea) {

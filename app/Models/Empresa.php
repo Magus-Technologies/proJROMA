@@ -11,7 +11,8 @@ class Empresa extends Model
     protected $fillable = [
         'ruc','razon_social','comercial','cod_sucursal','direccion',
         'email','telefono','telefono2','telefono3','estado','password',
-        'user_sol','clave_sol','logo','ubigeo','distrito','provincia',
+        'user_sol','clave_sol','gre_client_id','gre_client_secret',
+        'logo','ubigeo','distrito','provincia',
         'departamento','tipo_impresion','modo','igv','propaganda',
     ];
 

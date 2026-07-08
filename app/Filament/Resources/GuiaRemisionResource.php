@@ -72,11 +72,22 @@ class GuiaRemisionResource extends Resource
                     ->sortable()
                     ->toggleable(),
 
-                TextColumn::make('enviado_sunat')
+                TextColumn::make('estado_gre')
                     ->label('SUNAT')
                     ->badge()
-                    ->formatStateUsing(fn ($state): string => $state == '1' ? 'Enviado' : 'Pendiente')
-                    ->color(fn ($state): string => $state == '1' ? 'success' : 'warning'),
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'aceptado'  => 'Aceptado',
+                        'enviado'   => 'Enviado (esperando)',
+                        'rechazado' => 'Rechazado',
+                        default     => 'Pendiente',
+                    })
+                    ->color(fn (?string $state): string => match ($state) {
+                        'aceptado'  => 'success',
+                        'enviado'   => 'info',
+                        'rechazado' => 'danger',
+                        default     => 'warning',
+                    })
+                    ->tooltip(fn (GuiaRemision $record): ?string => $record->mensaje_sunat),
 
                 TextColumn::make('estado')
                     ->label('Estado')
@@ -116,6 +127,33 @@ class GuiaRemisionResource extends Resource
                     ->url(fn (GuiaRemision $record): string =>
                         route('guia.pdf', $record->id_guia_remision))
                     ->openUrlInNewTab(),
+
+                Action::make('enviar_sunat')
+                    ->label('Enviar a SUNAT')
+                    ->icon('heroicon-o-paper-airplane')
+                    ->color('success')
+                    ->visible(fn (GuiaRemision $record): bool =>
+                        $record->estado === '1' && ! in_array($record->estado_gre, ['aceptado', 'enviado'], true))
+                    ->requiresConfirmation()
+                    ->modalHeading('¿Enviar esta guía a SUNAT?')
+                    ->modalDescription('Se generará el XML y se enviará. Luego consultá el ticket para ver el resultado.')
+                    ->action(function (GuiaRemision $record): void {
+                        $res = app(\App\Services\GuiaSunatService::class)->enviar($record);
+                        $n = Notification::make()->title($res['msg']);
+                        $res['ok'] ? $n->success()->send() : $n->danger()->persistent()->send();
+                    }),
+
+                Action::make('consultar_ticket')
+                    ->label('Consultar ticket')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('info')
+                    ->visible(fn (GuiaRemision $record): bool =>
+                        $record->estado_gre === 'enviado' && filled($record->ticket_sunat))
+                    ->action(function (GuiaRemision $record): void {
+                        $res = app(\App\Services\GuiaSunatService::class)->consultarTicket($record);
+                        $n = Notification::make()->title($res['msg']);
+                        $res['ok'] ? $n->success()->send() : $n->danger()->persistent()->send();
+                    }),
 
                 Action::make('anular')
                     ->label('Anular')

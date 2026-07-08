@@ -157,28 +157,32 @@ trait HasClienteBuscador
                         ->get();
 
                     if ($clientes->isEmpty()) {
-                        return new HtmlString(
-                            '<div style="padding:12px 14px;border:1px dashed rgba(148,163,184,.5);border-radius:12px;'
-                            . 'color:#94a3b8;font-size:.85rem;text-align:center">'
-                            . 'Sin coincidencias · tocá el botón <strong>+</strong> para crear uno nuevo</div>'
-                        );
+                        $inner = '<div style="padding:12px 14px;color:#94a3b8;font-size:.85rem;text-align:center">'
+                            . 'Sin coincidencias · tocá el botón <strong>+</strong> para crear uno nuevo</div>';
+                    } else {
+                        $inner = $clientes->map(fn (Cliente $c): string =>
+                            '<button type="button" wire:click="seleccionarCliente(' . $c->id_cliente . ')" '
+                            . 'onmouseover="this.style.background=\'rgba(59,130,246,.10)\'" '
+                            . 'onmouseout="this.style.background=\'transparent\'" '
+                            . 'style="display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;'
+                            . 'padding:10px 14px;border:0;border-bottom:1px solid rgba(148,163,184,.18);background:transparent;'
+                            . 'cursor:pointer;font-size:.875rem;transition:background .12s">'
+                            . '<span style="font-weight:600">' . e($c->datos) . '</span>'
+                            . '<span style="white-space:nowrap;opacity:.6;font-family:monospace;font-size:.8rem">' . e($c->documento ?: '—') . '</span>'
+                            . '</button>'
+                        )->implode('');
                     }
 
-                    $filas = $clientes->map(fn (Cliente $c): string =>
-                        '<button type="button" wire:click="seleccionarCliente(' . $c->id_cliente . ')" '
-                        . 'onmouseover="this.style.background=\'rgba(59,130,246,.08)\'" '
-                        . 'onmouseout="this.style.background=\'transparent\'" '
-                        . 'style="display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;'
-                        . 'padding:10px 14px;border:0;border-bottom:1px solid rgba(148,163,184,.18);background:transparent;'
-                        . 'cursor:pointer;font-size:.875rem;transition:background .12s">'
-                        . '<span style="font-weight:600">' . e($c->datos) . '</span>'
-                        . '<span style="white-space:nowrap;opacity:.6;font-family:monospace;font-size:.8rem">' . e($c->documento ?: '—') . '</span>'
-                        . '</button>'
-                    )->implode('');
-
+                    // El contenedor exterior no ocupa alto (height:0); el interior
+                    // flota sobre los campos de abajo como un dropdown, sin empujarlos.
+                    // background:Canvas se adapta solo a tema claro/oscuro.
                     return new HtmlString(
-                        '<div style="border:1px solid rgba(148,163,184,.35);border-radius:12px;overflow:hidden;'
-                        . 'box-shadow:0 4px 12px rgba(0,0,0,.06)">' . $filas . '</div>'
+                        '<div style="position:relative;height:0">'
+                        . '<div style="position:absolute;top:4px;left:0;right:0;z-index:30;'
+                        . 'background:#ffffff;background:Canvas;color:CanvasText;'
+                        . 'border:1px solid rgba(148,163,184,.45);border-radius:12px;overflow:hidden;'
+                        . 'box-shadow:0 10px 30px rgba(0,0,0,.18);max-height:320px;overflow-y:auto">'
+                        . $inner . '</div></div>'
                     );
                 }),
 

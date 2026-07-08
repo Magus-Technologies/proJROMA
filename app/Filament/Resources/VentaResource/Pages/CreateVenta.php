@@ -303,6 +303,18 @@ class CreateVenta extends CreateRecord
                                     ->live()
                                     ->required(),
 
+                                Select::make('tipo_igv')
+                                    ->label('Afectación IGV')
+                                    ->helperText('Aplica a todo el comprobante.')
+                                    ->options([
+                                        'gravado'   => 'Gravado (18%)',
+                                        'exonerado' => 'Exonerado',
+                                        'inafecto'  => 'Inafecto',
+                                    ])
+                                    ->default('gravado')
+                                    ->live()
+                                    ->required(),
+
                                 DatePicker::make('fecha_vencimiento')
                                     ->label('Fecha vencimiento')
                                     ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 2)
@@ -328,15 +340,23 @@ class CreateVenta extends CreateRecord
                                     ->content(function (callable $get): HtmlString {
                                         $total = collect($get('productos') ?? [])
                                             ->sum(fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['precio'] ?? 0));
-                                        $subtotal = $total / 1.18;
-                                        $igv      = $total - $subtotal;
+
+                                        $afectacion = $get('tipo_igv') ?? 'gravado';
+                                        $esGravado  = $afectacion === 'gravado';
+                                        $subtotal   = $esGravado ? $total / 1.18 : $total;
+                                        $igv        = $esGravado ? $total - $subtotal : 0.0;
+                                        $etiquetaOp = match ($afectacion) {
+                                            'exonerado' => 'Op. Exoneradas:',
+                                            'inafecto'  => 'Op. Inafectas:',
+                                            default     => 'Op. Gravadas:',
+                                        };
 
                                         return new HtmlString(
                                             '<div style="line-height:1.7">'
                                             . '<div style="display:flex;justify-content:space-between;opacity:.7">'
-                                            . '<span>Op. Gravadas:</span><span style="font-weight:600">S/ ' . number_format($subtotal, 2) . '</span></div>'
+                                            . '<span>' . $etiquetaOp . '</span><span style="font-weight:600">S/ ' . number_format($subtotal, 2) . '</span></div>'
                                             . '<div style="display:flex;justify-content:space-between;opacity:.7">'
-                                            . '<span>IGV (18%):</span><span style="font-weight:600">S/ ' . number_format($igv, 2) . '</span></div>'
+                                            . '<span>IGV' . ($esGravado ? ' (18%)' : '') . ':</span><span style="font-weight:600">S/ ' . number_format($igv, 2) . '</span></div>'
                                             . '<div style="display:flex;justify-content:space-between;align-items:center;'
                                             . 'border-top:1px solid rgba(128,128,128,.25);margin-top:8px;padding-top:10px">'
                                             . '<span style="font-weight:700">IMPORTE TOTAL:</span>'
@@ -437,6 +457,13 @@ class CreateVenta extends CreateRecord
                 ->firstOrFail();
             $numero = $tido->numero + 1;
 
+            // Afectación IGV del comprobante: gravado descompone el 18%;
+            // exonerado/inafecto no llevan IGV (subtotal = total).
+            $afectacion = $data['tipo_igv'] ?? 'gravado';
+            $esGravado  = $afectacion === 'gravado';
+            $subtotal   = $esGravado ? round($total / 1.18, 2) : $total;
+            $igv        = $esGravado ? round($total - $subtotal, 2) : 0.0;
+
             $venta = Venta::create([
                 'id_tido'           => $data['id_tido'],
                 'id_tipo_pago'      => $data['id_tipo_pago'],
@@ -447,9 +474,10 @@ class CreateVenta extends CreateRecord
                 'numero'            => $numero,
                 'id_cliente'        => $data['id_cliente'],
                 'total'             => $total,
-                'subtotal'          => round($total / 1.18, 2),
-                'igv'               => round($total - $total / 1.18, 2),
-                'apli_igv'          => '1',
+                'subtotal'          => $subtotal,
+                'igv'               => $igv,
+                'apli_igv'          => $esGravado ? '1' : '0',
+                'tipo_igv'          => $afectacion,
                 'estado'            => '1',
                 'enviado_sunat'     => '0',
                 'id_empresa'        => $empresa,

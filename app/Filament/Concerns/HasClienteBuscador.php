@@ -3,10 +3,14 @@
 namespace App\Filament\Concerns;
 
 use App\Models\Cliente;
+use App\Models\TmsMercado;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\HtmlString;
 
 /**
@@ -19,6 +23,92 @@ use Illuminate\Support\HtmlString;
  */
 trait HasClienteBuscador
 {
+    /**
+     * Campos del formulario de cliente — fuente única compartida entre el
+     * botón "+" del buscador y la vista de Clientes. Incluye consulta SUNAT/RENIEC.
+     *
+     * @return array<int, \Filament\Forms\Components\Field>
+     */
+    public static function clienteFormFields(): array
+    {
+        return [
+            TextInput::make('documento')
+                ->label('RUC / DNI')
+                ->maxLength(15)
+                ->suffixAction(
+                    Action::make('consultar_doc')
+                        ->icon('heroicon-m-magnifying-glass')
+                        ->tooltip('Consultar SUNAT / RENIEC')
+                        ->action(function ($state, callable $set): void {
+                            $doc   = trim((string) $state);
+                            $len   = strlen($doc);
+                            $url   = config('apisperu.url');
+                            $token = config('apisperu.token');
+
+                            if (! in_array($len, [8, 11])) {
+                                Notification::make()->warning()->title('Ingresá 8 dígitos (DNI) o 11 dígitos (RUC).')->send();
+
+                                return;
+                            }
+
+                            try {
+                                if ($len === 8) {
+                                    $data = Http::timeout(8)->get("{$url}/dni/{$doc}", ['token' => $token])->json();
+                                    $nombre = trim(implode(' ', array_filter([
+                                        $data['nombres'] ?? '', $data['apellidoPaterno'] ?? '', $data['apellidoMaterno'] ?? '',
+                                    ])));
+                                    if (! $nombre) {
+                                        Notification::make()->warning()->title($data['message'] ?? 'DNI no encontrado.')->send();
+
+                                        return;
+                                    }
+                                    $set('datos', $nombre);
+                                    Notification::make()->success()->title('Datos cargados desde RENIEC')->send();
+                                } else {
+                                    $data = Http::timeout(8)->get("{$url}/ruc/{$doc}", ['token' => $token])->json();
+                                    if (empty($data['razonSocial'])) {
+                                        Notification::make()->warning()->title('RUC no encontrado.')->send();
+
+                                        return;
+                                    }
+                                    $dir = collect([
+                                        $data['direccion'] ?? '', $data['distrito'] ?? '',
+                                        $data['provincia'] ?? '', $data['departamento'] ?? '',
+                                    ])->filter()->implode(', ');
+                                    $set('datos', $data['razonSocial']);
+                                    $set('direccion', $dir);
+                                    Notification::make()->success()->title('Datos cargados desde SUNAT')->send();
+                                }
+                            } catch (\Throwable) {
+                                Notification::make()->warning()->title('Error al consultar. Intentá de nuevo.')->send();
+                            }
+                        })
+                ),
+
+            TextInput::make('datos')->label('Razón Social / Nombre')->required()->maxLength(200)->columnSpanFull(),
+            TextInput::make('direccion')->label('Dirección')->maxLength(200)->columnSpanFull(),
+            TextInput::make('distrito')->label('Distrito')->maxLength(100),
+
+            Select::make('mercado')
+                ->label('Mercado / Zona (TMS)')
+                ->options(fn () => TmsMercado::where('id_empresa', (int) session('id_empresa'))
+                    ->orderBy('nombre')->pluck('nombre', 'id'))
+                ->searchable()
+                ->nullable()
+                ->helperText('Zona/mercado del cliente. Se usa para armar los despachos.'),
+
+            TextInput::make('telefono')
+                ->label('Teléfono')
+                ->tel()
+                ->mask('99999999999999999999')
+                ->maxLength(20)
+                ->regex('/^[0-9]*$/')
+                ->validationMessages(['regex' => 'El teléfono solo puede contener números.']),
+
+            TextInput::make('email')->label('Email')->email()->maxLength(100),
+        ];
+    }
+
     /** @return array<int, \Filament\Schemas\Components\Component> */
     public static function clienteBuscadorSchema(): array
     {
@@ -36,11 +126,9 @@ trait HasClienteBuscador
                     Action::make('nuevo_cliente')
                         ->icon('heroicon-m-user-plus')
                         ->tooltip('Crear cliente nuevo')
-                        ->form([
-                            TextInput::make('documento')->label('RUC / DNI')->maxLength(15),
-                            TextInput::make('datos')->label('Nombre / Razón Social')->required()->maxLength(200),
-                            TextInput::make('telefono')->label('Teléfono')->tel()->maxLength(20),
-                        ])
+                        ->modalHeading('Nuevo cliente')
+                        ->modalWidth('lg')
+                        ->form(static::clienteFormFields())
                         ->action(function (array $data, callable $set): void {
                             $cliente = Cliente::create(array_merge($data, [
                                 'id_empresa' => (int) session('id_empresa'),

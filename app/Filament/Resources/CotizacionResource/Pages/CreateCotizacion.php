@@ -286,6 +286,7 @@ class CreateCotizacion extends CreateRecord
 
                                 Placeholder::make('cliente_resultados')
                                     ->hiddenLabel()
+                                    ->columnSpanFull()
                                     ->visible(fn (callable $get): bool => filled($get('buscador_cliente')) && blank($get('id_cliente')))
                                     ->content(function (callable $get): HtmlString {
                                         $busqueda = trim((string) $get('buscador_cliente'));

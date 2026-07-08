@@ -24,6 +24,12 @@ class ConfigurarCorrelativos extends Page
     /** @var array<int, array<string, mixed>> */
     public array $correlativos = [];
 
+    /** Sucursal seleccionada en el filtro ('' = todas). */
+    public string $sucursalFiltro = '';
+
+    /** @var array<int, string|int> */
+    public array $sucursales = [];
+
     public function mount(): void
     {
         $this->correlativos = DB::table('documentos_empresas as de')
@@ -40,6 +46,13 @@ class ConfigurarCorrelativos extends Page
                 'serie'       => $r->serie,
                 'numero'      => (int) $r->numero,
             ])
+            ->toArray();
+
+        $this->sucursales = collect($this->correlativos)
+            ->pluck('sucursal')
+            ->unique()
+            ->sort()
+            ->values()
             ->toArray();
     }
 

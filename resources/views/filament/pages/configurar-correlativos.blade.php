@@ -4,6 +4,21 @@
         Al migrar, cargá dónde se quedó cada serie en el sistema anterior.
     </div>
 
+    @if (count($sucursales) > 1)
+        <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-gray-600 dark:text-gray-300">Sucursal:</label>
+            <select
+                wire:model.live="sucursalFiltro"
+                class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
+            >
+                <option value="">Todas</option>
+                @foreach ($sucursales as $suc)
+                    <option value="{{ $suc }}">Sucursal {{ $suc }}</option>
+                @endforeach
+            </select>
+        </div>
+    @endif
+
     <div class="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
         <table class="w-full text-sm">
             <thead>
@@ -16,6 +31,9 @@
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-white/5">
                 @foreach ($correlativos as $i => $row)
+                    @if ($sucursalFiltro !== '' && (string) $row['sucursal'] !== $sucursalFiltro)
+                        @continue
+                    @endif
                     <tr class="transition hover:bg-gray-50 dark:hover:bg-white/5">
                         <td class="px-4 py-2 whitespace-nowrap">
                             <span class="mr-2 inline-flex items-center rounded-md bg-primary-50 px-1.5 py-0.5 text-xs font-semibold text-primary-700 dark:bg-primary-500/10 dark:text-primary-400">

@@ -14,7 +14,17 @@ class Rol extends Model implements RoleContract
     protected $table = 'roles';
     protected $primaryKey = 'rol_id';
     public $timestamps = false;
-    protected $fillable = ['nombre', 'guard_name'];
+    // La tabla legacy solo tiene rol_id y nombre (no existe guard_name)
+    // y rol_id no es auto-incremental: se asigna a mano al crear.
+    public $incrementing = false;
+    protected $fillable = ['nombre'];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $rol) {
+            $rol->rol_id ??= (int) static::max('rol_id') + 1;
+        });
+    }
 
     public function permissions(): BelongsToMany
     {
@@ -48,7 +58,7 @@ class Rol extends Model implements RoleContract
 
     public static function findOrCreate(string $name, $guardName = null): RoleContract
     {
-        return static::firstOrCreate(['nombre' => $name, 'guard_name' => $guardName ?? 'web']);
+        return static::firstOrCreate(['nombre' => $name]);
     }
 
     /**

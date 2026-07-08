@@ -166,13 +166,15 @@ class CreateCotizacion extends CreateRecord
 
                         Section::make('Cuotas de pago')
                             ->compact()
-                            ->description('Programe las cuotas del crédito')
+                            ->description('Las cuotas deben sumar el total de la cotización')
                             ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 2)
                             ->schema([
                                 Repeater::make('cuotas')
                                     ->hiddenLabel()
                                     ->columns(3)
+                                    ->minItems(1)
                                     ->defaultItems(1)
+                                    ->live()
                                     ->addActionLabel('Agregar cuota')
                                     ->schema([
                                         DatePicker::make('fecha')
@@ -182,6 +184,7 @@ class CreateCotizacion extends CreateRecord
                                             ->label('Monto (S/)')
                                             ->numeric()
                                             ->minValue(0.01)
+                                            ->live(onBlur: true)
                                             ->required(),
                                         Select::make('tipo_pago')
                                             ->label('Tipo de pago')
@@ -194,6 +197,33 @@ class CreateCotizacion extends CreateRecord
                                             ])
                                             ->default('EFECTIVO'),
                                     ]),
+
+                                Placeholder::make('resumen_cuotas')
+                                    ->hiddenLabel()
+                                    ->content(function (callable $get): HtmlString {
+                                        $total = collect($get('productos') ?? [])
+                                            ->sum(fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['precio'] ?? 0));
+                                        $enCuotas = collect($get('cuotas') ?? [])
+                                            ->sum(fn (array $c): float => (float) ($c['monto'] ?? 0));
+                                        $falta = round($total - $enCuotas, 2);
+
+                                        $cuadra = abs($falta) < 0.01;
+                                        $color  = $cuadra ? 'rgb(22,163,74)' : 'rgb(220,38,38)';
+                                        $estado = $cuadra
+                                            ? '✓ Las cuotas cuadran con el total'
+                                            : ($falta > 0
+                                                ? 'Faltan S/ ' . number_format($falta, 2)
+                                                : 'Exceden en S/ ' . number_format(abs($falta), 2));
+
+                                        return new HtmlString(
+                                            '<div style="display:flex;justify-content:space-between;gap:12px;'
+                                            . 'padding:10px 14px;border-radius:10px;border:1px solid ' . $color . '33;background:' . $color . '11">'
+                                            . '<span style="opacity:.8">Total: <strong>S/ ' . number_format($total, 2) . '</strong>'
+                                            . ' &nbsp;·&nbsp; En cuotas: <strong>S/ ' . number_format($enCuotas, 2) . '</strong></span>'
+                                            . '<span style="font-weight:700;color:' . $color . '">' . $estado . '</span>'
+                                            . '</div>'
+                                        );
+                                    }),
                             ]),
                     ])->columnSpan(['default' => 1, 'xl' => 2]),
 
@@ -353,6 +383,31 @@ class CreateCotizacion extends CreateRecord
 
             if ($total <= 0) {
                 throw ValidationException::withMessages(['productos' => 'El total debe ser mayor a 0.']);
+            }
+
+            // Crédito: las cuotas deben existir y sumar exactamente el total
+            if ((int) $data['id_tipo_pago'] === 2) {
+                $cuotas = $data['cuotas'] ?? [];
+
+                if (count($cuotas) === 0) {
+                    throw ValidationException::withMessages([
+                        'cuotas' => 'Una venta a crédito debe tener al menos una cuota.',
+                    ]);
+                }
+
+                $sumaCuotas = round(collect($cuotas)->sum(fn (array $c): float => (float) ($c['monto'] ?? 0)), 2);
+
+                if (abs($sumaCuotas - $total) > 0.01) {
+                    $diferencia = round($total - $sumaCuotas, 2);
+                    $detalle = $diferencia > 0
+                        ? 'Faltan S/ ' . number_format($diferencia, 2) . ' por cubrir.'
+                        : 'Las cuotas exceden el total en S/ ' . number_format(abs($diferencia), 2) . '.';
+
+                    throw ValidationException::withMessages([
+                        'cuotas' => "Las cuotas (S/ " . number_format($sumaCuotas, 2)
+                            . ") deben sumar el total de la cotización (S/ " . number_format($total, 2) . "). {$detalle}",
+                    ]);
+                }
             }
 
             // Correlativo propio de cotización (id_tido 6, igual que la API legacy)

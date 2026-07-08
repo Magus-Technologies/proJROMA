@@ -171,6 +171,14 @@ class VentaResource extends Resource
                 )->iconButton()->tooltip('Ver comprobante'),
 
                 ActionGroup::make([
+                Action::make('editar')
+                    ->label('Editar')
+                    ->icon('heroicon-m-pencil-square')
+                    ->color('primary')
+                    ->visible(fn (Venta $record): bool =>
+                        $record->estado !== '0' && $record->sunat_estado !== 'aceptado')
+                    ->url(fn (Venta $record): string => VentaResource::getUrl('edit', ['record' => $record])),
+
                 Action::make('regenerar_xml')
                     ->label('Regenerar XML')
                     ->icon('heroicon-m-arrow-path')
@@ -301,6 +309,7 @@ class VentaResource extends Resource
         return [
             'index'  => Pages\ListVentas::route('/'),
             'create' => Pages\CreateVenta::route('/create'),
+            'edit'   => Pages\EditVenta::route('/{record}/edit'),
             'view'   => Pages\ViewVenta::route('/{record}'),
         ];
     }

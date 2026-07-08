@@ -201,13 +201,16 @@ class VentaResource extends Resource
                         $res['ok'] ? $n->success()->send() : $n->danger()->persistent()->send();
                     }),
 
-                Action::make('descargar_xml')
-                    ->label('Descargar XML')
+                Action::make('ver_xml')
+                    ->label('Ver XML')
                     ->icon('heroicon-m-code-bracket')
                     ->color('gray')
                     ->visible(fn (Venta $record): bool => filled($record->xml_ruta))
-                    ->action(fn (Venta $record) =>
-                        response()->download(storage_path('app/' . $record->xml_ruta))),
+                    ->url(fn (Venta $record): string => route('facturacion.xml', [
+                        'ruc'     => explode('/', $record->xml_ruta)[2] ?? '',
+                        'archivo' => basename($record->xml_ruta),
+                    ]))
+                    ->openUrlInNewTab(),
 
                 Action::make('descargar_cdr')
                     ->label('Descargar CDR')

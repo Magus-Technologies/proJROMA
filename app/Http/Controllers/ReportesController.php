@@ -82,6 +82,25 @@ class ReportesController extends Controller
         return $this->voucher8cm($voucher);
     }
 
+    /** Sirve un XML de comprobante guardado en storage, inline (para abrir en pestaña). */
+    public function verXml(string $ruc, string $archivo): \Symfony\Component\HttpFoundation\Response
+    {
+        // Sanitizar para evitar path traversal
+        if (! preg_match('/^\d{8,11}$/', $ruc) || ! preg_match('/^[A-Za-z0-9\-]+\.xml$/', $archivo)) {
+            abort(404);
+        }
+
+        $ruta = "sunat/xml/{$ruc}/{$archivo}";
+        if (! Storage::disk('local')->exists($ruta)) {
+            abort(404);
+        }
+
+        return response(Storage::disk('local')->get($ruta), 200, [
+            'Content-Type'        => 'application/xml; charset=utf-8',
+            'Content-Disposition' => 'inline; filename="' . $archivo . '"',
+        ]);
+    }
+
     public function guiaRemisionPdf(int $guia): \Illuminate\Http\Response
     {
         $guia    = GuiaRemision::with(['venta.cliente', 'detalles'])->findOrFail($guia);

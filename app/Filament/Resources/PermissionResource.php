@@ -5,12 +5,11 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\PermissionResource\Pages;
 use BackedEnum;
 use Filament\Resources\Resource;
+use Filament\Actions\Action;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Spatie\Permission\Models\Permission;
@@ -64,9 +63,27 @@ class PermissionResource extends Resource
             ])
             ->defaultSort('name')
             ->actions([
-                EditAction::make(),
-                DeleteAction::make(),
+                Action::make('verRoles')
+                    ->label('Ver roles')
+                    ->icon('heroicon-o-user-group')
+                    ->color('info')
+                    ->modalHeading(fn (Permission $record): string => "Roles con el permiso: {$record->name}")
+                    ->modalContent(fn (Permission $record) => view('filament.modals.permiso-roles', [
+                        'roles' => $record->roles()->orderBy('nombre')->get(),
+                    ]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Cerrar'),
             ]);
+    }
+
+    public static function canEdit($record): bool
+    {
+        return false;
+    }
+
+    public static function canDelete($record): bool
+    {
+        return false;
     }
 
     public static function getRelations(): array { return []; }
@@ -76,7 +93,6 @@ class PermissionResource extends Resource
         return [
             'index' => Pages\ListPermissions::route('/'),
             'create' => Pages\CreatePermission::route('/create'),
-            'edit' => Pages\EditPermission::route('/{record}/edit'),
         ];
     }
 }

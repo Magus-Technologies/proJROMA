@@ -133,7 +133,7 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
 
     // ── Reportes ──────────────────────────────────────────────────────────
     // ── Métodos de pago (Bancos, Cuentas, Tarjetas, Billeteras) ──────────
-    Route::get('/pago-instrumentos', [\App\Http\Controllers\PagoInstrumentoController::class, 'index'])->name('pago.instrumentos');
+    Route::permanentRedirect('/pago-instrumentos', '/panel/metodos-de-pago');
 
     // ── Reportes / Exports (enlazados desde Filament) ─────────────────────
     Route::prefix('reporte')->name('reporte.')->group(function () {

@@ -61,6 +61,39 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/despachos',      [TmsController::class, 'despachos'])->name('despachos');
     });
 
+    // ── Compras ───────────────────────────────────────────────────────────
+    Route::prefix('compras')->name('compras.')->group(function () {
+        Route::get('/',     [ComprasController::class, 'index'])->name('index');
+        Route::get('/add',  [ComprasController::class, 'create'])->name('create');
+    });
+
+    // ── Inventario ────────────────────────────────────────────────────────
+    Route::prefix('almacen')->name('almacen.')->group(function () {
+        Route::get('/productos',     [ProductosController::class, 'index'])->name('index');      // Registro de Productos
+        Route::get('/productos/add', [ProductosController::class, 'create'])->name('create');
+        Route::get('/recepcion',     [ProductosController::class, 'recepcion'])->name('recepcion');// Recepción
+        Route::get('/existencias',   [ProductosController::class, 'almacen'])->name('almacen');   // Almacén
+        Route::get('/kardex',        [ProductosController::class, 'kardex'])->name('kardex');     // Kardex
+        Route::get('/ajustes',       [ProductosController::class, 'ajustes'])->name('ajustes');   // Cuadres / Ajustes
+        Route::get('/traslado',      [ProductosController::class, 'traslado'])->name('traslado'); // Traslado de Stock
+        Route::get('/prestamos',     [ProductosController::class, 'prestamos'])->name('prestamos');// Préstamos de Productos
+    });
+
+    // ── Maestros ──────────────────────────────────────────────────────────
+    Route::get('/clientes',     [ClientesController::class,   'index'])->name('clientes.index');
+    Route::get('/proveedores',  [ProveedoresController::class, 'index'])->name('proveedores.index');
+
+    // ── Admin ─────────────────────────────────────────────────────────────
+    Route::middleware('auth')->group(function () {
+        Route::get('/usuarios',             [UsuariosController::class, 'index'])->name('usuarios.index');
+        Route::get('/sucursales',           [SucursalController::class, 'index'])->name('admin.sucursales');
+        Route::get('/administrarempresas',  [UsuariosController::class, 'adminEmpresas'])->name('admin.empresas');
+    });
+
+    // ── Reportes ──────────────────────────────────────────────────────────
+    // ── Métodos de pago (Bancos, Cuentas, Tarjetas, Billeteras) ──────────
+    Route::permanentRedirect('/pago-instrumentos', '/panel/metodos-de-pago');
+
     // ── Reportes / Exports (enlazados desde Filament) ─────────────────────
     Route::prefix('reporte')->name('reporte.')->group(function () {
         Route::get('/ventas',           [ReportesController::class, 'ventasPdf'])->name('ventas');

@@ -61,6 +61,8 @@ class DespachoResource extends Resource
             ->actions([
                 Action::make('reporte')
                     ->label('Reporte')
+                    ->iconButton()
+                    ->tooltip('Reporte')
                     ->icon('heroicon-o-document-text')
                     ->color('gray')
                     ->modalHeading(fn (TmsDespacho $record): string => 'Reporte de despacho ' . $record->codigo)
@@ -73,6 +75,8 @@ class DespachoResource extends Resource
 
                 Action::make('pdf')
                     ->label('Hoja de carga')
+                    ->iconButton()
+                    ->tooltip('Hoja de carga')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('gray')
                     ->modalHeading(fn (TmsDespacho $record): string => 'Hoja de carga — ' . $record->codigo)
@@ -101,6 +105,8 @@ class DespachoResource extends Resource
 
                 Action::make('guias')
                     ->label('Guías de reparto')
+                    ->iconButton()
+                    ->tooltip('Guías de reparto')
                     ->icon('heroicon-o-ticket')
                     ->color('info')
                     ->modalHeading(fn (TmsDespacho $record): string => 'Guías de reparto — ' . $record->codigo)

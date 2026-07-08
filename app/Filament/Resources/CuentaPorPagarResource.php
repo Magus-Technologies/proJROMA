@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\CuentaPorPagarResource\Pages;
+use App\Models\BilleteraTipo;
 use App\Models\Compra;
 use App\Models\DiasCompra;
 use App\Services\CajaService;
@@ -149,35 +150,57 @@ class CuentaPorPagarResource extends Resource
                     }),
             ])
             ->actions([
-                Action::make('registrar_pago')
-                    ->label('Pagar')
-                    ->icon('heroicon-o-banknotes')
-                    ->color('success')
-                    ->visible(fn (Compra $record): bool => static::saldoPendiente($record) > 0)
-                    ->modalHeading('Registrar Pago')
-                    ->modalDescription(fn (Compra $record): string =>
-                        'Saldo pendiente: S/ ' . number_format(static::saldoPendiente($record), 2))
-                    ->form(fn (Compra $record): array => [
-                        TextInput::make('monto')
-                            ->label('Monto (S/)')
-                            ->numeric()
-                            ->minValue(0.01)
-                            ->maxValue(static::saldoPendiente($record))
-                            ->default(static::saldoPendiente($record))
-                            ->prefix('S/')
-                            ->required(),
-                        DatePicker::make('fecha')
-                            ->label('Fecha')
-                            ->default(now())
-                            ->required(),
-                        Select::make('instrumento_tipo')
-                            ->label('Método de Pago')
-                            ->options([
-                                'EFECTIVO'          => 'Efectivo',
-                                'TRANSFERENCIA'     => 'Transferencia',
-                                'BILLETERA_DIGITAL' => 'Billetera Digital',
-                            ]),
-                    ])
+                Action::make('pagos')
+                    ->label(fn (Compra $record): string => static::saldoPendiente($record) > 0 ? 'Pagar' : 'Historial')
+                    ->icon(fn (Compra $record): string => static::saldoPendiente($record) > 0
+                        ? 'heroicon-o-banknotes' : 'heroicon-o-clock')
+                    ->color(fn (Compra $record): string => static::saldoPendiente($record) > 0 ? 'success' : 'info')
+                    ->modalHeading(fn (Compra $record): string =>
+                        trim("{$record->serie}-{$record->numero}", '-') ?: "Compra #{$record->id_compra}")
+                    ->modalWidth('lg')
+                    ->modalSubmitAction(fn (Compra $record) => static::saldoPendiente($record) > 0 ? null : false)
+                    ->modalSubmitActionLabel('Pagar')
+                    ->modalContent(fn (Compra $record) => view('filament.modals.pagos-historial', [
+                        'pagos'   => $record->pagos()->orderByDesc('fecha')->orderByDesc('dias_compra_id')->get(),
+                        'total'   => (float) $record->total,
+                        'pagado'  => (float) $record->pagos()->where('estado', '1')->sum('monto'),
+                    ]))
+                    ->form(function (Compra $record): array {
+                        if (static::saldoPendiente($record) <= 0) return [];
+
+                        return [
+                            TextInput::make('monto')
+                                ->label('Monto (S/)')
+                                ->numeric()
+                                ->minValue(0.01)
+                                ->maxValue(static::saldoPendiente($record))
+                                ->default(static::saldoPendiente($record))
+                                ->prefix('S/')
+                                ->required(),
+                            DatePicker::make('fecha')
+                                ->label('Fecha')
+                                ->default(now())
+                                ->required(),
+                            Select::make('instrumento_tipo')
+                                ->label('Método de Pago')
+                                ->options(function () {
+                                    $opts = [
+                                        'EFECTIVO'      => 'Efectivo',
+                                        'TRANSFERENCIA' => 'Transferencia',
+                                    ];
+
+                                    $wallets = BilleteraTipo::where('estado', '1')
+                                        ->where('id_empresa', (int) session('id_empresa'))
+                                        ->pluck('nombre', 'nombre');
+
+                                    foreach ($wallets as $nombre) {
+                                        $opts[strtoupper($nombre)] = $nombre;
+                                    }
+
+                                    return $opts;
+                                }),
+                        ];
+                    })
                     ->action(function (Compra $record, array $data): void {
                         $saldo = static::saldoPendiente($record);
 
@@ -221,61 +244,6 @@ class CuentaPorPagarResource extends Resource
                         });
 
                         Notification::make()->success()->title('Pago registrado')->send();
-                    }),
-
-                Action::make('historial')
-                    ->label('Historial')
-                    ->icon('heroicon-o-clock')
-                    ->color('info')
-                    ->modalHeading(fn (Compra $record): string =>
-                        'Historial de pagos — ' . trim("{$record->serie}-{$record->numero}", '-'))
-                    ->modalContent(fn (Compra $record) => view('filament.modals.pagos-historial', [
-                        'pagos'   => $record->pagos()->orderByDesc('fecha')->orderByDesc('dias_compra_id')->get(),
-                        'total'   => (float) $record->total,
-                        'pagado'  => (float) $record->pagos()->where('estado', '1')->sum('monto'),
-                    ]))
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Cerrar'),
-
-                Action::make('anular_pago')
-                    ->label('Anular pago')
-                    ->icon('heroicon-o-x-circle')
-                    ->color('danger')
-                    ->visible(fn (Compra $record): bool =>
-                        $record->pagos()->where('estado', '1')->exists())
-                    ->modalHeading('Anular un pago')
-                    ->form(fn (Compra $record): array => [
-                        Select::make('dias_compra_id')
-                            ->label('Pago a anular')
-                            ->options($record->pagos()->where('estado', '1')->get()
-                                ->mapWithKeys(fn (DiasCompra $p) => [
-                                    $p->dias_compra_id => $p->fecha?->format('d/m/Y') . ' — S/ ' . number_format($p->monto, 2),
-                                ])
-                                ->toArray())
-                            ->required(),
-                    ])
-                    ->action(function (Compra $record, array $data): void {
-                        DB::transaction(function () use ($record, $data): void {
-                            $pago = DiasCompra::findOrFail($data['dias_compra_id']);
-                            $pago->update(['estado' => '0']);
-
-                            if ($pago->id_caja) {
-                                $doc = trim("{$record->serie}-{$record->numero}", '-');
-
-                                app(CajaService::class)->registrarMovimiento([
-                                    'id_caja'          => $pago->id_caja,
-                                    'tipo'             => 'INGRESO',
-                                    'categoria'        => 'COMPRA',
-                                    'descripcion'      => 'Reversión pago anulado compra ' . ($doc ?: "#{$record->id_compra}"),
-                                    'monto'            => (float) $pago->monto,
-                                    'fecha'            => now()->toDateString(),
-                                    'instrumento_tipo' => $pago->instrumento_tipo,
-                                    'id_usuario'       => (int) auth()->user()->usuario_id,
-                                ]);
-                            }
-                        });
-
-                        Notification::make()->success()->title('Pago anulado')->send();
                     }),
             ])
             ->defaultSort('fecha_vencimiento', 'asc');

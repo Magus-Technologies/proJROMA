@@ -202,6 +202,59 @@ class CajaService
     }
 
     /**
+     * Mapear tipo de pago al instrumento_tipo de caja.
+     */
+    public function mapInstrumentoTipo(string $tipoPago): string
+    {
+        return match (strtoupper($tipoPago)) {
+            'EFECTIVO'      => 'EFECTIVO',
+            'YAPE', 'PLIN'  => 'BILLETERA_DIGITAL',
+            'TRANSFERENCIA',
+            'DEPOSITO'      => 'TRANSFERENCIA',
+            default         => 'EFECTIVO',
+        };
+    }
+
+    /**
+     * Registrar un cobro como ingreso en la caja del usuario.
+     * Busca la caja activa del usuario que cobró; si no tiene, omite.
+     */
+    public function registrarCobro(
+        int    $idUsuario,
+        float  $monto,
+        string $tipoPago,
+        int    $idVenta,
+        string $documento,
+        ?int   $idDiasVenta = null,
+        string $categoria = 'VENTA'
+    ): ?int
+    {
+        $caja = DB::table('cajas')
+            ->where('id_empresa', (int) session('id_empresa'))
+            ->where('id_usuario_responsable', $idUsuario)
+            ->where('estado', 'ACTIVA')
+            ->orderByRaw('CASE WHEN id_caja_padre IS NOT NULL THEN 0 ELSE 1 END')
+            ->first();
+
+        if (!$caja) return null;
+
+        return $this->registrarMovimiento([
+            'id_caja'          => $caja->id,
+            'fecha'            => now()->toDateString(),
+            'tipo'             => 'INGRESO',
+            'categoria'        => $categoria,
+            'descripcion'      => $categoria === 'VENTA'
+                ? "Cobro venta {$documento}"
+                : "Cobro {$documento}",
+            'monto'            => $monto,
+            'instrumento_tipo' => $this->mapInstrumentoTipo($tipoPago),
+            'origen_tipo'      => 'DiasVenta',
+            'origen_id'        => $idDiasVenta,
+            'id_usuario'       => $idUsuario,
+        ]);
+    }
+
+    /**
      * Consolidar el estado de las cajas hijas de una caja principal.
      */
     public function consolidadoCajasHijas(int $idCajaPadre, string $fecha): array

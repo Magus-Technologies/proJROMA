@@ -148,13 +148,15 @@ class NotaElectronicaApiController extends Controller
             'codsunat'         => $p->producto?->codsunat ?? 'ZZ',
         ])->values()->toArray();
 
+        $cred = $empresa->credencialesSunat();
+
         $payload = [
-            'endpoint'              => ($empresa->modo ?? '') === 'produccion' ? 'produccion' : 'beta',
+            'endpoint'              => $cred['endpoint'],
             'documento'             => $nota->tipo,
             'empresa'               => [
-                'ruc'          => $empresa->ruc,
-                'usuario'      => $empresa->user_sol ?? '',
-                'clave'        => $empresa->clave_sol ?? '',
+                'ruc'          => $cred['ruc'],
+                'usuario'      => $cred['usuario'],
+                'clave'        => $cred['clave'],
                 'razon_social' => $empresa->razon_social,
                 'direccion'    => $empresa->direccion ?? '',
             ],
@@ -192,10 +194,10 @@ class NotaElectronicaApiController extends Controller
             $nombreArchivo = $genData['data']['nombre_archivo'];
 
             $envResp = Http::timeout(30)->post("{$apiUrl}/v1/enviar/documento/electronico", [
-                'ruc'                 => $empresa->ruc,
-                'usuario'             => $empresa->user_sol ?? '',
-                'clave'               => $empresa->clave_sol ?? '',
-                'endpoint'            => ($empresa->modo ?? '') === 'produccion' ? 'produccion' : 'beta',
+                'ruc'                 => $cred['ruc'],
+                'usuario'             => $cred['usuario'],
+                'clave'               => $cred['clave'],
+                'endpoint'            => $cred['endpoint'],
                 'nombre_documento'    => $nombreArchivo,
                 'contenido_documento' => $xmlSigned,
             ]);

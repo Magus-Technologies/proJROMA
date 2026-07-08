@@ -10,7 +10,6 @@ use App\Models\Venta;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
-use Filament\Actions\ViewAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables\Columns\TextColumn;
@@ -126,23 +125,51 @@ class VentaResource extends Resource
                         ->when($data['hasta'], fn (Builder $q) => $q->whereDate('fecha_emision', '<=', $data['hasta']))),
             ])
             ->actions([
+                \App\Filament\Actions\PdfPreviewAction::make(
+                    pdfUrl: fn (Venta $record): string => url("/venta/comprobante/pdf/{$record->id_venta}"),
+                    titulo: fn (Venta $record): string => 'Venta ' . $record->documento_completo,
+                    whatsappUrl: function (Venta $record): string {
+                        $doc     = $record->documento_completo;
+                        $mensaje = rawurlencode(
+                            "Hola! Le comparto su comprobante {$doc} por S/ " . number_format((float) $record->total, 2)
+                            . ".\n" . url("/venta/comprobante/pdf/{$record->id_venta}")
+                        );
+                        $telefono = preg_replace('/\D/', '', (string) $record->cliente?->telefono);
+                        $telefono = strlen($telefono) === 9 ? "51{$telefono}" : $telefono;
+
+                        return $telefono
+                            ? "https://wa.me/{$telefono}?text={$mensaje}"
+                            : "https://wa.me/?text={$mensaje}";
+                    },
+                    emailUrl: function (Venta $record): string {
+                        $doc = $record->documento_completo;
+
+                        return 'mailto:' . ($record->cliente?->email ?? '')
+                            . '?subject=' . rawurlencode("Comprobante {$doc}")
+                            . '&body=' . rawurlencode(
+                                "Estimado cliente,\n\nLe compartimos su comprobante {$doc} por S/ "
+                                . number_format((float) $record->total, 2)
+                                . ".\n\nPuede verlo aquí: " . url("/venta/comprobante/pdf/{$record->id_venta}")
+                            );
+                    },
+                    accionesExtra: [
+                        Action::make('voucher_8cm')
+                            ->label('Voucher 8cm')
+                            ->icon('heroicon-m-printer')
+                            ->color('gray')
+                            ->url(fn (Venta $record): string => url("/venta/pdf/voucher/8cm/{$record->id_venta}"))
+                            ->openUrlInNewTab(),
+                    ],
+                )->iconButton()->tooltip('Ver comprobante'),
+
                 ActionGroup::make([
-                ViewAction::make()
-                    ->label('Ver detalle'),
-
-                Action::make('pdf_a4')
-                    ->label('PDF A4')
-                    ->icon('heroicon-m-document-arrow-down')
-                    ->color('danger')
-                    ->url(fn (Venta $record): string => url("/venta/comprobante/pdf/{$record->id_venta}"))
-                    ->openUrlInNewTab(),
-
-                Action::make('voucher')
-                    ->label('Voucher 8cm')
-                    ->icon('heroicon-m-printer')
-                    ->color('gray')
-                    ->url(fn (Venta $record): string => url("/venta/pdf/voucher/8cm/{$record->id_venta}"))
-                    ->openUrlInNewTab(),
+                Action::make('crear_guia')
+                    ->label('Crear guía de remisión')
+                    ->icon('heroicon-m-truck')
+                    ->color('info')
+                    ->visible(fn (Venta $record): bool => $record->estado !== '0')
+                    ->url(fn (Venta $record): string =>
+                        \App\Filament\Resources\GuiaRemisionResource::getUrl('create', ['venta' => $record->id_venta])),
 
                 Action::make('anular')
                     ->label('Anular')

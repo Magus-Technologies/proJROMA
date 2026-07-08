@@ -33,75 +33,9 @@ class ClienteResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
-            TextInput::make('documento')
-                ->label('RUC / DNI')
-                ->maxLength(15)
-                ->suffixAction(
-                    Action::make('consultar_doc')
-                        ->icon('heroicon-m-magnifying-glass')
-                        ->tooltip('Consultar SUNAT / RENIEC')
-                        ->action(function ($state, $set) {
-                            $doc   = trim($state ?? '');
-                            $len   = strlen($doc);
-                            $url   = config('apisperu.url');
-                            $token = config('apisperu.token');
-
-                            if (!in_array($len, [8, 11])) {
-                                Notification::make()->warning()->title('Ingresá 8 dígitos (DNI) o 11 dígitos (RUC).')->send();
-                                return;
-                            }
-
-                            try {
-                                if ($len === 8) {
-                                    $data = Http::timeout(8)->get("{$url}/dni/{$doc}", ['token' => $token])->json();
-                                    $nombre = trim(implode(' ', array_filter([
-                                        $data['nombres'] ?? '', $data['apellidoPaterno'] ?? '', $data['apellidoMaterno'] ?? '',
-                                    ])));
-                                    if (!$nombre) {
-                                        Notification::make()->warning()->title($data['message'] ?? 'DNI no encontrado.')->send();
-                                        return;
-                                    }
-                                    $set('datos', $nombre);
-                                    Notification::make()->success()->title('Datos cargados desde RENIEC')->send();
-                                } else {
-                                    $data = Http::timeout(8)->get("{$url}/ruc/{$doc}", ['token' => $token])->json();
-                                    if (empty($data['razonSocial'])) {
-                                        Notification::make()->warning()->title('RUC no encontrado.')->send();
-                                        return;
-                                    }
-                                    $dir = collect([
-                                        $data['direccion'] ?? '', $data['distrito'] ?? '',
-                                        $data['provincia'] ?? '', $data['departamento'] ?? '',
-                                    ])->filter()->implode(', ');
-                                    $set('datos', $data['razonSocial']);
-                                    $set('direccion', $dir);
-                                    Notification::make()->success()->title('Datos cargados desde SUNAT')->send();
-                                }
-                            } catch (\Throwable) {
-                                Notification::make()->warning()->title('Error al consultar. Intentá de nuevo.')->send();
-                            }
-                        })
-                ),
-            TextInput::make('datos')->label('Razón Social / Nombre')->required()->maxLength(200)->columnSpanFull(),
-            TextInput::make('direccion')->label('Dirección')->maxLength(200)->columnSpanFull(),
-            TextInput::make('distrito')->label('Distrito')->maxLength(100),
-            Select::make('mercado')
-                ->label('Mercado / Zona (TMS)')
-                ->options(fn () => TmsMercado::where('id_empresa', (int) session('id_empresa'))
-                    ->orderBy('nombre')->pluck('nombre', 'id'))
-                ->searchable()
-                ->nullable()
-                ->helperText('Zona/mercado al que pertenece el cliente. Se usa para armar los despachos.'),
-            TextInput::make('telefono')
-                ->label('Teléfono')
-                ->tel()
-                ->mask('99999999999999999999')
-                ->maxLength(20)
-                ->regex('/^[0-9]*$/')
-                ->validationMessages(['regex' => 'El teléfono solo puede contener números.']),
-            TextInput::make('email')->label('Email')->email()->maxLength(100),
-        ]);
+        // Mismo formulario que usa el botón "+" del buscador de cliente
+        // (venta / cotización) — fuente única en el trait HasClienteBuscador.
+        return $schema->components(\App\Filament\Concerns\HasClienteBuscador::clienteFormFields());
     }
 
     public static function table(Table $table): Table

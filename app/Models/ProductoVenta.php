@@ -10,7 +10,7 @@ class ProductoVenta extends Model
 
     protected $fillable = [
         'id_venta','id_producto','descripcion',
-        'cantidad','precio','total','igv_prod','descuento',
+        'cantidad','precio','total','igv_prod','descuento','costo',
     ];
 
     protected $casts = ['precio'=>'float','total'=>'float','cantidad'=>'float'];

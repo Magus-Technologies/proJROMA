@@ -90,5 +90,32 @@ return Application::configure(basePath: dirname(__DIR__))
                 return response()->json(['message' => 'Demasiadas solicitudes.'], 429);
             }
         });
+
+        // Errores dentro del panel Filament (peticiones Livewire): en lugar de
+        // la pantalla cruda de debug, mostrar un mensaje legible en español.
+        // Funciona incluso con APP_DEBUG=true porque intercepta antes del renderer.
+        $exceptions->render(function (\Throwable $e, Request $request) {
+            if (! $request->hasHeader('X-Livewire')) {
+                return null; // dejar que el manejador normal actúe
+            }
+
+            // Estos los maneja Filament/Laravel por su cuenta (no interceptar)
+            if ($e instanceof \Illuminate\Validation\ValidationException
+                || $e instanceof \Illuminate\Auth\AuthenticationException
+                || $e instanceof \Illuminate\Auth\Access\AuthorizationException
+                || $e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface
+                || $e instanceof \Filament\Support\Exceptions\Halt) {
+                return null;
+            }
+
+            $mensajeAmigable = $e instanceof \Illuminate\Database\QueryException
+                ? \App\Support\DbErrorTranslator::translate($e)
+                : 'Ocurrió un error inesperado.';
+
+            return response()->view('errors.500', [
+                'exception'       => $e,
+                'mensajeAmigable' => $mensajeAmigable,
+            ], 500);
+        });
     })
     ->create();

@@ -31,6 +31,7 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
         'id_empresa', 'id_rol', 'num_doc', 'usuario', 'clave',
         'email', 'nombres', 'apellidos', 'rubro', 'sucursal',
         'telefono', 'foto', 'estado', 'mensaje', 'rotativo', 'available_status',
+        'fecha_inicio', 'fecha_salida', 'funciones',
     ];
 
     protected $hidden = [

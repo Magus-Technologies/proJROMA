@@ -17,7 +17,7 @@ class ListGuiasRemision extends ListRecords
                 ->label('Nueva Guía')
                 ->icon('heroicon-o-plus')
                 ->color('primary')
-                ->url(route('guias.create')),
+                ->url(GuiaRemisionResource::getUrl('create')),
         ];
     }
 }

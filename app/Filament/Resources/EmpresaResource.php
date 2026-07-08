@@ -212,6 +212,18 @@ class EmpresaResource extends Resource
                                             ->revealable()
                                             ->maxLength(45),
                                     ]),
+                                Grid::make(2)
+                                    ->schema([
+                                        TextInput::make('gre_client_id')
+                                            ->label('GRE Client ID')
+                                            ->helperText('Credencial API GRE de SUNAT (para Guías de Remisión).')
+                                            ->maxLength(255),
+                                        TextInput::make('gre_client_secret')
+                                            ->label('GRE Client Secret')
+                                            ->password()
+                                            ->revealable()
+                                            ->maxLength(255),
+                                    ]),
                                 FileUpload::make('certificado')
                                     ->label('Certificado Digital (.pem / .pfx / .p12)')
                                     ->acceptedFileTypes(['.pem', '.pfx', '.p12'])

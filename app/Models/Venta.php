@@ -29,6 +29,7 @@ class Venta extends Model
     public function empresa()        { return $this->belongsTo(Empresa::class,'id_empresa','id_empresa'); }
     public function vendedor()       { return $this->belongsTo(User::class,'id_vendedor','usuario_id'); }
     public function tipoDocumento()  { return $this->belongsTo(DocumentoEmpresa::class,'id_tido','id_tido'); }
+    public function tipoDocSunat()   { return $this->belongsTo(DocumentoSunat::class,'id_tido','id_tido'); }
     public function productosVenta() { return $this->hasMany(ProductoVenta::class,'id_venta','id_venta'); }
     public function pagos()          { return $this->hasMany(DiasVenta::class,'id_venta','id_venta'); }
     public function sunat()          { return $this->hasOne(VentaSunat::class,'id_venta','id_venta'); }

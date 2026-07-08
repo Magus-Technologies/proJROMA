@@ -150,6 +150,252 @@ class ReportesController extends Controller
         return PdfService::a4()
             ->generar('pdf.reporte-ventas', compact('ventas', 'empresa', 'periodo'), "reporte-ventas-{$desde}-{$hasta}.pdf");
     }
+    public function reporteVentasAvanzado(\Illuminate\Http\Request $request): mixed
+    {
+        $request->validate([
+            'tipo'    => 'required|in:general,producto,vendedor,cliente,ganancias,rvta',
+            'periodo' => 'required|in:todo,anio,mes',
+            'anio'    => 'nullable|integer',
+            'mes'     => 'nullable|integer|between:1,12',
+            'formato' => 'required|in:xlsx,pdf',
+        ]);
+
+        $empresa  = (int) session('id_empresa');
+        $sucursal = (int) session('sucursal');
+
+        $rango = function ($query, string $columna) use ($request): void {
+            if ($request->periodo !== 'todo' && $request->anio) {
+                $query->whereYear($columna, $request->anio);
+            }
+            if ($request->periodo === 'mes' && $request->mes) {
+                $query->whereMonth($columna, $request->mes);
+            }
+        };
+
+        $meses = [1 => 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        $periodo = match ($request->periodo) {
+            'anio' => "Año {$request->anio}",
+            'mes'  => ($meses[(int) $request->mes] ?? $request->mes) . " {$request->anio}",
+            default => 'Todo el historial',
+        };
+
+        $estadoLabel = fn (?string $e): string => match ($e) {
+            '1' => 'Activa', '2' => 'Crédito', '0' => 'Anulada', default => (string) $e,
+        };
+        $doc = fn ($v): string => trim("{$v->serie}-" . str_pad((string) $v->numero, 8, '0', STR_PAD_LEFT), '-');
+
+        if ($request->tipo === 'general') {
+            $titulo    = 'Registro de Ventas';
+            $cabeceras = ['Documento', 'Fecha', 'Cliente', 'Vendedor', 'Tipo pago', 'Estado', 'Total (S/)'];
+            $moneda    = [6];
+
+            $query = Venta::with(['cliente', 'vendedor'])
+                ->where('id_empresa', $empresa)->where('sucursal', $sucursal);
+            $rango($query, 'fecha_emision');
+
+            $registros = $query->orderBy('fecha_emision')->orderBy('id_venta')->get();
+            $filas = $registros->map(fn (Venta $v): array => [
+                $doc($v),
+                $v->fecha_emision ? \Carbon\Carbon::parse($v->fecha_emision)->format('d/m/Y') : '',
+                $v->cliente?->datos ?? '—',
+                $v->vendedor?->nombres ?? '—',
+                $v->id_tipo_pago == 2 ? 'Crédito' : 'Contado',
+                $estadoLabel($v->estado),
+                (float) $v->total,
+            ])->toArray();
+            $filas[] = ['', '', '', '', '', 'TOTAL', $registros->where('estado', '!=', '0')->sum('total')];
+        } elseif ($request->tipo === 'producto') {
+            $titulo    = 'Ventas por Producto';
+            $cabeceras = ['Producto', 'Cant. vendida', 'N° ventas', 'Monto (S/)'];
+            $moneda    = [3];
+
+            $query = \Illuminate\Support\Facades\DB::table('productos_ventas as pv')
+                ->join('ventas as v', 'v.id_venta', '=', 'pv.id_venta')
+                ->where('v.id_empresa', $empresa)->where('v.sucursal', $sucursal)
+                ->where('v.estado', '!=', '0');
+            $rango($query, 'v.fecha_emision');
+
+            $registros = $query
+                ->selectRaw('pv.descripcion as producto, SUM(pv.cantidad) as cantidad, COUNT(DISTINCT v.id_venta) as veces, SUM(pv.total) as monto')
+                ->groupBy('pv.descripcion')->orderByDesc('monto')->get();
+
+            $filas = $registros->map(fn ($r): array => [
+                $r->producto, (float) $r->cantidad, (int) $r->veces, (float) $r->monto,
+            ])->toArray();
+            $filas[] = ['TOTAL', $registros->sum('cantidad'), '', $registros->sum('monto')];
+        } elseif ($request->tipo === 'cliente') {
+            $titulo    = 'Ventas por Cliente';
+            $cabeceras = ['Cliente', 'N° ventas', 'Ticket promedio (S/)', 'Monto (S/)'];
+            $moneda    = [2, 3];
+
+            $query = Venta::with('cliente')
+                ->where('id_empresa', $empresa)->where('sucursal', $sucursal)
+                ->where('estado', '!=', '0');
+            $rango($query, 'fecha_emision');
+
+            $registros = $query->get()->groupBy('id_cliente');
+            $filas = $registros->map(fn ($grupo): array => [
+                $grupo->first()->cliente?->datos ?? '— Sin cliente —',
+                $grupo->count(),
+                round($grupo->avg('total'), 2),
+                (float) $grupo->sum('total'),
+            ])->sortByDesc(3)->values()->toArray();
+            $filas[] = ['TOTAL', $registros->flatten()->count(), '', $registros->flatten()->sum('total')];
+        } elseif ($request->tipo === 'vendedor') {
+            $titulo    = 'Ventas por Vendedor';
+            $cabeceras = ['Vendedor', 'Rol', 'N° ventas', 'Anuladas', 'Monto (S/)'];
+            $moneda    = [4];
+
+            $query = Venta::where('id_empresa', $empresa)->where('sucursal', $sucursal);
+            $rango($query, 'fecha_emision');
+            $porUsuario = $query->get()->groupBy('id_vendedor');
+
+            $usuarios = \Illuminate\Support\Facades\DB::table('usuarios as u')
+                ->leftJoin('roles as r', 'r.rol_id', '=', 'u.id_rol')
+                ->where('u.id_empresa', $empresa)
+                ->where(fn ($q) => $q
+                    ->where('r.nombre', 'VENDEDOR')
+                    ->orWhereIn('u.usuario_id', $porUsuario->keys()->filter()->all()))
+                ->select('u.usuario_id', \Illuminate\Support\Facades\DB::raw("TRIM(CONCAT(u.nombres, ' ', COALESCE(u.apellidos, ''))) as nombre"), 'r.nombre as rol')
+                ->orderBy('nombre')
+                ->get();
+
+            $filas = $usuarios->map(function ($u) use ($porUsuario): array {
+                $grupo = $porUsuario->get($u->usuario_id, collect());
+
+                return [
+                    $u->nombre,
+                    ucfirst(strtolower($u->rol ?? '—')),
+                    $grupo->count(),
+                    $grupo->where('estado', '0')->count(),
+                    (float) $grupo->where('estado', '!=', '0')->sum('total'),
+                ];
+            })->sortByDesc(4)->values()->toArray();
+
+            $huerfanas = $porUsuario->filter(fn ($g, $id) => ! $usuarios->pluck('usuario_id')->contains($id))->flatten();
+            if ($huerfanas->isNotEmpty()) {
+                $filas[] = ['— Usuario eliminado —', '—', $huerfanas->count(),
+                    $huerfanas->where('estado', '0')->count(),
+                    (float) $huerfanas->where('estado', '!=', '0')->sum('total')];
+            }
+
+            $todas = $porUsuario->flatten();
+            $filas[] = ['TOTAL', '', $todas->count(), $todas->where('estado', '0')->count(),
+                (float) $todas->where('estado', '!=', '0')->sum('total')];
+        } elseif ($request->tipo === 'rvta') {
+            $titulo    = 'Registro de Ventas e Ingresos';
+            $cabeceras = [
+                'CUO', 'Fecha Emisión', 'Tipo Doc', 'Serie', 'Número',
+                'Tipo Doc Cliente', 'Nro Doc Cliente', 'Razón Social / Nombre',
+                'Base Imponible', 'IGV', 'Exonerado', 'Inafecto', 'ISC', 'ICBPER', 'Otros',
+                'Total', 'Moneda', 'Estado',
+            ];
+            $moneda = [8, 9, 10, 11, 12, 13, 14, 15];
+
+            $tipoDocIdentidad = fn (?string $documento): string => match (strlen(trim((string) $documento))) {
+                8       => '1',   // DNI
+                11      => '6',   // RUC
+                default => '0',
+            };
+
+            $query = Venta::with(['cliente', 'tipoDocSunat'])
+                ->where('id_empresa', $empresa)->where('sucursal', $sucursal);
+            $rango($query, 'fecha_emision');
+
+            $registros = $query->orderBy('fecha_emision')->orderBy('id_venta')->get()
+                // SUNAT: los documentos internos (cod 00, ej. Nota de Venta) no van al registro
+                ->filter(fn (Venta $v): bool => ($v->tipoDocSunat?->cod_sunat ?? '00') !== '00')
+                ->values();
+
+            $correlativo = 0;
+            $filas = $registros->map(function (Venta $v) use (&$correlativo, $tipoDocIdentidad, $estadoLabel): array {
+                $correlativo++;
+                $anulada = $v->estado === '0';
+
+                return [
+                    'M' . str_pad((string) $correlativo, 9, '0', STR_PAD_LEFT),
+                    $v->fecha_emision ? \Carbon\Carbon::parse($v->fecha_emision)->format('d/m/Y') : '',
+                    $v->tipoDocSunat?->cod_sunat ?? '',
+                    $v->serie,
+                    str_pad((string) $v->numero, 8, '0', STR_PAD_LEFT),
+                    $tipoDocIdentidad($v->cliente?->documento),
+                    $v->cliente?->documento ?? '',
+                    $v->cliente?->datos ?? '',
+                    $anulada ? 0 : (float) $v->subtotal,
+                    $anulada ? 0 : (float) $v->igv,
+                    0, 0, 0, 0, 0,
+                    $anulada ? 0 : (float) $v->total,
+                    'PEN',
+                    $estadoLabel($v->estado),
+                ];
+            })->toArray();
+
+            $activas = $registros->where('estado', '!=', '0');
+            $filas[] = [
+                'TOTAL', '', '', '', '', '', '', '',
+                (float) $activas->sum('subtotal'),
+                (float) $activas->sum('igv'),
+                0, 0, 0, 0, 0,
+                (float) $activas->sum('total'),
+                '', '',
+            ];
+        } else {
+            $titulo    = 'Reporte de Ganancias';
+            $cabeceras = ['Documento', 'Fecha', 'Producto', 'Cant.', 'P. Venta (S/)', 'Costo (S/)', 'Total venta (S/)', 'Ganancia (S/)'];
+            $moneda    = [4, 5, 6, 7];
+
+            $query = \Illuminate\Support\Facades\DB::table('productos_ventas as pv')
+                ->join('ventas as v', 'v.id_venta', '=', 'pv.id_venta')
+                ->leftJoin('productos as p', 'p.id_producto', '=', 'pv.id_producto')
+                ->where('v.id_empresa', $empresa)->where('v.sucursal', $sucursal)
+                ->where('v.estado', '!=', '0');
+            $rango($query, 'v.fecha_emision');
+
+            $registros = $query
+                ->selectRaw('v.serie, v.numero, v.fecha_emision, pv.descripcion, pv.cantidad, pv.precio, pv.total')
+                ->selectRaw('COALESCE(NULLIF(pv.costo, 0), p.costo, 0) as costo_unit')
+                ->orderBy('v.fecha_emision')->orderBy('v.id_venta')->get();
+
+            $filas = $registros->map(fn ($r): array => [
+                trim("{$r->serie}-" . str_pad((string) $r->numero, 8, '0', STR_PAD_LEFT), '-'),
+                $r->fecha_emision ? \Carbon\Carbon::parse($r->fecha_emision)->format('d/m/Y') : '',
+                $r->descripcion,
+                (float) $r->cantidad,
+                (float) $r->precio,
+                (float) $r->costo_unit,
+                (float) $r->total,
+                (float) $r->total - ((float) $r->costo_unit * (float) $r->cantidad),
+            ])->toArray();
+
+            $totalVenta = $registros->sum('total');
+            $totalCosto = $registros->sum(fn ($r) => (float) $r->costo_unit * (float) $r->cantidad);
+            $filas[] = ['TOTAL', '', '', '', '', $totalCosto, $totalVenta, $totalVenta - $totalCosto];
+        }
+
+        $slug = 'ventas-' . $request->tipo . '-' . now()->format('Y-m-d');
+
+        if ($request->formato === 'pdf') {
+            $empresaModel = $this->getEmpresa();
+            $logoBase64   = $this->getLogoBase64($empresaModel);
+
+            return PdfService::a4()->generar('pdf.reporte-generico', [
+                'titulo'            => $titulo,
+                'periodo'           => $periodo,
+                'cabeceras'         => $cabeceras,
+                'filas'             => $filas,
+                'columnasMoneda'    => $moneda,
+                'ultimaFilaEsTotal' => true,
+                'empresa'           => $empresaModel,
+                'logoBase64'        => $logoBase64,
+            ], "{$slug}.pdf");
+        }
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\ReporteGenericoExport($titulo, $cabeceras, $filas, $moneda, true),
+            "{$slug}.xlsx",
+        );
+    }
+
     public function reporteCotizaciones(\Illuminate\Http\Request $request): mixed
     {
         $request->validate([

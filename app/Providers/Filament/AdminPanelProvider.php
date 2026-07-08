@@ -83,7 +83,7 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Cobranzas')->icon('heroicon-o-banknotes')->collapsed(),
                 NavigationGroup::make('Pagos')->icon('heroicon-o-credit-card')->collapsed(),
                 NavigationGroup::make('Caja')->icon('heroicon-o-calculator')->collapsed(),
-                NavigationGroup::make('Almacén')->icon('heroicon-o-cube')->collapsed(),
+                NavigationGroup::make('Inventario')->icon('heroicon-o-cube')->collapsed(),
                 NavigationGroup::make('Transporte (TMS)')->icon('heroicon-o-truck')->collapsed(),
                 NavigationGroup::make('Maestros')->icon('heroicon-o-users')->collapsed(),
                 NavigationGroup::make('Administración')->icon('heroicon-o-cog-6-tooth')->collapsed(),

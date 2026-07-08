@@ -21,7 +21,7 @@ class AlmacenStockResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-storefront';
     protected static ?string $navigationLabel = 'Almacén';
-    protected static string|\UnitEnum|null $navigationGroup = 'Almacén';
+    protected static string|\UnitEnum|null $navigationGroup = 'Inventario';
     protected static ?int $navigationSort = 2;
     protected static ?string $label = 'Producto';
     protected static ?string $pluralLabel = 'Existencias por Almacén';

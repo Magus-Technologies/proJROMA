@@ -31,7 +31,7 @@ class PrestamoResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-hand-raised';
     protected static ?string $navigationLabel = 'Préstamos';
-    protected static string|\UnitEnum|null $navigationGroup = 'Almacén';
+    protected static string|\UnitEnum|null $navigationGroup = 'Inventario';
     protected static ?int $navigationSort = 7;
     protected static ?string $label = 'Préstamo';
     protected static ?string $pluralLabel = 'Préstamos';

@@ -23,7 +23,7 @@ class TrasladoResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-arrows-right-left';
     protected static ?string $navigationLabel = 'Traslado de Stock';
-    protected static string|\UnitEnum|null $navigationGroup = 'Almacén';
+    protected static string|\UnitEnum|null $navigationGroup = 'Inventario';
     protected static ?int $navigationSort = 5;
     protected static ?string $label = 'Traslado';
     protected static ?string $pluralLabel = 'Traslados de Stock';

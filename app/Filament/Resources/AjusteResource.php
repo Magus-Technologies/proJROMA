@@ -29,7 +29,7 @@ class AjusteResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-adjustments-horizontal';
     protected static ?string $navigationLabel = 'Ajustes / Cuadres';
-    protected static string|\UnitEnum|null $navigationGroup = 'Almacén';
+    protected static string|\UnitEnum|null $navigationGroup = 'Inventario';
     protected static ?int $navigationSort = 6;
     protected static ?string $label = 'Ajuste';
     protected static ?string $pluralLabel = 'Ajustes / Cuadres';

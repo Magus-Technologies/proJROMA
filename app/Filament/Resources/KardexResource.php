@@ -26,7 +26,7 @@ class KardexResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-list';
     protected static ?string $navigationLabel = 'Kardex';
-    protected static string|\UnitEnum|null $navigationGroup = 'Almacén';
+    protected static string|\UnitEnum|null $navigationGroup = 'Inventario';
     protected static ?int $navigationSort = 3;
     protected static ?string $label = 'Movimiento';
     protected static ?string $pluralLabel = 'Kardex';

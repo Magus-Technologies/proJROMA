@@ -25,6 +25,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Support\Exceptions\Halt;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
@@ -382,6 +383,18 @@ class CreateVenta extends CreateRecord
         $this->data['buscador_producto'] = null;
     }
 
+    /**
+     * Muestra un error de negocio como notificación (siempre visible) y detiene
+     * la creación limpiamente. Evita el problema de ValidationException con
+     * claves que no matchean el statePath del form (errores invisibles).
+     */
+    private function fallo(string $mensaje): never
+    {
+        Notification::make()->danger()->title($mensaje)->persistent()->send();
+
+        throw new Halt();
+    }
+
     protected function handleRecordCreation(array $data): Model
     {
         return DB::transaction(function () use ($data): Venta {
@@ -390,9 +403,7 @@ class CreateVenta extends CreateRecord
             $usuario  = (int) auth()->user()->usuario_id;
 
             if (blank($data['id_cliente'] ?? null)) {
-                throw ValidationException::withMessages([
-                    'buscador_cliente' => 'Seleccioná un cliente para la venta.',
-                ]);
+                $this->fallo('Seleccioná un cliente para la venta.');
             }
 
             // Validate stock before touching anything
@@ -406,9 +417,7 @@ class CreateVenta extends CreateRecord
 
                 $cantidad = (float) $linea['cantidad'];
                 if ($cantidad > (float) $producto->cantidad) {
-                    throw ValidationException::withMessages([
-                        'productos' => "Stock insuficiente de \"{$producto->descripcion}\" (disponible: {$producto->cantidad}).",
-                    ]);
+                    $this->fallo("Stock insuficiente de «{$producto->descripcion}» (disponible: {$producto->cantidad}).");
                 }
 
                 $lineaTotal = round($cantidad * (float) $linea['precio'], 2);
@@ -417,7 +426,7 @@ class CreateVenta extends CreateRecord
             }
 
             if ($total <= 0) {
-                throw ValidationException::withMessages(['productos' => 'El total debe ser mayor a 0.']);
+                $this->fallo('El total debe ser mayor a 0.');
             }
 
             // Correlative number with lock (same as legacy API)
@@ -494,7 +503,13 @@ class CreateVenta extends CreateRecord
                 ]);
             }
 
-            foreach ($data['lista_pagos'] ?? [] as $pago) {
+            // Las cuotas solo aplican a crédito; ignorar ítems vacíos del repeater.
+            $cuotas = ((int) $data['id_tipo_pago'] === 2) ? ($data['lista_pagos'] ?? []) : [];
+            foreach ($cuotas as $pago) {
+                if (blank($pago['monto'] ?? null) || blank($pago['fecha'] ?? null)) {
+                    continue;
+                }
+
                 $dv = DiasVenta::create([
                     'id_venta'   => $venta->id_venta,
                     'fecha'      => $pago['fecha'],

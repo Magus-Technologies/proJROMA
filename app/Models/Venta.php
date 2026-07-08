@@ -16,7 +16,7 @@ class Venta extends Model
         'id_tido','id_tipo_pago','fecha_emision','fecha_vencimiento',
         'dias_pagos','direccion','serie','numero','id_cliente','total',
         'subtotal','estado','enviado_sunat','id_empresa','sucursal',
-        'apli_igv','observacion','igv','medoto_pago_id','pagado',
+        'apli_igv','tipo_igv','observacion','igv','medoto_pago_id','pagado',
         'id_vendedor','id_coti',
         'sunat_estado','sunat_mensaje','hash_cpe','xml_ruta','cdr_ruta',
     ];

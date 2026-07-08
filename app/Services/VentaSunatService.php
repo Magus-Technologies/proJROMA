@@ -181,6 +181,7 @@ class VentaSunatService
                 'unidad'       => $p->medida ?: 'NIU',
                 'cantidad'     => (float) $p->cantidad,
                 'precio'       => (float) $p->precio,
+                'tipo_igv'     => $venta->tipo_igv ?: 'gravado', // afectación de todo el comprobante
             ])->values()->toArray(),
         ];
     }

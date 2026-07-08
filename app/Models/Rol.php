@@ -36,14 +36,11 @@ class Rol extends Model implements RoleContract
         );
     }
 
-    public function users(): BelongsToMany
+    public function users(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->belongsToMany(
-            config('auth.providers.users.model'),
-            config('permission.table_names.model_has_roles'),
-            'role_id',
-            config('permission.column_names.model_morph_key')
-        );
+        // Los usuarios se vinculan por la columna legacy usuarios.id_rol,
+        // no por la tabla pivote de Spatie (model_has_roles, vacía).
+        return $this->hasMany(User::class, 'id_rol', 'rol_id');
     }
 
     public static function findByName(string $name, $guardName = null): RoleContract

@@ -10,6 +10,9 @@ class TmsDespachoService
     /** id_tido que representa un "pedido" (Nota de Venta). */
     public const TIDO_PEDIDO = 6;
 
+    /** Estado de cotización cuando ya fue convertida a boleta/factura. */
+    public const ESTADO_FACTURADO = '3';
+
     /** IDs de clientes que pertenecen a los puntos de una ruta (mercados + tiendas). */
     public function clientesDeRuta(int $idRuta, int $empresa): array
     {
@@ -42,6 +45,16 @@ class TmsDespachoService
             ->pluck('peso', 'pc.id_coti')->all();
     }
 
+    /** Números de pedidos del despacho cuya cotización aún no está facturada. */
+    public function pedidosSinFacturarDeDespacho(int $idDespacho): array
+    {
+        return DB::table('tms_despacho_pedidos as dp')
+            ->join('cotizaciones as c', 'c.cotizacion_id', '=', 'dp.id_cotizacion')
+            ->where('dp.id_despacho', $idDespacho)
+            ->where('c.estado', '<>', self::ESTADO_FACTURADO)
+            ->pluck('c.numero')->all();
+    }
+
     /** Cotizaciones ya tomadas por un despacho no anulado. */
     public function pedidosYaDespachados(): array
     {
@@ -67,6 +80,7 @@ class TmsDespachoService
             ->whereDate('c.fecha', '>=', $desde)
             ->whereDate('c.fecha', '<=', $hasta)
             ->where('c.id_tido', self::TIDO_PEDIDO)
+            ->where('c.estado', self::ESTADO_FACTURADO)
             ->when($yaDespachados, fn ($q) => $q->whereNotIn('c.cotizacion_id', $yaDespachados))
             ->orderBy('cl.mercado')
             ->select(
@@ -114,9 +128,17 @@ class TmsDespachoService
             ->join('clientes as cl', 'cl.id_cliente', '=', 'c.id_cliente')
             ->where('c.id_empresa', $empresa)
             ->whereIn('c.cotizacion_id', $pedidosIds)
-            ->select('c.cotizacion_id', 'c.total', 'c.id_cliente', 'cl.mercado as id_mercado')
+            ->select('c.cotizacion_id', 'c.numero', 'c.estado', 'c.total', 'c.id_cliente', 'cl.mercado as id_mercado')
             ->get();
         if ($rows->isEmpty()) throw new \RuntimeException('No hay pedidos válidos.');
+
+        $sinFacturar = $rows->filter(fn ($row) => (string) $row->estado !== self::ESTADO_FACTURADO)->pluck('numero');
+        if ($sinFacturar->isNotEmpty()) {
+            throw new \RuntimeException(
+                'Pedidos sin facturar: ' . $sinFacturar->implode(', ') .
+                '. Solo se pueden despachar pedidos convertidos a boleta o factura.'
+            );
+        }
 
         $pesos = $this->pesosPorPedido($rows->pluck('cotizacion_id')->all());
         $pesoTotal = 0.0;

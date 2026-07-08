@@ -561,6 +561,11 @@ class ReportesController extends Controller
         $despacho = \App\Models\TmsDespacho::with(['ruta', 'vehiculo', 'conductor'])->findOrFail($id);
         $empresa  = $this->getEmpresa() ?? Empresa::find($despacho->id_empresa);
 
+        $sinFacturar = app(\App\Services\TmsDespachoService::class)->pedidosSinFacturarDeDespacho($id);
+        if ($sinFacturar) {
+            abort(422, 'No se pueden generar las guías de reparto: pedidos sin facturar (' . implode(', ', $sinFacturar) . '). Convierte los pedidos a boleta o factura primero.');
+        }
+
         $mercadoIds = collect(explode(',', (string) request('mercados')))
             ->filter()->map(fn ($v) => (int) $v)->values()->all();
 
@@ -597,6 +602,11 @@ class ReportesController extends Controller
     {
         $despacho = \App\Models\TmsDespacho::with(['ruta', 'vehiculo', 'conductor', 'pedidos'])->findOrFail($id);
         $empresa  = $this->getEmpresa() ?? Empresa::find($despacho->id_empresa);
+
+        $sinFacturar = app(\App\Services\TmsDespachoService::class)->pedidosSinFacturarDeDespacho($id);
+        if ($sinFacturar) {
+            abort(422, 'No se puede generar la hoja de carga: pedidos sin facturar (' . implode(', ', $sinFacturar) . '). Convierte los pedidos a boleta o factura primero.');
+        }
 
         // Filtros: ?mercados=1,2&medidas=Kilos,Unidad (o el mercado de la ruta legada).
         $mercadoIds = collect(explode(',', (string) request('mercados')))

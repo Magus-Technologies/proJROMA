@@ -95,6 +95,8 @@ class DespachoResource extends Resource
                             ->bulkToggleable(),
                     ])
                     ->action(function (array $data, TmsDespacho $record, $livewire): void {
+                        if (self::notificarPedidosSinFacturar($record, 'la hoja de carga')) return;
+
                         $qs = http_build_query(array_filter([
                             'mercados' => implode(',', $data['mercados'] ?? []),
                             'medidas'  => implode(',', $data['medidas'] ?? []),
@@ -120,6 +122,8 @@ class DespachoResource extends Resource
                             ->bulkToggleable(),
                     ])
                     ->action(function (array $data, TmsDespacho $record, $livewire): void {
+                        if (self::notificarPedidosSinFacturar($record, 'las guías de reparto')) return;
+
                         $qs = http_build_query(array_filter([
                             'mercados' => implode(',', $data['mercados'] ?? []),
                         ]));
@@ -244,6 +248,22 @@ class DespachoResource extends Resource
                 ])->label('Acciones')->icon('heroicon-m-ellipsis-vertical')->button(),
             ])
             ->defaultSort('id', 'desc');
+    }
+
+    /** Notifica si el despacho tiene pedidos sin facturar. Devuelve true si debe bloquearse la acción. */
+    private static function notificarPedidosSinFacturar(TmsDespacho $despacho, string $documento): bool
+    {
+        $sinFacturar = app(TmsDespachoService::class)->pedidosSinFacturarDeDespacho($despacho->id);
+        if (!$sinFacturar) return false;
+
+        Notification::make()->danger()
+            ->title('Pedidos sin facturar')
+            ->body('No se puede generar ' . $documento . ': los pedidos ' . implode(', ', $sinFacturar) .
+                ' aún no fueron convertidos a boleta o factura.')
+            ->persistent()
+            ->send();
+
+        return true;
     }
 
     /** Mercados presentes en los pedidos del despacho, para el filtro del PDF. */

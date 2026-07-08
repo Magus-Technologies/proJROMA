@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\DB;
 
 class TrasladoResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'almacen_traslados.ver';
+
     protected static ?string $model = InventarioMovimiento::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-arrows-right-left';

@@ -16,6 +16,10 @@ use Spatie\Permission\Models\Permission;
 
 class PermissionResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'permisos.ver';
+
     protected static ?string $model = Permission::class;
 
     protected static string|\BackedEnum|null $navigationIcon  = 'heroicon-o-key';

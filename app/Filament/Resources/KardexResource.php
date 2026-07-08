@@ -18,6 +18,10 @@ use Illuminate\Support\Facades\DB;
 
 class KardexResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'productos.kardex';
+
     protected static ?string $model = InventarioMovimiento::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-list';

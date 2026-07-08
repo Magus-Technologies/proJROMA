@@ -21,6 +21,10 @@ use Illuminate\Database\Eloquent\Builder;
 
 class CierresCajaResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'caja.gestionar';
+
     protected static ?string $model = CierreCaja::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-currency-dollar';

@@ -22,6 +22,10 @@ use Illuminate\Support\Facades\DB;
 
 class CuentaPorPagarResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'pagos.ver';
+
     protected static ?string $model = Compra::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-library';

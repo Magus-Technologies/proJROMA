@@ -136,6 +136,10 @@ class PermissionSeeder extends Seeder
                 'permisos.editar' => 'Editar permisos',
                 'permisos.borrar' => 'Eliminar permisos',
             ],
+            'Administración' => [
+                'auditoria.ver'          => 'Ver auditoría',
+                'correlativos.gestionar' => 'Configurar correlativos',
+            ],
         ];
     }
 

@@ -97,6 +97,15 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
     public function esVendedor(): bool { return $this->id_rol == 3; }
     public function esCajero(): bool   { return $this->id_rol == 4; }
 
+    // ── Permisos ──────────────────────────────────────────────────────
+    // El rol se asigna por la columna legacy id_rol, no por la tabla
+    // pivote de Spatie (model_has_roles, vacía). Delegamos al rol para
+    // que $user->can('ventas.ver') funcione con el esquema real.
+    public function hasPermissionTo($permission, $guardName = null): bool
+    {
+        return $this->rol?->hasPermissionTo($permission, $guardName) ?? false;
+    }
+
     // ── Filament ──────────────────────────────────────────────────────
     public function getFilamentAvatarUrl(): ?string
     {

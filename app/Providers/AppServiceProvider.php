@@ -5,6 +5,7 @@ namespace App\Providers;
 use BladeUI\Icons\Factory as IconFactory;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -36,6 +37,9 @@ class AppServiceProvider extends ServiceProvider
                 'prefix' => 'custom',
             ]);
         });
+
+        // ── El rol ADMIN pasa todos los chequeos de permisos ─────────────────────
+        Gate::before(fn ($user, $ability) => method_exists($user, 'esAdmin') && $user->esAdmin() ? true : null);
 
         // ── Rate limiter para login ──────────────────────────────────────────────
         RateLimiter::for('login', function (Request $request) {

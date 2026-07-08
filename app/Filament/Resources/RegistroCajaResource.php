@@ -14,6 +14,10 @@ use Filament\Tables\Table;
 
 class RegistroCajaResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'caja.ver';
+
     protected static ?string $model = CajaMovimiento::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-banknotes';

@@ -21,6 +21,10 @@ use Filament\Tables\Table;
 
 class MovimientosCajaResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'caja.ver';
+
     protected static ?string $model = CajaMovimiento::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-arrows-right-left';

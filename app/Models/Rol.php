@@ -51,6 +51,42 @@ class Rol extends Model implements RoleContract
         return static::firstOrCreate(['nombre' => $name, 'guard_name' => $guardName ?? 'web']);
     }
 
+    /**
+     * Deja el rol exactamente con los permisos indicados (nombres, ids o
+     * modelos). Una lista vacía le quita todos los permisos.
+     */
+    public function syncPermissions(...$permissions): static
+    {
+        $permissionClass = config('permission.models.permission');
+
+        $ids = collect($permissions)
+            ->flatten()
+            ->filter()
+            ->map(function ($permission) use ($permissionClass) {
+                if ($permission instanceof PermissionContract) {
+                    return $permission->id;
+                }
+                if (is_numeric($permission)) {
+                    return (int) $permission;
+                }
+
+                return $permissionClass::where('name', $permission)
+                    ->where('guard_name', $this->guard_name ?? 'web')
+                    ->value('id');
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $this->permissions()->sync($ids);
+        $this->unsetRelation('permissions');
+
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        return $this;
+    }
+
     public function hasPermissionTo($permission, $guardName = null): bool
     {
         if (is_string($permission)) {

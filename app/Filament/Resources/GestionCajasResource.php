@@ -22,6 +22,10 @@ use Illuminate\Support\Facades\DB;
 
 class GestionCajasResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'caja.gestionar';
+
     protected static ?string $model = Caja::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-library';

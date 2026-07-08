@@ -16,6 +16,10 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ArqueoDiarioResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'caja.arqueo';
+
     protected static ?string $model = ArqueoDiario::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-calculator';

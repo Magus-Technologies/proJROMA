@@ -23,6 +23,10 @@ use Illuminate\Support\Facades\DB;
 
 class PrestamoResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'almacen_prestamos.ver';
+
     protected static ?string $model = Prestamo::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-hand-raised';

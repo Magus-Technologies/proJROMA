@@ -18,6 +18,10 @@ use Illuminate\Database\Eloquent\Builder;
 
 class UnidadMedidaResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'productos.ver';
+
     protected static ?string $model = UnidadMedida::class;
     protected static ?string $cluster = Productos::class;
 

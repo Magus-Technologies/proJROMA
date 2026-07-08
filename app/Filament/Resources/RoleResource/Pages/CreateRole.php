@@ -11,10 +11,9 @@ class CreateRole extends CreateRecord
 
     protected function afterCreate(): void
     {
-        $permissions = $this->collectPermissionNames();
-        if (!empty($permissions)) {
-            $this->record->syncPermissions($permissions);
-        }
+        // Sincronizar siempre, incluso con lista vacía: un rol puede
+        // crearse sin ningún permiso marcado.
+        $this->record->syncPermissions($this->collectPermissionNames());
     }
 
     protected function collectPermissionNames(): array

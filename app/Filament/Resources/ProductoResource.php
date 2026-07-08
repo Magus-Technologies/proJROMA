@@ -39,6 +39,10 @@ use Illuminate\Support\Facades\DB;
 
 class ProductoResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'productos.ver';
+
     protected static ?string $model = Producto::class;
     protected static ?string $cluster = Productos::class;
 

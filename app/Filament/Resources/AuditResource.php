@@ -13,6 +13,10 @@ use Filament\Tables\Table;
 
 class AuditResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'auditoria.ver';
+
     protected static ?string $model = Audit::class;
 
     protected static string|\BackedEnum|null $navigationIcon  = 'heroicon-o-clipboard-document-list';

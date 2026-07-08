@@ -78,15 +78,15 @@ class AdminPanelProvider extends PanelProvider
                 Dashboard::class,
             ])
             ->navigationGroups([
-                NavigationGroup::make('Facturación')->icon('heroicon-o-document-text'),
-                NavigationGroup::make('Cotizaciones')->icon('heroicon-o-clipboard-document-list'),
-                NavigationGroup::make('Cobranzas')->icon('heroicon-o-banknotes'),
-                NavigationGroup::make('Pagos')->icon('heroicon-o-credit-card'),
-                NavigationGroup::make('Caja')->icon('heroicon-o-calculator'),
-                NavigationGroup::make('Almacén')->icon('heroicon-o-cube'),
-                NavigationGroup::make('Transporte (TMS)')->icon('heroicon-o-truck'),
-                NavigationGroup::make('Maestros')->icon('heroicon-o-users'),
-                NavigationGroup::make('Administración')->icon('heroicon-o-cog-6-tooth'),
+                NavigationGroup::make('Facturación')->icon('heroicon-o-document-text')->collapsed(),
+                NavigationGroup::make('Cotizaciones')->icon('heroicon-o-clipboard-document-list')->collapsed(),
+                NavigationGroup::make('Cobranzas')->icon('heroicon-o-banknotes')->collapsed(),
+                NavigationGroup::make('Pagos')->icon('heroicon-o-credit-card')->collapsed(),
+                NavigationGroup::make('Caja')->icon('heroicon-o-calculator')->collapsed(),
+                NavigationGroup::make('Almacén')->icon('heroicon-o-cube')->collapsed(),
+                NavigationGroup::make('Transporte (TMS)')->icon('heroicon-o-truck')->collapsed(),
+                NavigationGroup::make('Maestros')->icon('heroicon-o-users')->collapsed(),
+                NavigationGroup::make('Administración')->icon('heroicon-o-cog-6-tooth')->collapsed(),
             ])
             ->navigationItems([
                 // ── Facturación ──────────────────────────────────────────

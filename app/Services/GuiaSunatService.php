@@ -34,7 +34,7 @@ class GuiaSunatService
 
         // ── 1) Generar el XML firmado ──────────────────────────────────────
         try {
-            $gen = Http::timeout(30)->post("{$this->apiUrl}/v1/generar/guia/remision", $this->payloadGenerar($guia, $empresa));
+            $gen = Http::timeout(30)->post("{$this->apiUrl}/api/v1/generar/guia/remision", $this->payloadGenerar($guia, $empresa));
             $genData = $gen->json();
         } catch (\Throwable $e) {
             return ['ok' => false, 'msg' => 'No se pudo conectar con el servicio SUNAT (generar).'];
@@ -50,7 +50,7 @@ class GuiaSunatService
 
         // ── 2) Enviar a SUNAT (devuelve ticket) ────────────────────────────
         try {
-            $env = Http::timeout(40)->post("{$this->apiUrl}/v1/enviar/guia/remision", [
+            $env = Http::timeout(40)->post("{$this->apiUrl}/api/v1/enviar/guia/remision", [
                 'ruc'                 => $empresa->ruc,
                 'usuario'             => $empresa->user_sol ?? '',
                 'clave'               => $empresa->clave_sol ?? '',
@@ -93,7 +93,7 @@ class GuiaSunatService
         }
 
         try {
-            $res = Http::timeout(40)->post("{$this->apiUrl}/v1/consulta/documento/ticker/{$guia->ticket_sunat}", [
+            $res = Http::timeout(40)->post("{$this->apiUrl}/api/v1/consulta/documento/ticker/{$guia->ticket_sunat}", [
                 'ruc'           => $empresa->ruc,
                 'usuario'       => $empresa->user_sol ?? '',
                 'clave'         => $empresa->clave_sol ?? '',

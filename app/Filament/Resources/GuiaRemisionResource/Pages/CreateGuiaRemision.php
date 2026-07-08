@@ -31,6 +31,43 @@ class CreateGuiaRemision extends CreateRecord
 
     protected static ?string $title = 'Nueva Guía de Remisión';
 
+    public function mount(): void
+    {
+        parent::mount();
+
+        // Pre-cargar desde una venta (link "Crear guía" de la lista de ventas)
+        $idVenta = (int) request()->query('venta');
+        if (! $idVenta) {
+            return;
+        }
+
+        $venta = Venta::with('cliente')
+            ->where('id_empresa', (int) session('id_empresa'))
+            ->where('sucursal', (int) session('sucursal'))
+            ->where('estado', '!=', '0')
+            ->find($idVenta);
+
+        if (! $venta) {
+            return;
+        }
+
+        $this->form->fill(array_merge($this->data ?? [], [
+            'id_venta'      => $venta->id_venta,
+            'fecha_emision' => now()->toDateString(),
+            'dir_llegada'   => $venta->cliente?->direccion,
+            'productos'     => ProductoVenta::where('id_venta', $venta->id_venta)
+                ->get()
+                ->map(fn (ProductoVenta $p): array => [
+                    'id_producto' => $p->id_producto,
+                    'detalles'    => $p->descripcion,
+                    'unidad'      => 'NIU',
+                    'cantidad'    => (float) $p->cantidad,
+                    'precio'      => (float) $p->precio,
+                ])
+                ->toArray(),
+        ]));
+    }
+
     protected static function proximoNumero(): string
     {
         $numero = (int) GuiaRemision::where('id_empresa', (int) session('id_empresa'))

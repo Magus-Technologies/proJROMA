@@ -9,6 +9,7 @@ use App\Models\Producto;
 use App\Models\Venta;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables\Columns\TextColumn;
@@ -161,6 +162,15 @@ class VentaResource extends Resource
                     ],
                 )->iconButton()->tooltip('Ver comprobante'),
 
+                ActionGroup::make([
+                Action::make('crear_guia')
+                    ->label('Crear guía de remisión')
+                    ->icon('heroicon-m-truck')
+                    ->color('info')
+                    ->visible(fn (Venta $record): bool => $record->estado !== '0')
+                    ->url(fn (Venta $record): string =>
+                        \App\Filament\Resources\GuiaRemisionResource::getUrl('create', ['venta' => $record->id_venta])),
+
                 Action::make('anular')
                     ->label('Anular')
                     ->icon('heroicon-o-no-symbol')
@@ -220,6 +230,7 @@ class VentaResource extends Resource
                                 ->send();
                         }
                     }),
+                ]),
             ])
             ->defaultSort('id_venta', 'desc');
     }

@@ -61,7 +61,6 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/despachos',      [TmsController::class, 'despachos'])->name('despachos');
     });
 
-<<<<<<< HEAD
     // ── Compras ───────────────────────────────────────────────────────────
     Route::prefix('compras')->name('compras.')->group(function () {
         Route::get('/',     [ComprasController::class, 'index'])->name('index');
@@ -95,8 +94,6 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
     // ── Métodos de pago (Bancos, Cuentas, Tarjetas, Billeteras) ──────────
     Route::permanentRedirect('/pago-instrumentos', '/panel/metodos-de-pago');
 
-=======
->>>>>>> 4f573060d5a60a68731bed5fc5d654c38318b446
     // ── Reportes / Exports (enlazados desde Filament) ─────────────────────
     Route::prefix('reporte')->name('reporte.')->group(function () {
         Route::get('/ventas',           [ReportesController::class, 'ventasPdf'])->name('ventas');

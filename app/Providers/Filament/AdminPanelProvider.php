@@ -38,6 +38,20 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Blue,
             ])
+            // Modo SPA: al cambiar de módulo solo se intercambia el contenido
+            // (sin recargar toda la página) y muestra una barra de carga arriba.
+            // Los formularios POS en Blade van por URL completa → carga normal.
+            ->spa()
+            ->spaUrlExceptions([
+                url('/compras/*'),
+                url('/nota/electronica*'),
+                url('/cotizaciones/editar/*'),
+                url('/tms/*'),
+                url('/reporte/*'),
+                url('/venta/*'),
+                url('/guia/*'),
+                url('/r/*'),
+            ])
             ->sidebarCollapsibleOnDesktop()
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->renderHook(

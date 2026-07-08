@@ -19,13 +19,17 @@ use Illuminate\Support\Facades\DB;
 
 class AjusteResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'almacen_ajustes.ver';
+
     protected static ?string $model = InventarioMovimiento::class;
 
     public const AUTOMATIZADOS = ['Compra', 'Venta', 'Traslado entrada', 'Traslado salida', 'Préstamo entregado', 'Préstamo recibido'];
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-adjustments-horizontal';
     protected static ?string $navigationLabel = 'Ajustes / Cuadres';
-    protected static string|\UnitEnum|null $navigationGroup = 'Almacén';
+    protected static string|\UnitEnum|null $navigationGroup = 'Inventario';
     protected static ?int $navigationSort = 6;
     protected static ?string $label = 'Ajuste';
     protected static ?string $pluralLabel = 'Ajustes / Cuadres';

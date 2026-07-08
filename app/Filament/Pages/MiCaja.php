@@ -22,6 +22,10 @@ use Illuminate\Support\Facades\DB;
 
 class MiCaja extends Page implements HasTable
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'caja.ver';
+
     use InteractsWithTable;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-wallet';

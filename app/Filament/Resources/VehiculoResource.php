@@ -21,6 +21,10 @@ use Illuminate\Database\Eloquent\Builder;
 
 class VehiculoResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'tms_vehiculos.ver';
+
     protected static ?string $model = TmsVehiculo::class;
 
     protected static ?string $cluster = Tms::class;

@@ -20,6 +20,10 @@ use Illuminate\Database\Eloquent\Builder;
 
 class SubcategoriaResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'productos.ver';
+
     protected static ?string $model = Subcategoria::class;
     protected static ?string $cluster = Productos::class;
 

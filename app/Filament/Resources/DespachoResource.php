@@ -22,6 +22,10 @@ use Illuminate\Support\Facades\DB;
 
 class DespachoResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'tms_despachos.ver';
+
     protected static ?string $model = TmsDespacho::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-check';

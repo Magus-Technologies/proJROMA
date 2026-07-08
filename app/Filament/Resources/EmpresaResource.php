@@ -28,6 +28,10 @@ use UnitEnum;
 
 class EmpresaResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'empresas.ver';
+
     protected static ?string $model = Empresa::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-office-2';

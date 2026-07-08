@@ -20,6 +20,10 @@ use Illuminate\Database\Eloquent\Builder;
 
 class SubmarcaResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'productos.ver';
+
     protected static ?string $model = Submarca::class;
     protected static ?string $cluster = Productos::class;
 

@@ -29,6 +29,10 @@ use Illuminate\Support\Facades\Http;
 
 class UsuarioResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'usuarios.ver';
+
     protected static ?string $model = User::class;
 
     protected static string|BackedEnum|null $navigationIcon  = 'heroicon-o-users';

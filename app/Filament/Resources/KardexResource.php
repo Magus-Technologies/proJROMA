@@ -18,11 +18,15 @@ use Illuminate\Support\Facades\DB;
 
 class KardexResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'productos.kardex';
+
     protected static ?string $model = InventarioMovimiento::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-list';
     protected static ?string $navigationLabel = 'Kardex';
-    protected static string|\UnitEnum|null $navigationGroup = 'Almacén';
+    protected static string|\UnitEnum|null $navigationGroup = 'Inventario';
     protected static ?int $navigationSort = 3;
     protected static ?string $label = 'Movimiento';
     protected static ?string $pluralLabel = 'Kardex';

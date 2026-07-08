@@ -19,6 +19,10 @@ use Illuminate\Support\Facades\DB;
 
 class SucursalResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'sucursales.ver';
+
     protected static ?string $model = Sucursal::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-office-2';

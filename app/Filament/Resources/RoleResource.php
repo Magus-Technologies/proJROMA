@@ -18,6 +18,10 @@ use Filament\Tables\Table;
 
 class RoleResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'roles.ver';
+
     protected static ?string $model = Rol::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-shield-check';
@@ -37,14 +41,9 @@ class RoleResource extends Resource
         $groups = PermissionSeeder::groups();
 
         $components = [
-            Section::make('Información del rol')->columns(2)->schema([
+            Section::make('Información del rol')->schema([
                 TextInput::make('nombre')
                     ->label('Nombre del rol')
-                    ->required()
-                    ->maxLength(255),
-                TextInput::make('guard_name')
-                    ->label('Guard')
-                    ->default('web')
                     ->required()
                     ->maxLength(255),
             ]),
@@ -79,10 +78,6 @@ class RoleResource extends Resource
                     ->label('Rol')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('guard_name')
-                    ->label('Guard')
-                    ->badge()
-                    ->color('info'),
                 TextColumn::make('permissions_count')
                     ->label('Permisos')
                     ->counts('permissions')

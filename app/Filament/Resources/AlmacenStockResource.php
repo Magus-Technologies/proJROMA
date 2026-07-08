@@ -13,11 +13,15 @@ use Illuminate\Database\Eloquent\Builder;
 
 class AlmacenStockResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'almacen_existencias.ver';
+
     protected static ?string $model = Producto::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-storefront';
     protected static ?string $navigationLabel = 'Almacén';
-    protected static string|\UnitEnum|null $navigationGroup = 'Almacén';
+    protected static string|\UnitEnum|null $navigationGroup = 'Inventario';
     protected static ?int $navigationSort = 2;
     protected static ?string $label = 'Producto';
     protected static ?string $pluralLabel = 'Existencias por Almacén';

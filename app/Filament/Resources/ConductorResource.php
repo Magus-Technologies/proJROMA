@@ -18,6 +18,10 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ConductorResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'tms_conductores.ver';
+
     protected static ?string $model = TmsConductor::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-identification';

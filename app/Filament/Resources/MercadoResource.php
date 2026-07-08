@@ -21,6 +21,10 @@ use Illuminate\Database\Eloquent\Builder;
 
 class MercadoResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'tms_mercados.ver';
+
     protected static ?string $model = TmsMercado::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-storefront';

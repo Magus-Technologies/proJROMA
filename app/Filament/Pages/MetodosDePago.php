@@ -23,6 +23,10 @@ use Illuminate\Database\Eloquent\Builder;
 
 class MetodosDePago extends Page implements HasTable
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'caja.gestionar';
+
     use InteractsWithTable;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-credit-card';

@@ -23,11 +23,15 @@ use Illuminate\Support\Facades\DB;
 
 class PrestamoResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'almacen_prestamos.ver';
+
     protected static ?string $model = Prestamo::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-hand-raised';
     protected static ?string $navigationLabel = 'Préstamos';
-    protected static string|\UnitEnum|null $navigationGroup = 'Almacén';
+    protected static string|\UnitEnum|null $navigationGroup = 'Inventario';
     protected static ?int $navigationSort = 7;
     protected static ?string $label = 'Préstamo';
     protected static ?string $pluralLabel = 'Préstamos';

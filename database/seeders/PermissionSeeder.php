@@ -59,7 +59,7 @@ class PermissionSeeder extends Seeder
                 'productos.kardex'  => 'Ver kardex',
                 'productos.exportar'=> 'Exportar Excel',
             ],
-            'Almacén' => [
+            'Inventario' => [
                 'almacen_recepcion.ver'   => 'Recepción - ver',
                 'almacen_recepcion.crear' => 'Recepción - crear',
                 'almacen_existencias.ver' => 'Existencias - ver',
@@ -135,6 +135,10 @@ class PermissionSeeder extends Seeder
                 'permisos.crear'  => 'Crear permisos',
                 'permisos.editar' => 'Editar permisos',
                 'permisos.borrar' => 'Eliminar permisos',
+            ],
+            'Administración' => [
+                'auditoria.ver'          => 'Ver auditoría',
+                'correlativos.gestionar' => 'Configurar correlativos',
             ],
         ];
     }

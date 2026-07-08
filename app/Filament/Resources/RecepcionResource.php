@@ -18,11 +18,15 @@ use Illuminate\Support\Facades\DB;
 
 class RecepcionResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'almacen_recepcion.ver';
+
     protected static ?string $model = Recepcion::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-inbox-arrow-down';
     protected static ?string $navigationLabel = 'Recepción';
-    protected static string|\UnitEnum|null $navigationGroup = 'Almacén';
+    protected static string|\UnitEnum|null $navigationGroup = 'Inventario';
     protected static ?int $navigationSort = 4;
     protected static ?string $label = 'Recepción';
     protected static ?string $pluralLabel = 'Registro de Recepciones';

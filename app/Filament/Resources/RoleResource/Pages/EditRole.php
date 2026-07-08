@@ -33,10 +33,9 @@ class EditRole extends EditRecord
 
     protected function afterSave(): void
     {
-        $permissions = $this->collectPermissionNames();
-        if (!empty($permissions)) {
-            $this->record->syncPermissions($permissions);
-        }
+        // Sincronizar siempre, incluso con lista vacía: desmarcar todos
+        // los permisos debe quitárselos al rol.
+        $this->record->syncPermissions($this->collectPermissionNames());
     }
 
     protected function collectPermissionNames(): array

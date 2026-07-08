@@ -14,6 +14,10 @@ use Illuminate\Support\Facades\DB;
  */
 class ConfigurarCorrelativos extends Page
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'correlativos.gestionar';
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-hashtag';
     protected static ?string $navigationLabel = 'Correlativos';
     protected static ?string $title = 'Configurar Correlativos';

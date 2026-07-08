@@ -18,6 +18,10 @@ use Illuminate\Database\Eloquent\Builder;
 
 class PresentacionResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'productos.ver';
+
     protected static ?string $model = Presentacion::class;
     protected static ?string $cluster = Productos::class;
 

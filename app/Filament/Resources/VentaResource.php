@@ -22,6 +22,10 @@ use Illuminate\Support\Facades\DB;
 
 class VentaResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'ventas.ver';
+
     protected static ?string $model = Venta::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-shopping-cart';

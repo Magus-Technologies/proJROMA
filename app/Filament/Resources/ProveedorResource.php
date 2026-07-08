@@ -21,6 +21,10 @@ use Illuminate\Validation\Rules\Unique;
 
 class ProveedorResource extends Resource
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'proveedores.ver';
+
     protected static ?string $model = Proveedor::class;
 
     protected static string|BackedEnum|null $navigationIcon  = 'heroicon-o-building-storefront';

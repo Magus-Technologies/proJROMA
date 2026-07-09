@@ -238,15 +238,85 @@ class CajaService
     /**
      * Mapear tipo de pago al instrumento_tipo de caja.
      */
+    /** Cache por request de las opciones de método de pago. */
+    protected static ?array $opcionesMetodoPago = null;
+
+    /**
+     * Métodos de pago disponibles según Métodos de Pago: Efectivo (fijo) +
+     * billeteras registradas + cuentas bancarias (transferencia/depósito).
+     * Las claves caben en ventas.metodo_pago (varchar 20).
+     */
+    public static function opcionesMetodoPago(): array
+    {
+        if (static::$opcionesMetodoPago !== null) {
+            return static::$opcionesMetodoPago;
+        }
+
+        $empresa  = (int) session('id_empresa');
+        $opciones = ['EFECTIVO' => 'Efectivo'];
+
+        DB::table('billeteras_digitales as bd')
+            ->join('billetera_tipos as bt', 'bt.id', '=', 'bd.id_billetera_tipo')
+            ->where('bd.id_empresa', $empresa)
+            ->where('bd.estado', 1)
+            ->orderBy('bt.nombre')
+            ->get(['bd.id_billetera', 'bt.nombre', 'bd.telefono', 'bd.titular'])
+            ->each(function ($b) use (&$opciones): void {
+                $opciones["BILLETERA|{$b->id_billetera}"] = trim("{$b->nombre} · {$b->telefono} · {$b->titular}", ' ·');
+            });
+
+        DB::table('cuentas_bancarias as c')
+            ->join('bancos as b', 'b.id_banco', '=', 'c.id_banco')
+            ->where('c.id_empresa', $empresa)
+            ->where('c.estado', '1')
+            ->orderBy('b.nombre')
+            ->get(['c.id_cuenta', 'b.nombre as banco', 'c.numero_cuenta', 'c.titular'])
+            ->each(function ($c) use (&$opciones): void {
+                $opciones["CUENTA|{$c->id_cuenta}"] = trim("Transferencia {$c->banco} · {$c->numero_cuenta} · {$c->titular}", ' ·');
+            });
+
+        return static::$opcionesMetodoPago = $opciones;
+    }
+
+    /** Etiqueta legible de un método de pago (incluye valores legados). */
+    public static function etiquetaMetodoPago(?string $valor): string
+    {
+        if (blank($valor)) {
+            return '—';
+        }
+
+        $legados = [
+            'EFECTIVO' => 'Efectivo', 'YAPE' => 'Yape', 'PLIN' => 'Plin',
+            'TRANSFERENCIA' => 'Transferencia', 'DEPOSITO' => 'Depósito',
+        ];
+
+        return static::opcionesMetodoPago()[$valor]
+            ?? $legados[strtoupper($valor)]
+            ?? $valor;
+    }
+
+    /** [instrumento_tipo, instrumento_id] para el movimiento de caja. */
+    public static function mapInstrumento(string $tipoPago): array
+    {
+        if (str_starts_with($tipoPago, 'BILLETERA|')) {
+            return ['BILLETERA_DIGITAL', (int) substr($tipoPago, 10)];
+        }
+        if (str_starts_with($tipoPago, 'CUENTA|')) {
+            return ['TRANSFERENCIA', (int) substr($tipoPago, 7)];
+        }
+
+        $tipo = match (strtoupper($tipoPago)) {
+            'YAPE', 'PLIN', 'TUNKI', 'AGORA', 'BIM', 'OTRO' => 'BILLETERA_DIGITAL',
+            'TRANSFERENCIA', 'DEPOSITO'                     => 'TRANSFERENCIA',
+            default                                         => 'EFECTIVO',
+        };
+
+        return [$tipo, null];
+    }
+
     public function mapInstrumentoTipo(string $tipoPago): string
     {
-        return match (strtoupper($tipoPago)) {
-            'EFECTIVO'      => 'EFECTIVO',
-            'YAPE', 'PLIN'  => 'BILLETERA_DIGITAL',
-            'TRANSFERENCIA',
-            'DEPOSITO'      => 'TRANSFERENCIA',
-            default         => 'EFECTIVO',
-        };
+        return static::mapInstrumento($tipoPago)[0];
     }
 
     /**
@@ -272,6 +342,8 @@ class CajaService
 
         if (!$caja) return null;
 
+        [$instrumentoTipo, $instrumentoId] = static::mapInstrumento($tipoPago);
+
         return $this->registrarMovimiento([
             'id_caja'          => $caja->id,
             'fecha'            => now()->toDateString(),
@@ -281,7 +353,8 @@ class CajaService
                 ? "Cobro venta {$documento}"
                 : "Cobro {$documento}",
             'monto'            => $monto,
-            'instrumento_tipo' => $this->mapInstrumentoTipo($tipoPago),
+            'instrumento_tipo' => $instrumentoTipo,
+            'instrumento_id'   => $instrumentoId,
             'origen_tipo'      => 'DiasVenta',
             'origen_id'        => $idDiasVenta,
             'id_usuario'       => $idUsuario,

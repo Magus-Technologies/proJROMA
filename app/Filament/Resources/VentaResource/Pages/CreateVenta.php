@@ -113,6 +113,15 @@ class CreateVenta extends CreateRecord
         ], fn ($v) => $v !== null)));
     }
 
+    /**
+     * Métodos de pago según Métodos de Pago: Efectivo (fijo) + billeteras
+     * registradas (con titular) + cuentas bancarias para transferencias.
+     */
+    protected static function opcionesMetodoPago(): array
+    {
+        return CajaService::opcionesMetodoPago();
+    }
+
     public function form(Schema $schema): Schema
     {
         return $schema->components([
@@ -314,13 +323,7 @@ class CreateVenta extends CreateRecord
                                                         ->required(),
                                                     Select::make('tipo_pago')
                                                         ->label('Tipo de pago')
-                                                        ->options([
-                                                            'EFECTIVO'      => 'Efectivo',
-                                                            'YAPE'          => 'Yape',
-                                                            'PLIN'          => 'Plin',
-                                                            'TRANSFERENCIA' => 'Transferencia',
-                                                            'DEPOSITO'      => 'Depósito',
-                                                        ])
+                                                        ->options(fn (): array => static::opcionesMetodoPago())
                                                         ->default('EFECTIVO')
                                                         ->live(),
                                                     Toggle::make('pagado')
@@ -334,6 +337,10 @@ class CreateVenta extends CreateRecord
                                                         ->maxLength(60)
                                                         ->visible(fn (callable $get): bool =>
                                                             filled($get('tipo_pago')) && $get('tipo_pago') !== 'EFECTIVO')
+                                                        ->required(fn (callable $get): bool =>
+                                                            ($get('pagado') ?? false)
+                                                            && filled($get('tipo_pago'))
+                                                            && $get('tipo_pago') !== 'EFECTIVO')
                                                         ->columnSpan(2),
 
                                                     FileUpload::make('voucher')
@@ -414,13 +421,7 @@ class CreateVenta extends CreateRecord
                                 // así que estos campos solo aplican al contado.
                                 Select::make('metodo_pago')
                                     ->label('Método de pago')
-                                    ->options([
-                                        'EFECTIVO'      => 'Efectivo',
-                                        'YAPE'          => 'Yape',
-                                        'PLIN'          => 'Plin',
-                                        'TRANSFERENCIA' => 'Transferencia',
-                                        'DEPOSITO'      => 'Depósito',
-                                    ])
+                                    ->options(fn (): array => static::opcionesMetodoPago())
                                     ->default('EFECTIVO')
                                     ->live()
                                     ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 1)
@@ -434,11 +435,15 @@ class CreateVenta extends CreateRecord
                                         (int) $get('id_tipo_pago') === 1
                                         && filled($get('metodo_pago'))
                                         && $get('metodo_pago') !== 'EFECTIVO')
+                                    ->required(fn (callable $get): bool =>
+                                        (int) $get('id_tipo_pago') === 1
+                                        && filled($get('metodo_pago'))
+                                        && $get('metodo_pago') !== 'EFECTIVO')
                                     ->columnSpanFull(),
 
                                 FileUpload::make('pago_voucher')
                                     ->label('Captura del pago')
-                                    ->helperText('Opcional. Imagen del Yape, Plin o la transferencia.')
+                                    ->helperText('Opcional. Imagen del comprobante del pago (billetera o banco).')
                                     ->image()
                                     ->disk('public')
                                     ->directory('vouchers')

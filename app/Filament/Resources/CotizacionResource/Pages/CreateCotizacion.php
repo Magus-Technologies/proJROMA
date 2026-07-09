@@ -250,13 +250,7 @@ class CreateCotizacion extends CreateRecord
                                                         ->required(),
                                                     Select::make('tipo_pago')
                                                         ->label('Tipo de pago')
-                                                        ->options([
-                                                            'EFECTIVO'      => 'Efectivo',
-                                                            'YAPE'          => 'Yape',
-                                                            'PLIN'          => 'Plin',
-                                                            'TRANSFERENCIA' => 'Transferencia',
-                                                            'DEPOSITO'      => 'Depósito',
-                                                        ])
+                                                        ->options(fn (): array => \App\Services\CajaService::opcionesMetodoPago())
                                                         ->default('EFECTIVO'),
                                                 ]),
                                         ])

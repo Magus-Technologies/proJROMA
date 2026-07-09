@@ -205,7 +205,7 @@ class VentaResource extends Resource
                     ->color('primary')
                     ->visible(fn (Venta $record): bool =>
                         $record->estado !== '0' && $record->sunat_estado !== 'aceptado')
-                    ->url(fn (Venta $record): string => VentaResource::getUrl('edit', ['record' => $record])),
+                    ->url(fn (Venta $record): string => VentaResource::getUrl('edit', ['venta' => $record->id_venta])),
 
                 Action::make('regenerar_xml')
                     ->label('Regenerar XML')
@@ -348,7 +348,8 @@ class VentaResource extends Resource
         return [
             'index'  => Pages\ListVentas::route('/'),
             'create' => Pages\CreateVenta::route('/create'),
-            'edit'   => Pages\EditVenta::route('/{record}/edit'),
+            // {venta} y no {record}: ver el comentario en EditVenta::mount().
+            'edit'   => Pages\EditVenta::route('/{venta}/edit'),
             'view'   => Pages\ViewVenta::route('/{record}'),
         ];
     }

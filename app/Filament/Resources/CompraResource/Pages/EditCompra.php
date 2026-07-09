@@ -20,11 +20,16 @@ class EditCompra extends CreateCompra
 
     public ?Compra $compraEditando = null;
 
-    public function mount(): void
+    /**
+     * El parámetro de ruta se llama {compra}, NO {record}: CreateRecord declara
+     * `public ?Model $record` y Livewire intentaría instanciar esa clase
+     * abstracta al hacer implicit route binding. Con otro nombre, no matchea.
+     */
+    public function mount(int|string $compra = 0): void
     {
         parent::mount();
 
-        $id = (int) request()->route('record');
+        $id = (int) $compra;
 
         $compra = Compra::where('id_empresa', (int) session('id_empresa'))->findOrFail($id);
 

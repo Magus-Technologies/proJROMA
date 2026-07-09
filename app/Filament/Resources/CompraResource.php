@@ -295,7 +295,7 @@ class CompraResource extends Resource
                         ->icon('heroicon-m-pencil')
                         ->color('info')
                         ->visible(fn (Compra $record) => (int) $record->recepcionado === 0)
-                        ->url(fn (Compra $record) => CompraResource::getUrl('edit', ['record' => $record->id_compra])),
+                        ->url(fn (Compra $record) => CompraResource::getUrl('edit', ['compra' => $record->id_compra])),
 
                     Action::make('pdf')
                         ->label('PDF')
@@ -341,7 +341,8 @@ class CompraResource extends Resource
         return [
             'index'  => Pages\ListCompras::route('/'),
             'create' => Pages\CreateCompra::route('/create'),
-            'edit'   => Pages\EditCompra::route('/{record}/edit'),
+            // {compra} y no {record}: ver el comentario en EditCompra::mount().
+            'edit'   => Pages\EditCompra::route('/{compra}/edit'),
         ];
     }
 }

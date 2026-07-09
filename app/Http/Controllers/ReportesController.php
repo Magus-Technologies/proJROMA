@@ -569,7 +569,45 @@ class ReportesController extends Controller
     }
 
     public function reporteCliente(int $id): \Illuminate\View\View { return view('reportes.cliente',compact('id')); }
-    public function reporteCompra(int $id): \Illuminate\View\View  { return view('reportes.compra',compact('id')); }
+    /** PDF de una compra: proveedor, detalle de ítems, total y estado de recepción. */
+    public function reporteCompra(int $id): \Illuminate\Http\Response
+    {
+        $compra = \App\Models\Compra::with('proveedor')->findOrFail($id);
+
+        $empresa    = $this->getEmpresa() ?? Empresa::find($compra->id_empresa);
+        $logoBase64 = $this->getLogoBase64($empresa);
+
+        $lineas = \Illuminate\Support\Facades\DB::table('productos_compras as pc')
+            ->leftJoin('productos as p', 'p.id_producto', '=', 'pc.id_producto')
+            ->where('pc.id_compra', $compra->id_compra)
+            ->get(['pc.id_producto', 'pc.cantidad', 'pc.costo', 'p.descripcion', 'p.codigo']);
+
+        $tipoDocumento = \Illuminate\Support\Facades\DB::table('documentos_sunat')
+            ->where('id_tido', $compra->id_tido)
+            ->value('nombre') ?? '—';
+
+        $formaPago = \Illuminate\Support\Facades\DB::table('tipo_pago')
+            ->where('tipo_pago_id', $compra->id_tipo_pago)
+            ->value('nombre') ?? '—';
+
+        $instrumento = match ($compra->instrumento_tipo) {
+            'EFECTIVO'          => 'Efectivo',
+            'TRANSFERENCIA'     => 'Transferencia',
+            'BILLETERA_DIGITAL' => 'Billetera digital',
+            default             => null,
+        };
+
+        // Serie-número si el proveedor dio comprobante; si no, el correlativo interno.
+        $documentoCompleto = filled($compra->serie) && filled($compra->numero)
+            ? $compra->serie . '-' . $compra->numero
+            : 'COMPRA-' . str_pad((string) $compra->id_compra, 8, '0', STR_PAD_LEFT);
+
+        return PdfService::a4()->generar(
+            'pdf.compra',
+            compact('compra', 'empresa', 'logoBase64', 'lineas', 'tipoDocumento', 'formaPago', 'instrumento', 'documentoCompleto'),
+            "compra-{$documentoCompleto}.pdf"
+        );
+    }
     public function ingresosEgresos(int $id): \Illuminate\View\View{ return view('reportes.ingresos-egresos',compact('id')); }
     /**
      * Guías de reparto del despacho: un ticket PEDIDO (original + copia)

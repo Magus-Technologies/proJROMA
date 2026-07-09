@@ -26,11 +26,16 @@ class EditVenta extends CreateVenta
 
     public ?Venta $ventaEditando = null;
 
-    public function mount(): void
+    /**
+     * El parámetro de ruta se llama {venta}, NO {record}: CreateRecord declara
+     * `public ?Model $record` y Livewire intentaría instanciar esa clase
+     * abstracta al hacer implicit route binding. Con otro nombre, no matchea.
+     */
+    public function mount(int|string $venta = 0): void
     {
         parent::mount(); // bootea el formulario (sin ?cotizacion en edición)
 
-        $id = (int) request()->route('record');
+        $id = (int) $venta;
 
         $venta = Venta::with(['productosVenta', 'pagos'])
             ->where('id_empresa', (int) session('id_empresa'))

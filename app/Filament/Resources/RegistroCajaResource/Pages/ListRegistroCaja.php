@@ -39,14 +39,20 @@ class ListRegistroCaja extends ListRecords
                 ->minValue(0.01)
                 ->prefix('S/')
                 ->required(),
-            Select::make('instrumento_tipo')
+            Select::make('metodo_pago')
                 ->label('Método de Pago')
-                ->options([
-                    'EFECTIVO'          => 'Efectivo',
-                    'TRANSFERENCIA'     => 'Transferencia',
-                    'BILLETERA_DIGITAL' => 'Billetera Digital',
-                ])
+                ->options(fn (): array => CajaService::opcionesMetodoPago())
+                ->default('EFECTIVO')
+                ->live()
                 ->required(),
+            TextInput::make('referencia')
+                ->label('N° de operación')
+                ->placeholder('Código del comprobante del pago')
+                ->maxLength(60)
+                ->visible(fn (callable $get): bool =>
+                    filled($get('metodo_pago')) && $get('metodo_pago') !== 'EFECTIVO')
+                ->required(fn (callable $get): bool =>
+                    filled($get('metodo_pago')) && $get('metodo_pago') !== 'EFECTIVO'),
             DatePicker::make('fecha')
                 ->label('Fecha')
                 ->default(now())
@@ -64,12 +70,20 @@ class ListRegistroCaja extends ListRecords
                 return;
             }
 
-            app(CajaService::class)->registrarMovimiento(array_merge($data, [
-                'id_caja'    => $idCaja,
-                'tipo'       => $tipo,
-                'categoria'  => 'MANUAL',
-                'id_usuario' => (int) auth()->user()->usuario_id,
-            ]));
+            [$instrumentoTipo, $instrumentoId] = CajaService::mapInstrumento($data['metodo_pago'] ?? 'EFECTIVO');
+
+            app(CajaService::class)->registrarMovimiento([
+                'id_caja'          => $idCaja,
+                'tipo'             => $tipo,
+                'categoria'        => 'MANUAL',
+                'fecha'            => $data['fecha'],
+                'descripcion'      => $data['descripcion'],
+                'monto'            => $data['monto'],
+                'instrumento_tipo' => $instrumentoTipo,
+                'instrumento_id'   => $instrumentoId,
+                'referencia'       => $data['referencia'] ?? null,
+                'id_usuario'       => (int) auth()->user()->usuario_id,
+            ]);
 
             Notification::make()->success()->title(ucfirst(strtolower($tipo)) . ' registrado')->send();
         };

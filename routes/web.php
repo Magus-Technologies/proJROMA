@@ -75,7 +75,6 @@ Route::middleware('auth')->group(function () {
         'caja.gestion'          => '/panel/gestion-cajas',
         'caja.movimientos'      => '/panel/movimientos-cajas',
         'caja.rendiciones'      => '/panel/cierres-cajas',
-        'caja.arqueo'           => '/panel/arqueo-diarios',
         'caja.micaja'           => '/panel/mi-caja',
     ];
 

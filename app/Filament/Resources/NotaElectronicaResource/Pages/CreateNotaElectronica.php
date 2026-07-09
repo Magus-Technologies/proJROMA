@@ -140,9 +140,10 @@ class CreateNotaElectronica extends CreateRecord
                 ->schema([
                     Select::make('tipo')
                         ->label('Tipo de nota')
+                        ->helperText('La serie se asigna sola: FC01/BC01 (crédito) · FD01/BD01 (débito), según el comprobante afectado.')
                         ->options([
-                            'credito' => 'Nota de Crédito (EC01)',
-                            'debito'  => 'Nota de Débito (ED01)',
+                            'credito' => 'Nota de Crédito',
+                            'debito'  => 'Nota de Débito',
                         ])
                         ->default('credito')
                         ->required()
@@ -209,7 +210,13 @@ class CreateNotaElectronica extends CreateRecord
                     . ') no puede superar el total del comprobante (S/ ' . number_format((float) $venta->total, 2) . ').');
             }
 
-            $serie = $data['tipo'] === 'credito' ? 'EC01' : 'ED01';
+            // SUNAT exige que la serie de la nota empiece con la letra del
+            // comprobante que corrige: F para factura, B para boleta.
+            //   FC01 / BC01 = nota de crédito · FD01 / BD01 = nota de débito
+            $esBoleta = str_starts_with(strtoupper((string) $venta->serie), 'B');
+            $serie    = ($esBoleta ? 'B' : 'F')
+                . ($data['tipo'] === 'credito' ? 'C' : 'D')
+                . '01';
 
             $numero = (int) DB::table('notas_electronicas')
                 ->where('id_empresa', $empresa)

@@ -39,6 +39,7 @@ class CajaService
                 'monto'            => $monto,
                 'instrumento_tipo' => $data['instrumento_tipo'] ?? null,
                 'instrumento_id'   => $data['instrumento_id'] ?? null,
+                'referencia'       => $data['referencia'] ?? null,
                 'saldo_anterior'   => $saldoAnterior,
                 'saldo_posterior'  => $saldoPosterior,
                 'origen_tipo'      => $data['origen_tipo'] ?? null,
@@ -293,6 +294,29 @@ class CajaService
         return static::opcionesMetodoPago()[$valor]
             ?? $legados[strtoupper($valor)]
             ?? $valor;
+    }
+
+    /** Etiqueta de un instrumento de caja (con detalle si hay id registrado). */
+    public static function etiquetaInstrumento(?string $tipo, ?int $id): string
+    {
+        $base = match ($tipo) {
+            'EFECTIVO'          => 'Efectivo',
+            'TRANSFERENCIA'     => 'Transferencia',
+            'BILLETERA_DIGITAL' => 'Billetera digital',
+            default             => $tipo ?: '—',
+        };
+
+        if (! $id) {
+            return $base;
+        }
+
+        $detalle = match ($tipo) {
+            'BILLETERA_DIGITAL' => static::opcionesMetodoPago()["BILLETERA|{$id}"] ?? null,
+            'TRANSFERENCIA'     => static::opcionesMetodoPago()["CUENTA|{$id}"] ?? null,
+            default             => null,
+        };
+
+        return $detalle ?? $base;
     }
 
     /** [instrumento_tipo, instrumento_id] para el movimiento de caja. */

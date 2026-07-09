@@ -213,6 +213,25 @@ class MiCaja extends Page implements HasTable
         return ['efectivo' => round($efectivo, 2), 'otros' => $otros];
     }
 
+    /** Movimiento manual: traduce el método de pago elegido a instrumento de caja. */
+    protected function datosMovimientoManual(array $data, int $cajaId, string $tipo): array
+    {
+        [$instrumentoTipo, $instrumentoId] = CajaService::mapInstrumento($data['metodo_pago'] ?? 'EFECTIVO');
+
+        return [
+            'id_caja'          => $cajaId,
+            'tipo'             => $tipo,
+            'categoria'        => 'MANUAL',
+            'fecha'            => $data['fecha'],
+            'descripcion'      => $data['descripcion'],
+            'monto'            => $data['monto'],
+            'instrumento_tipo' => $instrumentoTipo,
+            'instrumento_id'   => $instrumentoId,
+            'referencia'       => $data['referencia'] ?? null,
+            'id_usuario'       => (int) auth()->user()->usuario_id,
+        ];
+    }
+
     protected function resolverCaja(): ?object
     {
         return DB::table('cajas')
@@ -256,12 +275,14 @@ class MiCaja extends Page implements HasTable
 
                 TextColumn::make('instrumento_tipo')
                     ->label('Instrumento')
-                    ->formatStateUsing(fn (?string $state): string => match ($state) {
-                        'EFECTIVO'          => 'Efectivo',
-                        'TRANSFERENCIA'     => 'Transferencia',
-                        'BILLETERA_DIGITAL' => 'Billetera digital',
-                        default             => $state ?? '—',
-                    }),
+                    ->formatStateUsing(fn (?string $state, CajaMovimiento $record): string =>
+                        CajaService::etiquetaInstrumento($state, $record->instrumento_id ? (int) $record->instrumento_id : null))
+                    ->wrap(),
+
+                TextColumn::make('referencia')
+                    ->label('N° operación')
+                    ->placeholder('—')
+                    ->toggleable(),
 
                 TextColumn::make('monto')
                     ->label('Monto')
@@ -495,14 +516,20 @@ class MiCaja extends Page implements HasTable
                 ->label('Fecha')
                 ->default(now())
                 ->required(),
-            Select::make('instrumento_tipo')
-                ->label('Instrumento')
-                ->options([
-                    'EFECTIVO'          => 'Efectivo',
-                    'TRANSFERENCIA'     => 'Transferencia',
-                    'BILLETERA_DIGITAL' => 'Billetera Digital',
-                ])
+            Select::make('metodo_pago')
+                ->label('Método de pago')
+                ->options(fn (): array => CajaService::opcionesMetodoPago())
+                ->default('EFECTIVO')
+                ->live()
                 ->required(),
+            TextInput::make('referencia')
+                ->label('N° de operación')
+                ->placeholder('Código del comprobante del pago')
+                ->maxLength(60)
+                ->visible(fn (callable $get): bool =>
+                    filled($get('metodo_pago')) && $get('metodo_pago') !== 'EFECTIVO')
+                ->required(fn (callable $get): bool =>
+                    filled($get('metodo_pago')) && $get('metodo_pago') !== 'EFECTIVO'),
         ];
 
         return [
@@ -587,12 +614,7 @@ class MiCaja extends Page implements HasTable
                 ->icon('heroicon-o-arrow-down-circle')
                 ->form($movimientoForm)
                 ->action(function (array $data) use ($cajaId): void {
-                    app(CajaService::class)->registrarMovimiento(array_merge($data, [
-                        'id_caja'    => $cajaId,
-                        'tipo'       => 'INGRESO',
-                        'categoria'  => 'MANUAL',
-                        'id_usuario' => (int) auth()->user()->usuario_id,
-                    ]));
+                    app(CajaService::class)->registrarMovimiento($this->datosMovimientoManual($data, $cajaId, 'INGRESO'));
                     Notification::make()->success()->title('Ingreso registrado')->send();
                     $this->caja = $this->resolverCaja();
                 }),
@@ -603,12 +625,7 @@ class MiCaja extends Page implements HasTable
                 ->icon('heroicon-o-arrow-up-circle')
                 ->form($movimientoForm)
                 ->action(function (array $data) use ($cajaId): void {
-                    app(CajaService::class)->registrarMovimiento(array_merge($data, [
-                        'id_caja'    => $cajaId,
-                        'tipo'       => 'EGRESO',
-                        'categoria'  => 'MANUAL',
-                        'id_usuario' => (int) auth()->user()->usuario_id,
-                    ]));
+                    app(CajaService::class)->registrarMovimiento($this->datosMovimientoManual($data, $cajaId, 'EGRESO'));
                     Notification::make()->success()->title('Egreso registrado')->send();
                     $this->caja = $this->resolverCaja();
                 }),

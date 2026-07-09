@@ -33,6 +33,12 @@ class ListGestionCajas extends ListRecords
                     $data['saldo_actual'] = $data['saldo_actual'] ?? 0;
                     $data['moneda']       = 'PEN';
 
+                    // El tipo elegido define el padre: una principal nunca lo tiene
+                    if (($data['tipo_caja'] ?? null) !== 'HIJA') {
+                        $data['id_caja_padre'] = null;
+                    }
+                    unset($data['tipo_caja']);
+
                     return $data;
                 }),
         ];

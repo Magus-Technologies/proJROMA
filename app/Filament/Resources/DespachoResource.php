@@ -135,6 +135,32 @@ class DespachoResource extends Resource
                         $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
                     }),
 
+                Action::make('comprobantes')
+                    ->label('Boletas / Facturas')
+                    ->iconButton()
+                    ->tooltip('Boletas / Facturas (masivo)')
+                    ->icon('heroicon-o-document-duplicate')
+                    ->color('success')
+                    ->modalHeading(fn (TmsDespacho $record): string => 'Boletas / Facturas — ' . $record->codigo)
+                    ->modalDescription('Imprime en un solo PDF los comprobantes (boleta o factura) de todos los pedidos del despacho, uno por página. Deja el filtro vacío para todos, o elige mercados.')
+                    ->modalSubmitActionLabel('Generar PDF')
+                    ->form([
+                        CheckboxList::make('mercados')
+                            ->label('Solo estos mercados (vacío = todos)')
+                            ->options(fn (TmsDespacho $record) => self::mercadosDelDespacho($record))
+                            ->columns(2)
+                            ->bulkToggleable(),
+                    ])
+                    ->action(function (array $data, TmsDespacho $record, $livewire): void {
+                        if (self::notificarPedidosSinFacturar($record, 'los comprobantes')) return;
+
+                        $qs = http_build_query(array_filter([
+                            'mercados' => implode(',', $data['mercados'] ?? []),
+                        ]));
+                        $url = route('tms.despacho.comprobantes', $record->id) . ($qs ? "?{$qs}" : '');
+                        $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
+                    }),
+
                 ActionGroup::make([
                     Action::make('cargar')->label('Cargar')->icon('heroicon-o-inbox-arrow-down')->color('warning')
                         ->visible(fn (TmsDespacho $r) => $r->estado === 'PLANIFICADO')

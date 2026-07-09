@@ -79,96 +79,37 @@
     <table class="data">
         <thead>
             <tr>
-                <th style="width:12%">Código</th>
-                <th style="width:40%">Producto</th>
-                <th style="width:12%">Medida</th>
-                <th style="width:12%">Tamaño pedido</th>
-                <th style="width:8%">N° ped.</th>
-                <th style="width:8%">Total</th>
-                <th style="width:8%">Kilos</th>
+                <th style="width:15%">Código</th>
+                <th style="width:55%">Producto</th>
+                <th style="width:15%">Cantidad</th>
+                <th style="width:15%">Kilos</th>
             </tr>
         </thead>
         <tbody>
             @forelse($porArticulo as $a)
-                @php $filas = max(1, ($a->detalle ?? collect())->count()); @endphp
-                @forelse($a->detalle ?? collect() as $i => $d)
-                <tr>
-                    @if($loop->first)
-                    <td rowspan="{{ $filas }}">{{ $a->codigo }}</td>
-                    <td rowspan="{{ $filas }}">{{ $a->descripcion }}</td>
-                    @endif
-                    <td class="text-center">{{ $d->medida ?: 'Unidad' }}</td>
-                    <td class="text-right">{{ rtrim(rtrim(number_format((float) $d->tamano, 2), '0'), '.') }}</td>
-                    <td class="text-center">{{ $d->pedidos }}</td>
-                    <td class="text-right">{{ rtrim(rtrim(number_format((float) $d->total, 2), '0'), '.') }}</td>
-                    @if($loop->first)
-                    <td rowspan="{{ $filas }}" class="text-right" style="vertical-align:middle;">{{ number_format((float) $a->kilos, 2) }}</td>
-                    @endif
-                </tr>
-                @empty
-                <tr>
-                    <td>{{ $a->codigo }}</td>
-                    <td>{{ $a->descripcion }}</td>
-                    <td class="text-center">-</td>
-                    <td class="text-right">-</td>
-                    <td class="text-center">-</td>
-                    <td class="text-right">{{ number_format((float) $a->cantidad, 2) }}</td>
-                    <td class="text-right">{{ number_format((float) $a->kilos, 2) }}</td>
-                </tr>
-                @endforelse
-            @empty
-            <tr><td colspan="7" class="text-center" style="color:#999;padding:12px;">Sin artículos.</td></tr>
-            @endforelse
-        </tbody>
-        <tfoot>
             <tr>
-                <td colspan="5">Total general</td>
-                <td class="text-right">{{ number_format((float) $totCant, 2) }}</td>
-                <td class="text-right">{{ number_format((float) $totKilos, 2) }}</td>
-            </tr>
-        </tfoot>
-    </table>
-
-    <div style="font-size: 10pt; font-weight: bold; margin: 12px 0 6px;">Por cliente (reparto)</div>
-    @php
-        $totMonto = $porCliente->sum('total');
-        $totPedidos = $porCliente->sum('pedidos');
-    @endphp
-    <table class="data">
-        <thead>
-            <tr>
-                <th style="width:15%">Documento</th>
-                <th style="width:40%">Denominación</th>
-                <th style="width:10%">Ped.</th>
-                <th style="width:15%">Kilos</th>
-                <th style="width:20%">Total S/</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($porCliente as $c)
-            <tr>
-                <td>{{ $c->documento ?: '-' }}</td>
-                <td>{{ $c->denominacion }}</td>
-                <td class="text-center">{{ $c->pedidos }}</td>
-                <td class="text-right">{{ number_format((float) $c->kilos, 2) }}</td>
-                <td class="text-right">{{ number_format((float) $c->total, 2) }}</td>
+                <td>{{ $a->codigo }}</td>
+                <td>{{ $a->descripcion }}</td>
+                <td class="text-right" style="font-weight:bold;">{{ rtrim(rtrim(number_format((float) $a->cantidad, 2), '0'), '.') }}</td>
+                <td class="text-right">{{ number_format((float) $a->kilos, 2) }}</td>
             </tr>
             @empty
-            <tr><td colspan="5" class="text-center" style="color:#999;padding:12px;">Sin clientes.</td></tr>
+            <tr><td colspan="4" class="text-center" style="color:#999;padding:12px;">Sin artículos.</td></tr>
             @endforelse
         </tbody>
         <tfoot>
             <tr>
                 <td colspan="2">Total general</td>
-                <td class="text-center">{{ $totPedidos }}</td>
+                <td class="text-right">{{ rtrim(rtrim(number_format((float) $totCant, 2), '0'), '.') }}</td>
                 <td class="text-right">{{ number_format((float) $totKilos, 2) }}</td>
-                <td class="text-right">{{ number_format((float) $totMonto, 2) }}</td>
             </tr>
         </tfoot>
     </table>
 
+    {{-- Carga por zona: solo tiene sentido cuando hay más de un mercado --}}
+    @if($porMercado->count() > 1)
     <div style="font-size: 10pt; font-weight: bold; margin: 16px 0 6px;">Por mercado (carga por zona)</div>
-    @forelse($porMercado as $mercadoNombre => $items)
+    @foreach($porMercado as $mercadoNombre => $items)
         @php
             $mTotCant = $items->sum('cantidad');
             $mTotKilos = $items->sum('kilos');
@@ -189,7 +130,7 @@
                     <tr>
                         <td>{{ $a->codigo }}</td>
                         <td>{{ $a->descripcion }}</td>
-                        <td class="text-right">{{ number_format((float) $a->cantidad, 2) }}</td>
+                        <td class="text-right">{{ rtrim(rtrim(number_format((float) $a->cantidad, 2), '0'), '.') }}</td>
                         <td class="text-right">{{ number_format((float) $a->kilos, 2) }}</td>
                     </tr>
                     @endforeach
@@ -197,15 +138,14 @@
                 <tfoot>
                     <tr>
                         <td colspan="2">Subtotal {{ $mercadoNombre }}</td>
-                        <td class="text-right">{{ number_format((float) $mTotCant, 2) }}</td>
+                        <td class="text-right">{{ rtrim(rtrim(number_format((float) $mTotCant, 2), '0'), '.') }}</td>
                         <td class="text-right">{{ number_format((float) $mTotKilos, 2) }}</td>
                     </tr>
                 </tfoot>
             </table>
         </div>
-    @empty
-        <p style="color:#999;font-style:italic;">Sin productos por mercado.</p>
-    @endforelse
+    @endforeach
+    @endif
 
     <div class="footer">
         Generado por ProjRoma — projroma.com | {{ now()->format('d/m/Y H:i:s') }}

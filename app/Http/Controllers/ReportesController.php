@@ -617,6 +617,57 @@ class ReportesController extends Controller
             ], "guias-reparto-{$despacho->codigo}.pdf");
     }
 
+    /**
+     * Boletas/facturas de los pedidos del despacho en un solo PDF
+     * (un comprobante por página) para impresión masiva.
+     */
+    public function despachoComprobantesPdf(int $id): \Illuminate\Http\Response
+    {
+        $despacho = \App\Models\TmsDespacho::findOrFail($id);
+        $empresa  = $this->getEmpresa() ?? Empresa::find($despacho->id_empresa);
+
+        $sinFacturar = app(\App\Services\TmsDespachoService::class)->pedidosSinFacturarDeDespacho($id);
+        if ($sinFacturar) {
+            abort(422, 'No se pueden generar los comprobantes: pedidos sin facturar (' . implode(', ', $sinFacturar) . '). Convierte los pedidos a boleta o factura primero.');
+        }
+
+        $mercadoIds = collect(explode(',', (string) request('mercados')))
+            ->filter()->map(fn ($v) => (int) $v)->values()->all();
+
+        $cotIds = \Illuminate\Support\Facades\DB::table('tms_despacho_pedidos')
+            ->where('id_despacho', $id)
+            ->when($mercadoIds, fn ($q) => $q->whereIn('id_mercado', $mercadoIds))
+            ->orderBy('orden')->pluck('id_cotizacion')->all();
+
+        // id_venta de cada cotización, respetando el orden de reparto
+        $ventaPorCoti = \Illuminate\Support\Facades\DB::table('cotizaciones')
+            ->whereIn('cotizacion_id', $cotIds)
+            ->whereNotNull('id_venta')
+            ->pluck('id_venta', 'cotizacion_id')->all();
+
+        $ventaIds = collect($cotIds)->map(fn ($c) => $ventaPorCoti[$c] ?? null)->filter()->values()->all();
+
+        if (! $ventaIds) {
+            abort(422, 'El despacho no tiene comprobantes para imprimir.');
+        }
+
+        $ventas = Venta::with([
+            'cliente', 'productosVenta.producto', 'tipoDocumento', 'empresa', 'vendedor', 'pagos',
+        ])
+            ->whereIn('id_venta', $ventaIds)
+            ->get()
+            ->sortBy(fn ($v) => array_search($v->id_venta, $ventaIds))
+            ->values();
+
+        return PdfService::a4()
+            ->generar('pdf.despacho-comprobantes', [
+                'despacho'   => $despacho,
+                'empresa'    => $empresa,
+                'ventas'     => $ventas,
+                'logoBase64' => $this->getLogoBase64($empresa),
+            ], "comprobantes-{$despacho->codigo}.pdf");
+    }
+
     public function despachoReportePdf(int $id, ?int $mercadoId = null): \Illuminate\Http\Response
     {
         $despacho = \App\Models\TmsDespacho::with(['ruta', 'vehiculo', 'conductor', 'pedidos'])->findOrFail($id);

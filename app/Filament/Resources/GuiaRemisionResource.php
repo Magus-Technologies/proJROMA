@@ -6,6 +6,7 @@ use App\Filament\Resources\GuiaRemisionResource\Pages;
 use App\Models\GuiaRemision;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -108,6 +109,7 @@ class GuiaRemisionResource extends Resource
                     ]),
             ])
             ->actions([
+                ActionGroup::make([
                 Action::make('detalle')
                     ->label('Detalle')
                     ->icon('heroicon-o-eye')
@@ -170,6 +172,7 @@ class GuiaRemisionResource extends Resource
                         $record->update(['estado' => '0']);
                         Notification::make()->success()->title('Guía anulada')->send();
                     }),
+                ])->tooltip('Acciones'),
             ])
             ->defaultSort('id_guia_remision', 'desc');
     }

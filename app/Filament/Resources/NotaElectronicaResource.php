@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\NotaElectronicaApiController;
 use App\Models\NotaElectronica;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -127,6 +128,7 @@ class NotaElectronicaResource extends Resource
                     ]),
             ])
             ->actions([
+                ActionGroup::make([
                 Action::make('pdf')
                     ->label('PDF')
                     ->icon('heroicon-o-document-text')
@@ -195,6 +197,7 @@ class NotaElectronicaResource extends Resource
                         $record->update(['estado' => '0']);
                         Notification::make()->success()->title('Nota anulada')->send();
                     }),
+                ])->tooltip('Acciones'),
             ])
             ->defaultSort('nota_id', 'desc');
     }

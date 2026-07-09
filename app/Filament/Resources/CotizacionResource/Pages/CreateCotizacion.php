@@ -18,6 +18,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
@@ -172,61 +173,73 @@ class CreateCotizacion extends CreateRecord
                             ->description('Las cuotas deben sumar el total de la cotización')
                             ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 2)
                             ->schema([
-                                Repeater::make('cuotas')
-                                    ->hiddenLabel()
-                                    ->columns(3)
-                                    ->minItems(1)
-                                    ->defaultItems(1)
-                                    ->live()
-                                    ->addActionLabel('Agregar cuota')
-                                    ->schema([
-                                        DatePicker::make('fecha')
-                                            ->label('Fecha de cuota')
-                                            ->required(),
-                                        TextInput::make('monto')
-                                            ->label('Monto (S/)')
-                                            ->numeric()
-                                            ->minValue(0.01)
-                                            ->live(onBlur: true)
-                                            ->required(),
-                                        Select::make('tipo_pago')
-                                            ->label('Tipo de pago')
-                                            ->options([
-                                                'EFECTIVO'      => 'Efectivo',
-                                                'YAPE'          => 'Yape',
-                                                'PLIN'          => 'Plin',
-                                                'TRANSFERENCIA' => 'Transferencia',
-                                                'DEPOSITO'      => 'Depósito',
-                                            ])
-                                            ->default('EFECTIVO'),
-                                    ]),
+                                // El estado vive acá; el repeater se edita en un modal.
+                                Hidden::make('cuotas'),
 
                                 Placeholder::make('resumen_cuotas')
                                     ->hiddenLabel()
-                                    ->content(function (callable $get): HtmlString {
-                                        $total = collect($get('productos') ?? [])
-                                            ->sum(fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['precio'] ?? 0));
-                                        $enCuotas = collect($get('cuotas') ?? [])
-                                            ->sum(fn (array $c): float => (float) ($c['monto'] ?? 0));
-                                        $falta = round($total - $enCuotas, 2);
+                                    ->content(fn (callable $get): HtmlString => static::resumenCuotas($get)),
 
-                                        $cuadra = abs($falta) < 0.01;
-                                        $rgb    = $cuadra ? '22,163,74' : '220,38,38';
-                                        $estado = $cuadra
-                                            ? '✓ Las cuotas cuadran con el total'
-                                            : ($falta > 0
-                                                ? 'Faltan S/ ' . number_format($falta, 2)
-                                                : 'Exceden en S/ ' . number_format(abs($falta), 2));
+                                Actions::make([
+                                    Action::make('configurar_cuotas')
+                                        ->label(fn (callable $get): string =>
+                                            filled($get('cuotas')) ? 'Editar cuotas' : 'Programar cuotas')
+                                        ->icon('heroicon-m-calendar-days')
+                                        ->color('primary')
+                                        ->modalHeading('Cuotas de pago')
+                                        ->modalDescription('Las cuotas deben sumar el total de la cotización.')
+                                        ->modalWidth('3xl')
+                                        ->modalSubmitActionLabel('Guardar cuotas')
+                                        ->fillForm(function (callable $get): array {
+                                            $cuotas = $get('cuotas') ?: [];
 
-                                        return new HtmlString(
-                                            '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;'
-                                            . 'padding:11px 14px;border-radius:12px;border:1px solid rgba(' . $rgb . ',.35);background:rgba(' . $rgb . ',.08)">'
-                                            . '<span style="opacity:.85;font-size:.85rem">Total: <strong>S/ ' . number_format($total, 2) . '</strong>'
-                                            . ' &nbsp;·&nbsp; En cuotas: <strong>S/ ' . number_format($enCuotas, 2) . '</strong></span>'
-                                            . '<span style="font-weight:700;color:rgb(' . $rgb . ')">' . $estado . '</span>'
-                                            . '</div>'
-                                        );
-                                    }),
+                                            // Sin cuotas aún: proponer una por el total, a 30 días.
+                                            if (blank($cuotas)) {
+                                                $total = collect($get('productos') ?? [])->sum(
+                                                    fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['precio'] ?? 0)
+                                                );
+                                                $cuotas = [[
+                                                    'fecha'     => now()->addDays(30)->toDateString(),
+                                                    'monto'     => round($total, 2),
+                                                    'tipo_pago' => 'EFECTIVO',
+                                                ]];
+                                            }
+
+                                            return ['cuotas' => $cuotas];
+                                        })
+                                        ->form([
+                                            Repeater::make('cuotas')
+                                                ->hiddenLabel()
+                                                ->columns(3)
+                                                ->minItems(1)
+                                                ->defaultItems(1)
+                                                ->addActionLabel('Agregar cuota')
+                                                ->schema([
+                                                    DatePicker::make('fecha')
+                                                        ->label('Fecha de cuota')
+                                                        ->required(),
+                                                    TextInput::make('monto')
+                                                        ->label('Monto (S/)')
+                                                        ->numeric()
+                                                        ->minValue(0.01)
+                                                        ->prefix('S/')
+                                                        ->required(),
+                                                    Select::make('tipo_pago')
+                                                        ->label('Tipo de pago')
+                                                        ->options([
+                                                            'EFECTIVO'      => 'Efectivo',
+                                                            'YAPE'          => 'Yape',
+                                                            'PLIN'          => 'Plin',
+                                                            'TRANSFERENCIA' => 'Transferencia',
+                                                            'DEPOSITO'      => 'Depósito',
+                                                        ])
+                                                        ->default('EFECTIVO'),
+                                                ]),
+                                        ])
+                                        ->action(function (array $data, callable $set): void {
+                                            $set('cuotas', $data['cuotas'] ?? []);
+                                        }),
+                                ]),
                             ]),
                     ])->columnSpan(['default' => 1, 'xl' => 2]),
 
@@ -306,6 +319,54 @@ class CreateCotizacion extends CreateRecord
                     ])->columnSpan(1),
                 ]),
         ]);
+    }
+
+    /** Barra de cuadre + listado compacto de las cuotas programadas. */
+    protected static function resumenCuotas(callable $get): HtmlString
+    {
+        $total = collect($get('productos') ?? [])
+            ->sum(fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['precio'] ?? 0));
+
+        $cuotas   = collect($get('cuotas') ?? [])->filter(fn ($c) => filled($c['monto'] ?? null));
+        $enCuotas = $cuotas->sum(fn (array $c): float => (float) ($c['monto'] ?? 0));
+        $falta    = round($total - $enCuotas, 2);
+
+        $cuadra = abs($falta) < 0.01 && $cuotas->isNotEmpty();
+        $rgb    = $cuadra ? '22,163,74' : '220,38,38';
+        $estado = $cuotas->isEmpty()
+            ? 'Sin cuotas programadas'
+            : ($cuadra
+                ? '✓ Las cuotas cuadran con el total'
+                : ($falta > 0
+                    ? 'Faltan S/ ' . number_format($falta, 2)
+                    : 'Exceden en S/ ' . number_format(abs($falta), 2)));
+
+        $barra = '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;'
+            . 'padding:11px 14px;border-radius:12px;border:1px solid rgba(' . $rgb . ',.35);background:rgba(' . $rgb . ',.08)">'
+            . '<span style="opacity:.85;font-size:.85rem">Total: <strong>S/ ' . number_format($total, 2) . '</strong>'
+            . ' &nbsp;·&nbsp; En cuotas: <strong>S/ ' . number_format($enCuotas, 2) . '</strong></span>'
+            . '<span style="font-weight:700;color:rgb(' . $rgb . ')">' . e($estado) . '</span>'
+            . '</div>';
+
+        if ($cuotas->isEmpty()) {
+            return new HtmlString($barra);
+        }
+
+        $filas = $cuotas->values()->map(fn (array $c, int $i): string =>
+            '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;'
+            . 'padding:8px 14px;border-bottom:1px solid rgba(148,163,184,.18);font-size:.85rem">'
+            . '<span style="opacity:.6">Cuota ' . ($i + 1) . '</span>'
+            . '<span>' . e($c['fecha'] ?? '—') . '</span>'
+            . '<span style="opacity:.65;font-size:.78rem">' . e($c['tipo_pago'] ?? 'EFECTIVO') . '</span>'
+            . '<span style="font-weight:600">S/ ' . number_format((float) $c['monto'], 2) . '</span>'
+            . '</div>'
+        )->implode('');
+
+        return new HtmlString(
+            $barra
+            . '<div style="margin-top:10px;border:1px solid rgba(148,163,184,.3);border-radius:12px;overflow:hidden">'
+            . $filas . '</div>'
+        );
     }
 
     public function agregarProducto(int $idProducto): void

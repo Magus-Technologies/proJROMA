@@ -15,6 +15,7 @@ use App\Models\MotivoMovimiento;
 use App\Models\Producto;
 use App\Models\ProductoVenta;
 use App\Models\Venta;
+use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
@@ -26,6 +27,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Support\Exceptions\Halt;
+use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
@@ -236,34 +238,76 @@ class CreateVenta extends CreateRecord
                             ->description('Programe las cuotas del crédito')
                             ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 2)
                             ->schema([
-                                Repeater::make('lista_pagos')
+                                // El estado vive acá; el repeater se edita en un modal.
+                                Hidden::make('lista_pagos'),
+
+                                Placeholder::make('resumen_pagos')
                                     ->hiddenLabel()
-                                    ->columns(4)
-                                    ->defaultItems(1)
-                                    ->addActionLabel('Agregar cuota')
-                                    ->schema([
-                                        DatePicker::make('fecha')
-                                            ->label('Fecha de cuota')
-                                            ->required(),
-                                        TextInput::make('monto')
-                                            ->label('Monto (S/)')
-                                            ->numeric()
-                                            ->minValue(0.01)
-                                            ->required(),
-                                        Select::make('tipo_pago')
-                                            ->label('Tipo de pago')
-                                            ->options([
-                                                'EFECTIVO'      => 'Efectivo',
-                                                'YAPE'          => 'Yape',
-                                                'PLIN'          => 'Plin',
-                                                'TRANSFERENCIA' => 'Transferencia',
-                                                'DEPOSITO'      => 'Depósito',
-                                            ])
-                                            ->default('EFECTIVO'),
-                                        Toggle::make('pagado')
-                                            ->label('Ya pagado')
-                                            ->inline(false),
-                                    ]),
+                                    ->content(fn (callable $get): HtmlString => static::resumenCuotas($get)),
+
+                                Actions::make([
+                                    Action::make('configurar_cuotas')
+                                        ->label(fn (callable $get): string =>
+                                            filled($get('lista_pagos')) ? 'Editar cuotas' : 'Programar cuotas')
+                                        ->icon('heroicon-m-calendar-days')
+                                        ->color('primary')
+                                        ->modalHeading('Cuotas de pago')
+                                        ->modalDescription('Las cuotas deben sumar el total de la venta.')
+                                        ->modalWidth('3xl')
+                                        ->modalSubmitActionLabel('Guardar cuotas')
+                                        ->fillForm(function (callable $get): array {
+                                            $cuotas = $get('lista_pagos') ?: [];
+
+                                            if (blank($cuotas)) {
+                                                $total = collect($get('productos') ?? [])->sum(
+                                                    fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['precio'] ?? 0)
+                                                );
+                                                $cuotas = [[
+                                                    'fecha'     => now()->addDays(30)->toDateString(),
+                                                    'monto'     => round($total, 2),
+                                                    'tipo_pago' => 'EFECTIVO',
+                                                    'pagado'    => false,
+                                                ]];
+                                            }
+
+                                            return ['lista_pagos' => $cuotas];
+                                        })
+                                        ->form([
+                                            Repeater::make('lista_pagos')
+                                                ->hiddenLabel()
+                                                ->columns(4)
+                                                ->minItems(1)
+                                                ->defaultItems(1)
+                                                ->addActionLabel('Agregar cuota')
+                                                ->schema([
+                                                    DatePicker::make('fecha')
+                                                        ->label('Fecha de cuota')
+                                                        ->required(),
+                                                    TextInput::make('monto')
+                                                        ->label('Monto (S/)')
+                                                        ->numeric()
+                                                        ->minValue(0.01)
+                                                        ->prefix('S/')
+                                                        ->required(),
+                                                    Select::make('tipo_pago')
+                                                        ->label('Tipo de pago')
+                                                        ->options([
+                                                            'EFECTIVO'      => 'Efectivo',
+                                                            'YAPE'          => 'Yape',
+                                                            'PLIN'          => 'Plin',
+                                                            'TRANSFERENCIA' => 'Transferencia',
+                                                            'DEPOSITO'      => 'Depósito',
+                                                        ])
+                                                        ->default('EFECTIVO'),
+                                                    Toggle::make('pagado')
+                                                        ->label('Ya pagado')
+                                                        ->inline(false),
+                                                ]),
+                                        ])
+                                        ->action(function (array $data, callable $set): void {
+                                            $set('lista_pagos', $data['lista_pagos'] ?? []);
+                                        }),
+                                ]),
                             ]),
                     ])->columnSpan(['default' => 1, 'xl' => 2]),
 
@@ -408,6 +452,57 @@ class CreateVenta extends CreateRecord
      * la creación limpiamente. Evita el problema de ValidationException con
      * claves que no matchean el statePath del form (errores invisibles).
      */
+    /** Barra de cuadre + listado compacto de las cuotas programadas. */
+    protected static function resumenCuotas(callable $get): HtmlString
+    {
+        $total = collect($get('productos') ?? [])
+            ->sum(fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['precio'] ?? 0));
+
+        $cuotas   = collect($get('lista_pagos') ?? [])->filter(fn ($c) => filled($c['monto'] ?? null));
+        $enCuotas = $cuotas->sum(fn (array $c): float => (float) ($c['monto'] ?? 0));
+        $falta    = round($total - $enCuotas, 2);
+
+        $cuadra = abs($falta) < 0.01 && $cuotas->isNotEmpty();
+        $rgb    = $cuadra ? '22,163,74' : '220,38,38';
+        $estado = $cuotas->isEmpty()
+            ? 'Sin cuotas programadas'
+            : ($cuadra
+                ? '✓ Las cuotas cuadran con el total'
+                : ($falta > 0
+                    ? 'Faltan S/ ' . number_format($falta, 2)
+                    : 'Exceden en S/ ' . number_format(abs($falta), 2)));
+
+        $barra = '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;'
+            . 'padding:11px 14px;border-radius:12px;border:1px solid rgba(' . $rgb . ',.35);background:rgba(' . $rgb . ',.08)">'
+            . '<span style="opacity:.85;font-size:.85rem">Total: <strong>S/ ' . number_format($total, 2) . '</strong>'
+            . ' &nbsp;·&nbsp; En cuotas: <strong>S/ ' . number_format($enCuotas, 2) . '</strong></span>'
+            . '<span style="font-weight:700;color:rgb(' . $rgb . ')">' . e($estado) . '</span>'
+            . '</div>';
+
+        if ($cuotas->isEmpty()) {
+            return new HtmlString($barra);
+        }
+
+        $filas = $cuotas->values()->map(fn (array $c, int $i): string =>
+            '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;'
+            . 'padding:8px 14px;border-bottom:1px solid rgba(148,163,184,.18);font-size:.85rem">'
+            . '<span style="opacity:.6">Cuota ' . ($i + 1) . '</span>'
+            . '<span>' . e($c['fecha'] ?? '—') . '</span>'
+            . '<span style="opacity:.65;font-size:.78rem">' . e($c['tipo_pago'] ?? 'EFECTIVO') . '</span>'
+            . (($c['pagado'] ?? false)
+                ? '<span style="font-size:.72rem;color:rgb(22,163,74);font-weight:600">PAGADO</span>'
+                : '<span style="font-size:.72rem;opacity:.4">pendiente</span>')
+            . '<span style="font-weight:600">S/ ' . number_format((float) $c['monto'], 2) . '</span>'
+            . '</div>'
+        )->implode('');
+
+        return new HtmlString(
+            $barra
+            . '<div style="margin-top:10px;border:1px solid rgba(148,163,184,.3);border-radius:12px;overflow:hidden">'
+            . $filas . '</div>'
+        );
+    }
+
     protected function fallo(string $mensaje): never
     {
         Notification::make()->danger()->title($mensaje)->persistent()->send();

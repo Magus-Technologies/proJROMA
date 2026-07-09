@@ -656,6 +656,55 @@ class ReportesController extends Controller
     }
 
     /**
+     * Guías de remisión de las ventas del despacho en un solo PDF
+     * (una guía por página) para impresión masiva. Solo incluye las
+     * ventas que ya tienen guía emitida.
+     */
+    public function despachoGuiasRemisionPdf(int $id): \Illuminate\Http\Response
+    {
+        $despacho = \App\Models\TmsDespacho::findOrFail($id);
+        $empresa  = $this->getEmpresa() ?? Empresa::find($despacho->id_empresa);
+
+        $sinFacturar = app(\App\Services\TmsDespachoService::class)->pedidosSinFacturarDeDespacho($id);
+        if ($sinFacturar) {
+            abort(422, 'No se pueden generar las guías de remisión: pedidos sin facturar (' . implode(', ', $sinFacturar) . '). Convierte los pedidos a boleta o factura primero.');
+        }
+
+        $mercadoIds = collect(explode(',', (string) request('mercados')))
+            ->filter()->map(fn ($v) => (int) $v)->values()->all();
+
+        $cotIds = \Illuminate\Support\Facades\DB::table('tms_despacho_pedidos')
+            ->where('id_despacho', $id)
+            ->when($mercadoIds, fn ($q) => $q->whereIn('id_mercado', $mercadoIds))
+            ->orderBy('orden')->pluck('id_cotizacion')->all();
+
+        $ventaPorCoti = \Illuminate\Support\Facades\DB::table('cotizaciones')
+            ->whereIn('cotizacion_id', $cotIds)
+            ->whereNotNull('id_venta')
+            ->pluck('id_venta', 'cotizacion_id')->all();
+
+        $ventaIds = collect($cotIds)->map(fn ($c) => $ventaPorCoti[$c] ?? null)->filter()->values()->all();
+
+        $guias = GuiaRemision::with(['venta.cliente', 'detalles'])
+            ->whereIn('id_venta', $ventaIds)
+            ->get()
+            ->sortBy(fn ($g) => array_search($g->id_venta, $ventaIds))
+            ->values();
+
+        if ($guias->isEmpty()) {
+            abort(422, 'Ninguna venta de este despacho tiene guía de remisión emitida.');
+        }
+
+        return PdfService::a4()
+            ->generar('pdf.despacho-guias-remision', [
+                'despacho'   => $despacho,
+                'empresa'    => $empresa,
+                'guias'      => $guias,
+                'logoBase64' => $this->getLogoBase64($empresa),
+            ], "guias-remision-{$despacho->codigo}.pdf");
+    }
+
+    /**
      * Boletas/facturas de los pedidos del despacho en un solo PDF
      * (un comprobante por página) para impresión masiva.
      */

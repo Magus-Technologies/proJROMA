@@ -161,6 +161,45 @@ class DespachoResource extends Resource
                         $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
                     }),
 
+                Action::make('guias_remision')
+                    ->label('Guías de remisión')
+                    ->iconButton()
+                    ->tooltip('Guías de remisión (masivo)')
+                    ->icon('heroicon-o-truck')
+                    ->color('warning')
+                    ->modalHeading(fn (TmsDespacho $record): string => 'Guías de remisión — ' . $record->codigo)
+                    ->modalDescription('Imprime en un solo PDF las guías de remisión de las ventas del despacho, una por página. Solo se incluyen las ventas que ya tienen guía emitida. Deja el filtro vacío para todos los mercados.')
+                    ->modalSubmitActionLabel('Generar PDF')
+                    ->form([
+                        CheckboxList::make('mercados')
+                            ->label('Solo estos mercados (vacío = todos)')
+                            ->options(fn (TmsDespacho $record) => self::mercadosDelDespacho($record))
+                            ->columns(2)
+                            ->bulkToggleable(),
+                    ])
+                    ->action(function (array $data, TmsDespacho $record, $livewire): void {
+                        if (self::notificarPedidosSinFacturar($record, 'las guías de remisión')) return;
+
+                        $tieneGuias = DB::table('guia_remision')
+                            ->join('cotizaciones as c', 'c.id_venta', '=', 'guia_remision.id_venta')
+                            ->join('tms_despacho_pedidos as dp', 'dp.id_cotizacion', '=', 'c.cotizacion_id')
+                            ->where('dp.id_despacho', $record->id)
+                            ->exists();
+                        if (! $tieneGuias) {
+                            Notification::make()->warning()
+                                ->title('Sin guías de remisión')
+                                ->body('Ninguna venta de este despacho tiene guía de remisión emitida todavía.')
+                                ->send();
+                            return;
+                        }
+
+                        $qs = http_build_query(array_filter([
+                            'mercados' => implode(',', $data['mercados'] ?? []),
+                        ]));
+                        $url = route('tms.despacho.guias.remision', $record->id) . ($qs ? "?{$qs}" : '');
+                        $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
+                    }),
+
                 ActionGroup::make([
                     Action::make('cargar')->label('Cargar')->icon('heroicon-o-inbox-arrow-down')->color('warning')
                         ->visible(fn (TmsDespacho $r) => $r->estado === 'PLANIFICADO')

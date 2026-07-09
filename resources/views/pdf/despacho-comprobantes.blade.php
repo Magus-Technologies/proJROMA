@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>{{ $v->tipoDocumento?->tipo_doc ?? 'NOTA DE VENTA' }} {{ $v->documento_completo }}</title>
+    <title>Comprobantes {{ $despacho->codigo }}</title>
     <style>
         @page { margin: 50px 40px 50px 40px; }
         body { font-family: 'Arial', sans-serif; font-size: 9pt; color: #333; margin: 0; padding: 0; }
@@ -26,9 +26,17 @@
         .badge-estado { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 8pt; font-weight: bold; }
         .badge-anulada { background: #fee2e2; color: #991b1b; }
         .badge-activa  { background: #d1fae5; color: #065f46; }
+
+        .salto-pagina { page-break-after: always; }
     </style>
 </head>
 <body>
-    @include('pdf.partials.comprobante-body')
+    @foreach($ventas as $venta)
+        @include('pdf.partials.comprobante-body', ['v' => $venta])
+
+        @unless($loop->last)
+            <div class="salto-pagina"></div>
+        @endunless
+    @endforeach
 </body>
 </html>

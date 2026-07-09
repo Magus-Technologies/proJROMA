@@ -82,8 +82,9 @@ class CompraResource extends Resource
                     ->sortable()
                     ->toggleable(),
 
-                TextColumn::make('proveedor.nombre')
+                TextColumn::make('proveedor.razon_social')
                     ->label('Proveedor')
+                    ->placeholder('—')
                     ->searchable()
                     ->wrap()
                     ->toggleable(),

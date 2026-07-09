@@ -192,7 +192,8 @@ class NotaElectronicaResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListNotasElectronicas::route('/'),
+            'index'  => Pages\ListNotasElectronicas::route('/'),
+            'create' => Pages\CreateNotaElectronica::route('/create'),
         ];
     }
 }

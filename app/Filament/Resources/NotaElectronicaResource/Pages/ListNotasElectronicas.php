@@ -17,7 +17,7 @@ class ListNotasElectronicas extends ListRecords
                 ->label('Nueva Nota')
                 ->icon('heroicon-o-plus')
                 ->color('primary')
-                ->url(url('/nota/electronica')),
+                ->url(NotaElectronicaResource::getUrl('create')),
         ];
     }
 }

@@ -232,6 +232,17 @@ class VentaResource extends Resource
                     ->action(fn (Venta $record) =>
                         response()->download(storage_path('app/' . $record->cdr_ruta))),
 
+                Action::make('crear_nota_credito')
+                    ->label('Crear nota de crédito')
+                    ->icon('heroicon-m-receipt-refund')
+                    ->color('danger')
+                    ->visible(fn (Venta $record): bool => $record->sunat_estado === 'aceptado')
+                    ->url(fn (Venta $record): string =>
+                        \App\Filament\Resources\NotaElectronicaResource::getUrl('create', [
+                            'venta' => $record->id_venta,
+                            'tipo'  => 'credito',
+                        ])),
+
                 Action::make('crear_guia')
                     ->label('Crear guía de remisión')
                     ->icon('heroicon-m-truck')

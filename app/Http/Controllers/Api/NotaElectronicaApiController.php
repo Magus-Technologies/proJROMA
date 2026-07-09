@@ -171,7 +171,8 @@ class NotaElectronicaApiController extends Controller
             'tipoDoc'               => $tipoDocNota,
             'serie_numero_afectado' => $venta->documento_completo,
             'cod_motivo'            => $nota->cod_motivo,
-            'des_motivo'            => $nota->motivo,
+            // `motivo` es INT en el esquema legacy; el texto vive en motivo_desc.
+            'des_motivo'            => $nota->motivo_desc ?: (string) $nota->cod_motivo,
             'doc_afectado'          => $docAfectado,
             'tipo_doc_afectado'     => $tipoDocAfectado,
             'total'                 => (float) $nota->total,

@@ -45,6 +45,7 @@ class CajaService
                 'origen_id'        => $data['origen_id'] ?? null,
                 'id_usuario'       => $data['id_usuario'],
                 'estado'           => 'CONFIRMADO',
+                'created_at'       => now(),
             ]);
 
             // 3. Actualizar saldo de la caja

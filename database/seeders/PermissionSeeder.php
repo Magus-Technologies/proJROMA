@@ -79,9 +79,11 @@ class PermissionSeeder extends Seeder
                 'almacen_prestamos.crear' => 'Registrar préstamos',
             ],
             'Caja' => [
-                'caja.ver'       => 'Ver movimientos de caja',
-                'caja.gestionar' => 'Aperturar / cerrar caja',
-                'caja.arqueo'    => 'Arqueo diario',
+                'caja.ver'             => 'Ver movimientos de caja',
+                'caja.gestionar'       => 'Aperturar / cerrar caja',
+                'caja.arqueo'          => 'Arqueo diario',
+                'caja.apertura_ver'    => 'Ver detalle de la apertura',
+                'caja.apertura_editar' => 'Editar la apertura del día',
             ],
             'Cobranzas' => [
                 'cobranzas.ver'      => 'Ver cobranzas',

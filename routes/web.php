@@ -54,6 +54,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/tms/despacho/pdf/{despacho}/mercado/{mercado}', [ReportesController::class, 'despachoReportePdf'])->name('tms.despacho.pdf.mercado');
     Route::get('/tms/despacho/guias/{despacho}',        [ReportesController::class, 'despachoGuiasPdf'])->name('tms.despacho.guias');
     Route::get('/tms/despacho/comprobantes/{despacho}', [ReportesController::class, 'despachoComprobantesPdf'])->name('tms.despacho.comprobantes');
+    Route::get('/tms/despacho/guias-remision/{despacho}', [ReportesController::class, 'despachoGuiasRemisionPdf'])->name('tms.despacho.guias.remision');
     Route::get('/escanear/codigobarra/{empresa}/{sucursal}', [ProductosController::class, 'escanearBarra'])->name('scanner.barra');
 });
 

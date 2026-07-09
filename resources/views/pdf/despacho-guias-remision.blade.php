@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>GUÍA DE REMISIÓN {{ $guia->serie }}-{{ str_pad($guia->numero, 8, '0', STR_PAD_LEFT) }}</title>
+    <title>Guías de Remisión {{ $despacho->codigo }}</title>
     <style>
         @page { margin: 45px 40px 45px 40px; }
         body { font-family: 'Arial', sans-serif; font-size: 9pt; color: #333; margin: 0; padding: 0; }
@@ -21,6 +21,12 @@
     </style>
 </head>
 <body>
-    @include('pdf.partials.guia-remision-body')
+    @foreach($guias as $guia)
+        @include('pdf.partials.guia-remision-body')
+
+        @unless($loop->last)
+            <div style="page-break-after: always;"></div>
+        @endunless
+    @endforeach
 </body>
 </html>

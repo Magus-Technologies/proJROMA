@@ -246,6 +246,26 @@ class CreateNotaElectronica extends CreateRecord
         });
     }
 
+    protected function afterCreate(): void
+    {
+        // Generar el XML al crear (sin enviar). Best-effort: si el servicio falla,
+        // la nota queda creada y se puede regenerar desde la lista.
+        try {
+            $res = app(\App\Services\NotaSunatService::class)->generarXml($this->getRecord());
+            if (! $res['ok']) {
+                Notification::make()->warning()
+                    ->title('Nota creada, pero el XML no se generó')
+                    ->body($res['msg'] . ' Podés regenerarlo desde la lista.')
+                    ->send();
+            }
+        } catch (\Throwable $e) {
+            Notification::make()->warning()
+                ->title('Nota creada, pero el XML no se generó')
+                ->body('Podés regenerarlo desde la lista con "Regenerar XML".')
+                ->send();
+        }
+    }
+
     protected function getRedirectUrl(): string
     {
         return NotaElectronicaResource::getUrl('index');

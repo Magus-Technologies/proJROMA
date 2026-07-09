@@ -230,7 +230,7 @@ class VentaResource extends Resource
                     ->color('gray')
                     ->visible(fn (Venta $record): bool => filled($record->cdr_ruta))
                     ->action(fn (Venta $record) =>
-                        response()->download(storage_path('app/' . $record->cdr_ruta))),
+                        response()->download(storage_path('app/private/' . $record->cdr_ruta))),
 
                 Action::make('crear_nota_credito')
                     ->label('Crear nota de crédito')

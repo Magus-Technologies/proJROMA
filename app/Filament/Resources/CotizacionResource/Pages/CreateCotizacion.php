@@ -18,6 +18,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Support\Exceptions\Halt;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
@@ -344,6 +345,18 @@ class CreateCotizacion extends CreateRecord
         ]);
     }
 
+    /**
+     * Muestra un error de negocio como notificación (siempre visible) y detiene
+     * el guardado. Evita ValidationException con claves que no matchean el
+     * statePath del form, que quedan invisibles para el usuario.
+     */
+    protected function fallo(string $mensaje): never
+    {
+        Notification::make()->danger()->title($mensaje)->persistent()->send();
+
+        throw new Halt();
+    }
+
     /** Barra de cuadre + listado compacto de las cuotas programadas. */
     protected static function resumenCuotas(callable $get): HtmlString
     {
@@ -432,9 +445,7 @@ class CreateCotizacion extends CreateRecord
             $usuario  = (int) auth()->user()->usuario_id;
 
             if (blank($data['id_cliente'] ?? null)) {
-                throw ValidationException::withMessages([
-                    'buscador_cliente' => 'Seleccioná un cliente para la cotización.',
-                ]);
+                $this->fallo('Seleccioná un cliente para la cotización.');
             }
 
             $total  = 0.0;
@@ -451,7 +462,7 @@ class CreateCotizacion extends CreateRecord
             }
 
             if ($total <= 0) {
-                throw ValidationException::withMessages(['productos' => 'El total debe ser mayor a 0.']);
+                $this->fallo('El total debe ser mayor a 0.');
             }
 
             // Crédito: las cuotas deben existir y sumar exactamente el total
@@ -459,9 +470,7 @@ class CreateCotizacion extends CreateRecord
                 $cuotas = $data['cuotas'] ?? [];
 
                 if (count($cuotas) === 0) {
-                    throw ValidationException::withMessages([
-                        'cuotas' => 'Una venta a crédito debe tener al menos una cuota.',
-                    ]);
+                    $this->fallo('Una cotización a crédito debe tener al menos una cuota.');
                 }
 
                 $sumaCuotas = round(collect($cuotas)->sum(fn (array $c): float => (float) ($c['monto'] ?? 0)), 2);
@@ -470,12 +479,10 @@ class CreateCotizacion extends CreateRecord
                     $diferencia = round($total - $sumaCuotas, 2);
                     $detalle = $diferencia > 0
                         ? 'Faltan S/ ' . number_format($diferencia, 2) . ' por cubrir.'
-                        : 'Las cuotas exceden el total en S/ ' . number_format(abs($diferencia), 2) . '.';
+                        : 'Exceden el total en S/ ' . number_format(abs($diferencia), 2) . '.';
 
-                    throw ValidationException::withMessages([
-                        'cuotas' => "Las cuotas (S/ " . number_format($sumaCuotas, 2)
-                            . ") deben sumar el total de la cotización (S/ " . number_format($total, 2) . "). {$detalle}",
-                    ]);
+                    $this->fallo('Las cuotas (S/ ' . number_format($sumaCuotas, 2)
+                        . ') deben sumar el total de la cotización (S/ ' . number_format($total, 2) . "). {$detalle}");
                 }
             }
 
@@ -487,7 +494,7 @@ class CreateCotizacion extends CreateRecord
                 ->first();
 
             if (! $tido) {
-                throw ValidationException::withMessages(['productos' => 'No hay serie de cotización configurada.']);
+                $this->fallo('No hay serie de cotización configurada.');
             }
 
             $numero = $tido->numero + 1;

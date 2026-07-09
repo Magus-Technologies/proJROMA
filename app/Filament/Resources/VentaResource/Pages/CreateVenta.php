@@ -408,7 +408,7 @@ class CreateVenta extends CreateRecord
      * la creación limpiamente. Evita el problema de ValidationException con
      * claves que no matchean el statePath del form (errores invisibles).
      */
-    private function fallo(string $mensaje): never
+    protected function fallo(string $mensaje): never
     {
         Notification::make()->danger()->title($mensaje)->persistent()->send();
 

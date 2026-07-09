@@ -50,15 +50,29 @@ class GestionCajasResource extends Resource
                     ->toArray())
                 ->searchable(),
 
+            Select::make('tipo_caja')
+                ->label('Tipo de caja')
+                ->options([
+                    'PRINCIPAL' => 'Caja Principal',
+                    'HIJA'      => 'Caja Hija (de un trabajador)',
+                ])
+                ->live()
+                ->required()
+                ->formatStateUsing(fn ($state, ?Caja $record) => $state
+                    ?? ($record?->id_caja_padre ? 'HIJA' : 'PRINCIPAL'))
+                ->helperText('La caja principal administra el dinero; cada trabajador (vendedor, cajero) reporta a su propia caja hija.'),
+
             Select::make('id_caja_padre')
-                ->label('Caja Padre (opcional)')
-                ->options(fn () => Caja::where('id_empresa', (int) session('id_empresa'))
+                ->label('Caja Padre')
+                ->options(fn (?Caja $record) => Caja::where('id_empresa', (int) session('id_empresa'))
                     ->whereNull('id_caja_padre')
+                    ->when($record, fn ($q) => $q->where('id', '<>', $record->id))
                     ->pluck('nombre', 'id')
                     ->toArray())
-                ->nullable()
                 ->searchable()
-                ->helperText('Si depende de una caja principal, es una caja hija.'),
+                ->visible(fn (callable $get) => $get('tipo_caja') === 'HIJA')
+                ->required(fn (callable $get) => $get('tipo_caja') === 'HIJA')
+                ->helperText('Caja principal de la que depende esta caja hija.'),
 
             Select::make('estado')
                 ->label('Estado')
@@ -114,7 +128,15 @@ class GestionCajasResource extends Resource
                     ]),
             ])
             ->actions([
-                EditAction::make(),
+                EditAction::make()
+                    ->mutateDataUsing(function (array $data): array {
+                        if (($data['tipo_caja'] ?? null) !== 'HIJA') {
+                            $data['id_caja_padre'] = null;
+                        }
+                        unset($data['tipo_caja']);
+
+                        return $data;
+                    }),
 
                 Action::make('toggle_estado')
                     ->label(fn (Caja $record): string => $record->estado === 'ACTIVA' ? 'Desactivar' : 'Activar')

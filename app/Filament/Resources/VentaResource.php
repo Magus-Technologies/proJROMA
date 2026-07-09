@@ -73,6 +73,34 @@ class VentaResource extends Resource
                     ->money('PEN')
                     ->sortable(),
 
+                TextColumn::make('despacho_info')
+                    ->label('Despacho')
+                    ->badge()
+                    ->default('SIN_DESPACHO')
+                    ->formatStateUsing(function (string $state): string {
+                        if ($state === 'SIN_DESPACHO') {
+                            return 'Sin despachar';
+                        }
+                        [$codigo, $estado] = explode('|', $state);
+
+                        return $codigo . ' · ' . ucfirst(strtolower(str_replace('_', ' ', $estado)));
+                    })
+                    ->color(function (string $state): string {
+                        if ($state === 'SIN_DESPACHO') {
+                            return 'gray';
+                        }
+                        $estado = explode('|', $state)[1] ?? '';
+
+                        return match ($estado) {
+                            'PLANIFICADO' => 'info',
+                            'CARGADO'     => 'warning',
+                            'EN_RUTA'     => 'primary',
+                            'CERRADO'     => 'success',
+                            default       => 'gray',
+                        };
+                    })
+                    ->toggleable(),
+
                 TextColumn::make('sunat_estado')
                     ->label('SUNAT')
                     ->badge()
@@ -330,6 +358,21 @@ class VentaResource extends Resource
         return parent::getEloquentQuery()
             ->where('id_empresa', (int) session('id_empresa'))
             ->where('sucursal', (int) session('sucursal'))
-            ->with(['cliente', 'vendedor', 'tipoDocumento', 'sunat']);
+            ->with(['cliente', 'vendedor', 'tipoDocumento', 'sunat'])
+            ->select('ventas.*')
+            // Despacho (no anulado) del pedido de origen: enlaza por
+            // cotizaciones.id_venta (flujo actual) o ventas.id_coti (legacy).
+            ->addSelect([
+                'despacho_info' => DB::table('tms_despachos as d')
+                    ->join('tms_despacho_pedidos as dp', 'dp.id_despacho', '=', 'd.id')
+                    ->join('cotizaciones as c', 'c.cotizacion_id', '=', 'dp.id_cotizacion')
+                    ->where('d.estado', '<>', 'ANULADO')
+                    ->where(fn ($q) => $q
+                        ->whereColumn('c.id_venta', 'ventas.id_venta')
+                        ->orWhereColumn('c.cotizacion_id', 'ventas.id_coti'))
+                    ->orderByDesc('d.id')
+                    ->limit(1)
+                    ->selectRaw("CONCAT(d.codigo, '|', d.estado)"),
+            ]);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Empresa;
 use App\Models\GuiaRemision;
 use App\Models\NotaElectronica;
 use App\Models\Venta;
@@ -17,7 +18,13 @@ class ConsultaComprobanteController extends Controller
 {
     public function index()
     {
-        return view('consulta.index');
+        return view('consulta.index', ['empresa' => $this->emisor()]);
+    }
+
+    /** Datos del emisor mostrados en la cabecera pública. */
+    private function emisor(): ?Empresa
+    {
+        return Empresa::where('estado', '1')->first() ?? Empresa::first();
     }
 
     public function buscar(Request $request)
@@ -47,7 +54,10 @@ class ConsultaComprobanteController extends Controller
                 ->with('error', 'No encontramos un documento con esos datos. Revisá la serie, el número y tu documento.');
         }
 
-        return view('consulta.index', ['resultado' => $resultado]);
+        return view('consulta.index', [
+            'resultado' => $resultado,
+            'empresa'   => $this->emisor(),
+        ]);
     }
 
     /** Sirve el PDF del documento. Requiere URL firmada (se genera tras una consulta válida). */

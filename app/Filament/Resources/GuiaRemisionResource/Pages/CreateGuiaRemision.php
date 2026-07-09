@@ -17,6 +17,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Support\Exceptions\Halt;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
@@ -67,6 +68,23 @@ class CreateGuiaRemision extends CreateRecord
                 ])
                 ->toArray(),
         ]));
+    }
+
+    /**
+     * PHP convierte las claves '1' y '2' de ->options() en enteros, así que
+     * `$get('tipo_transporte') === '1'` (estricto) siempre daba false y ningún
+     * campo del transporte llegaba a mostrarse. Comparamos por valor.
+     *
+     * projRoma: 1 = Privado, 2 = Público.
+     */
+    protected static function esPublico(callable $get): bool
+    {
+        return (int) $get('tipo_transporte') === 2;
+    }
+
+    protected static function esPrivado(callable $get): bool
+    {
+        return (int) $get('tipo_transporte') === 1;
     }
 
     /** Empresa de la sesión, cacheada por request (la usan los defaults del form). */
@@ -317,72 +335,165 @@ class CreateGuiaRemision extends CreateRecord
                                     ->required(),
                             ]),
 
-                        // ── Origen: de dónde sale la mercadería ──────────────
+                        // ── Transporte: SUNAT pide datos distintos según la modalidad ──
                         Section::make('Transporte')
                             ->compact()
                             ->columns(2)
                             ->schema([
                                 Select::make('tipo_transporte')
-                                    ->label('Tipo de transporte')
+                                    ->label('Modalidad de traslado')
                                     ->options([
-                                        '1' => 'Transporte Privado',
-                                        '2' => 'Transporte Público',
+                                        '1' => 'Privado — vehículo propio',
+                                        '2' => 'Público — empresa de transporte',
                                     ])
                                     ->default('1')
                                     ->live()
                                     ->required()
                                     ->columnSpanFull(),
 
-                                // ── Transporte Público: datos del transportista ──
+                                // ═══ PÚBLICO: los datos son del transportista ═══
+                                // SUNAT rechaza (3347) si en privado se manda transportista.
+                                Placeholder::make('nota_publico')
+                                    ->hiddenLabel()
+                                    ->columnSpanFull()
+                                    ->visible(fn (callable $get): bool => static::esPublico($get))
+                                    ->content(new HtmlString(
+                                        '<div style="padding:9px 12px;border-radius:10px;font-size:.8rem;'
+                                        . 'border:1px solid rgba(59,130,246,.35);background:rgba(59,130,246,.07)">'
+                                        . 'En transporte público, la guía identifica a la <strong>empresa transportista</strong>. '
+                                        . 'El vehículo y el conductor los declara ella en su propia guía.</div>'
+                                    )),
+
                                 TextInput::make('ruc_transporte')
-                                    ->label('RUC transportista')
-                                    ->required(fn (callable $get): bool => $get('tipo_transporte') === '2')
-                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '2')
+                                    ->label('RUC del transportista')
+                                    ->placeholder('20123456789')
+                                    ->helperText('11 dígitos')
+                                    ->rule('digits:11')
+                                    ->required(fn (callable $get): bool => static::esPublico($get))
+                                    ->visible(fn (callable $get): bool => static::esPublico($get))
                                     ->maxLength(11),
 
                                 TextInput::make('razon_transporte')
-                                    ->label('Razón social transportista')
-                                    ->required(fn (callable $get): bool => $get('tipo_transporte') === '2')
-                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '2')
+                                    ->label('Razón social del transportista')
+                                    ->required(fn (callable $get): bool => static::esPublico($get))
+                                    ->visible(fn (callable $get): bool => static::esPublico($get))
                                     ->maxLength(200),
 
                                 TextInput::make('transportista_nro_mtc')
                                     ->label('N° de registro MTC')
-                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '2')
+                                    ->helperText('Opcional. Registro del Ministerio de Transportes.')
+                                    ->visible(fn (callable $get): bool => static::esPublico($get))
                                     ->maxLength(30)
                                     ->columnSpanFull(),
 
-                                // ── Transporte Privado: vehículo + conductor ──
+                                // ═══ PRIVADO: vehículo propio + conductor ═══
+                                Placeholder::make('nota_privado')
+                                    ->hiddenLabel()
+                                    ->columnSpanFull()
+                                    ->visible(fn (callable $get): bool => static::esPrivado($get))
+                                    ->content(new HtmlString(
+                                        '<div style="padding:9px 12px;border-radius:10px;font-size:.8rem;'
+                                        . 'border:1px solid rgba(148,163,184,.4);background:rgba(148,163,184,.08)">'
+                                        . 'La <strong>placa es obligatoria</strong>. Los datos del conductor son opcionales, '
+                                        . 'pero si cargás uno tenés que cargar <strong>los cuatro</strong> — SUNAT rechaza '
+                                        . 'los conductores incompletos.</div>'
+                                    )),
+
                                 TextInput::make('vehiculo')
                                     ->label('Placa del vehículo')
-                                    ->required(fn (callable $get): bool => $get('tipo_transporte') === '1')
-                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '1')
+                                    ->placeholder('ABC-123')
+                                    ->required(fn (callable $get): bool => static::esPrivado($get))
+                                    ->visible(fn (callable $get): bool => static::esPrivado($get))
                                     ->maxLength(20)
                                     ->columnSpanFull(),
 
                                 TextInput::make('conductor_documento')
                                     ->label('DNI del conductor')
-                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '1')
-                                    ->maxLength(15),
+                                    ->rule('digits:8')
+                                    ->visible(fn (callable $get): bool => static::esPrivado($get))
+                                    ->maxLength(8),
 
                                 TextInput::make('conductor_licencia')
                                     ->label('Licencia de conducir')
-                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '1')
+                                    ->visible(fn (callable $get): bool => static::esPrivado($get))
                                     ->maxLength(30),
 
                                 TextInput::make('conductor_nombres')
                                     ->label('Nombres del conductor')
-                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '1')
+                                    ->visible(fn (callable $get): bool => static::esPrivado($get))
                                     ->maxLength(150),
 
                                 TextInput::make('conductor_apellidos')
                                     ->label('Apellidos del conductor')
-                                    ->visible(fn (callable $get): bool => $get('tipo_transporte') === '1')
+                                    ->visible(fn (callable $get): bool => static::esPrivado($get))
                                     ->maxLength(150),
                             ]),
                     ])->columnSpan(1),
                 ]),
         ]);
+    }
+
+    /** Error de negocio siempre visible (una notificación, no un campo oculto). */
+    protected function fallo(string $mensaje): never
+    {
+        Notification::make()->danger()->title($mensaje)->persistent()->send();
+
+        throw new Halt();
+    }
+
+    /**
+     * Reglas de SUNAT según la modalidad de traslado, con los códigos de error
+     * que devuelve si no se cumplen:
+     *
+     *  PÚBLICO (mod_traslado 01)
+     *    - RUC del transportista: 11 dígitos, obligatorio.
+     *    - Razón social: obligatoria.
+     *    - No se declara vehículo ni conductor (los declara el transportista).
+     *
+     *  PRIVADO (mod_traslado 02)
+     *    - Placa del vehículo: obligatoria      → error 2566 si falta.
+     *    - Conductor: los 4 datos o ninguno     → error 3357 si está incompleto.
+     *    - No se declara transportista           → error 3347 si se envía.
+     */
+    protected function validarTransporte(array $data): void
+    {
+        $esPublico = (int) ($data['tipo_transporte'] ?? 1) === 2;
+
+        if ($esPublico) {
+            $ruc = preg_replace('/\D/', '', (string) ($data['ruc_transporte'] ?? ''));
+
+            if (strlen($ruc) !== 11) {
+                $this->fallo('En transporte público, el RUC del transportista debe tener 11 dígitos.');
+            }
+
+            if (blank($data['razon_transporte'] ?? null)) {
+                $this->fallo('En transporte público, la razón social del transportista es obligatoria.');
+            }
+
+            return;
+        }
+
+        // ── Privado ──
+        if (blank($data['vehiculo'] ?? null)) {
+            $this->fallo('En transporte privado, la placa del vehículo es obligatoria (SUNAT la exige).');
+        }
+
+        $conductor = [
+            'DNI'       => $data['conductor_documento'] ?? null,
+            'nombres'   => $data['conductor_nombres'] ?? null,
+            'apellidos' => $data['conductor_apellidos'] ?? null,
+            'licencia'  => $data['conductor_licencia'] ?? null,
+        ];
+
+        $cargados = array_filter($conductor, fn ($v) => filled($v));
+
+        // Todo o nada: SUNAT rechaza un conductor con datos incompletos.
+        if ($cargados !== [] && count($cargados) !== 4) {
+            $faltan = array_keys(array_diff_key($conductor, $cargados));
+
+            $this->fallo('Los datos del conductor están incompletos. Falta: ' . implode(', ', $faltan)
+                . '. Cargá los cuatro (DNI, nombres, apellidos y licencia) o dejalos todos vacíos.');
+        }
     }
 
     protected function handleRecordCreation(array $data): Model
@@ -392,8 +503,10 @@ class CreateGuiaRemision extends CreateRecord
             $sucursal = (int) session('sucursal');
 
             if (blank($data['productos'] ?? [])) {
-                throw ValidationException::withMessages(['productos' => 'La guía debe tener al menos un producto.']);
+                $this->fallo('La guía debe tener al menos un producto.');
             }
+
+            $this->validarTransporte($data);
 
             $numero = (int) (GuiaRemision::where('id_empresa', $empresa)
                 ->where('sucursal', $sucursal)

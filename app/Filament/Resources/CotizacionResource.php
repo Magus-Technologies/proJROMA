@@ -164,6 +164,12 @@ class CotizacionResource extends Resource
                     }),
                 ])->tooltip('Acciones'),
             ])
+            // Filament arma el link de la fila con ['record' => ...] fijo, pero
+            // nuestra ruta de edición usa {cotizacion}. Lo declaramos a mano.
+            ->recordUrl(fn (Cotizacion $record): ?string =>
+                $record->estado === '1' && ! $record->id_venta
+                    ? static::getUrl('edit', ['cotizacion' => $record->cotizacion_id])
+                    : null)
             ->defaultSort('fecha', 'desc');
     }
 

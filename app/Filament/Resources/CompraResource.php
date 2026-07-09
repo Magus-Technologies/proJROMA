@@ -324,6 +324,12 @@ class CompraResource extends Resource
                         }),
                 ])->tooltip('Acciones'),
             ])
+            // Filament arma el link de la fila con ['record' => ...] fijo, pero
+            // nuestra ruta de edición usa {compra}. Lo declaramos a mano.
+            ->recordUrl(fn (Compra $record): ?string =>
+                (int) $record->recepcionado === 0
+                    ? static::getUrl('edit', ['compra' => $record->id_compra])
+                    : null)
             ->defaultSort('id_compra', 'desc');
     }
 

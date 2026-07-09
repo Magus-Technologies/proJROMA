@@ -171,6 +171,9 @@
         <!-- Footer -->
         <div class="footer">
             <p>{{ $empresa->razon_social ?? '' }} | RUC: {{ $empresa->ruc ?? '' }}</p>
+            <p style="margin-top:4px">
+                Consulte su documento en: <strong>{{ url('/consulta') }}</strong>
+            </p>
         </div>
     </div>
 </body>

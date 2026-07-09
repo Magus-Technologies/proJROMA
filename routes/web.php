@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\ComprasController;
+use App\Http\Controllers\ConsultaComprobanteController;
 use App\Http\Controllers\CotizacionesController;
 use App\Http\Controllers\ProductosController;
 use App\Http\Controllers\ProveedoresController;
@@ -15,6 +16,16 @@ use Illuminate\Support\Facades\Route;
 // del despliegue — ej. /molitalia/panel en el servidor.
 Route::get('/', fn () => redirect(url('/panel')))->name('dashboard');
 Route::get('/home', fn () => redirect(url('/panel')))->name('home');
+
+// ── Consulta pública de comprobantes (sin login) ─────────────────────────────
+// El cliente valida su documento con serie + número + su DNI/RUC.
+Route::get('/consulta',        [ConsultaComprobanteController::class, 'index'])->name('consulta.index');
+Route::post('/consulta/buscar', [ConsultaComprobanteController::class, 'buscar'])->name('consulta.buscar');
+Route::get('/consulta/pdf/{tipo}/{id}', [ConsultaComprobanteController::class, 'pdf'])
+    ->middleware('signed')
+    ->whereIn('tipo', ['venta', 'nota', 'guia'])
+    ->whereNumber('id')
+    ->name('consulta.pdf');
 
 // Login del panel servido también en /login (misma página Livewire de Filament)
 Route::get('/login', \App\Filament\Pages\Auth\Login::class)

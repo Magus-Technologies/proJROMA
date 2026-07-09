@@ -21,6 +21,17 @@
 
                     grupo.style.display = visiblesGrupo ? '' : 'none';
                     visiblesCard += visiblesGrupo;
+
+                    // Desplegar la sub-card si la búsqueda tiene coincidencias;
+                    // volver a plegarla cuando se limpia el buscador
+                    const seccion = grupo.querySelector('.fi-section');
+                    if (seccion) {
+                        if (term && visiblesGrupo) {
+                            seccion.dispatchEvent(new CustomEvent('expand'));
+                        } else if (! term) {
+                            try { Alpine.$data(seccion).isCollapsed = true; } catch (e) {}
+                        }
+                    }
                 });
 
                 card.style.display = visiblesCard ? '' : 'none';
@@ -72,7 +83,7 @@
     .permisos-card:not(.abierta) .fi-section-content-ctn { display: none; }
 
     /* Card abierta = modal: el wrapper pasa a ser el backdrop y la
-       sección interna es el diálogo centrado */
+       sección interna (solo la hija directa) es el diálogo centrado */
     .permisos-card.abierta {
         position: fixed; inset: 0; z-index: 60;
         background: rgba(15, 23, 42, .60);
@@ -80,7 +91,7 @@
         padding: 2rem 1rem;
         cursor: default;
     }
-    .permisos-card.abierta .fi-section {
+    .permisos-card.abierta > .fi-section {
         width: min(60rem, 94vw);
         max-height: 85vh;
         display: flex; flex-direction: column;
@@ -88,18 +99,21 @@
         border-radius: .75rem;
         box-shadow: 0 25px 60px rgba(0, 0, 0, .35);
     }
-    .permisos-card.abierta .fi-section-header {
+    .permisos-card.abierta > .fi-section > .fi-section-header {
         flex-shrink: 0;
         border-bottom: 1px solid rgba(0, 0, 0, .08);
     }
-    .dark .permisos-card.abierta .fi-section-header {
+    .dark .permisos-card.abierta > .fi-section > .fi-section-header {
         border-bottom-color: rgba(255, 255, 255, .10);
     }
-    .permisos-card.abierta .fi-section-content-ctn {
+    .permisos-card.abierta > .fi-section > .fi-section-content-ctn {
         display: block;
         overflow-y: auto;
         padding-bottom: .5rem;
     }
+
+    /* Sub-cards de submódulos dentro del modal (plegables) */
+    .permisos-subcard .fi-section-header { cursor: pointer; }
 
     .permisos-modal-cerrar {
         display: none;

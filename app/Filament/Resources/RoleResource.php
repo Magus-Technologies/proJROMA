@@ -48,11 +48,11 @@ class RoleResource extends Resource
         'Cobranzas'        => ['icono' => 'heroicon-o-banknotes',               'grupos' => ['Cobranzas']],
         'Pagos'            => ['icono' => 'heroicon-o-credit-card',             'grupos' => ['Pagos']],
         'Caja'             => ['icono' => 'heroicon-o-calculator',              'grupos' => ['Caja']],
-        'Inventario'       => ['icono' => 'heroicon-o-cube',                    'grupos' => ['Productos', 'Compras', 'Inventario']],
-        'Transporte (TMS)' => ['icono' => 'heroicon-o-truck',                   'grupos' => ['TMS (Transporte)']],
+        'Inventario'       => ['icono' => 'heroicon-o-cube',                    'grupos' => ['Productos', 'Compras', 'Recepción', 'Existencias', 'Ajustes / Cuadres', 'Traslados', 'Préstamos']],
+        'Transporte (TMS)' => ['icono' => 'heroicon-o-truck',                   'grupos' => ['Mercados', 'Vehículos', 'Conductores', 'Rutas', 'Despachos']],
         'Maestros'         => ['icono' => 'heroicon-o-users',                   'grupos' => ['Clientes', 'Proveedores']],
         'Reportes'         => ['icono' => 'heroicon-o-chart-bar',               'grupos' => ['Reportes']],
-        'Administración'   => ['icono' => 'heroicon-o-cog-6-tooth',             'grupos' => ['Usuarios', 'Roles', 'Permisos', 'Empresas', 'Sucursales', 'Administración']],
+        'Administración'   => ['icono' => 'heroicon-o-cog-6-tooth',             'grupos' => ['Usuarios', 'Roles', 'Permisos', 'Empresas', 'Sucursales', 'Auditoría', 'Correlativos']],
     ];
 
     public static function form(Schema $schema): Schema
@@ -117,18 +117,26 @@ class RoleResource extends Resource
         ])->columns(1);
     }
 
-    private static function checkboxDeGrupo(string $groupLabel, array $permissions): CheckboxList
+    /** Card plegable de un submódulo (dentro del modal del módulo). */
+    private static function checkboxDeGrupo(string $groupLabel, array $permissions): Section
     {
         $permissionNames = array_keys($permissions);
 
-        return CheckboxList::make(static::sanitizeKey($groupLabel))
-            ->label($groupLabel)
-            ->options(array_combine($permissionNames, $permissionNames))
-            ->descriptions($permissions)
-            ->columnSpanFull()
-            ->bulkToggleable()
-            ->extraFieldWrapperAttributes(['data-grupo-permisos' => $groupLabel])
-            ->default(fn () => $permissionNames);
+        return Section::make($groupLabel)
+            ->description(count($permissionNames) . ' permisos')
+            ->collapsible()
+            ->collapsed()
+            ->compact()
+            ->extraAttributes(['class' => 'permisos-subcard', 'data-grupo-permisos' => $groupLabel])
+            ->schema([
+                CheckboxList::make(static::sanitizeKey($groupLabel))
+                    ->hiddenLabel()
+                    ->options(array_combine($permissionNames, $permissionNames))
+                    ->descriptions($permissions)
+                    ->columnSpanFull()
+                    ->bulkToggleable()
+                    ->default(fn () => $permissionNames),
+            ]);
     }
 
     public static function table(Table $table): Table

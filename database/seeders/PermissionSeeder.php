@@ -59,16 +59,24 @@ class PermissionSeeder extends Seeder
                 'productos.kardex'  => 'Ver kardex',
                 'productos.exportar'=> 'Exportar Excel',
             ],
-            'Inventario' => [
-                'almacen_recepcion.ver'   => 'Recepción - ver',
-                'almacen_recepcion.crear' => 'Recepción - crear',
-                'almacen_existencias.ver' => 'Existencias - ver',
-                'almacen_ajustes.ver'     => 'Ajustes - ver',
-                'almacen_ajustes.crear'   => 'Ajustes - crear',
-                'almacen_traslados.ver'   => 'Traslados - ver',
-                'almacen_traslados.crear' => 'Traslados - crear',
-                'almacen_prestamos.ver'   => 'Préstamos - ver',
-                'almacen_prestamos.crear' => 'Préstamos - crear',
+            'Recepción' => [
+                'almacen_recepcion.ver'   => 'Ver recepciones',
+                'almacen_recepcion.crear' => 'Registrar recepción',
+            ],
+            'Existencias' => [
+                'almacen_existencias.ver' => 'Ver existencias por almacén',
+            ],
+            'Ajustes / Cuadres' => [
+                'almacen_ajustes.ver'   => 'Ver ajustes',
+                'almacen_ajustes.crear' => 'Crear ajustes',
+            ],
+            'Traslados' => [
+                'almacen_traslados.ver'   => 'Ver traslados',
+                'almacen_traslados.crear' => 'Crear traslados',
+            ],
+            'Préstamos' => [
+                'almacen_prestamos.ver'   => 'Ver préstamos',
+                'almacen_prestamos.crear' => 'Registrar préstamos',
             ],
             'Caja' => [
                 'caja.ver'       => 'Ver movimientos de caja',
@@ -83,23 +91,31 @@ class PermissionSeeder extends Seeder
                 'pagos.ver'      => 'Ver pagos',
                 'pagos.registrar'=> 'Registrar pagos',
             ],
-            'TMS (Transporte)' => [
-                'tms_mercados.ver'    => 'Mercados - ver',
-                'tms_mercados.crear'  => 'Mercados - crear',
-                'tms_mercados.editar' => 'Mercados - editar',
-                'tms_vehiculos.ver'   => 'Vehículos - ver',
-                'tms_vehiculos.crear' => 'Vehículos - crear',
-                'tms_vehiculos.editar'=> 'Vehículos - editar',
-                'tms_conductores.ver'   => 'Conductores - ver',
-                'tms_conductores.crear' => 'Conductores - crear',
-                'tms_conductores.editar'=> 'Conductores - editar',
-                'tms_rutas.ver'    => 'Rutas - ver',
-                'tms_rutas.crear'  => 'Rutas - crear',
-                'tms_rutas.editar' => 'Rutas - editar',
-                'tms_despachos.ver'    => 'Despachos - ver',
-                'tms_despachos.crear'  => 'Despachos - crear',
-                'tms_despachos.editar' => 'Despachos - editar',
-                'tms_despachos.pdf'    => 'Despachos - PDF',
+            'Mercados' => [
+                'tms_mercados.ver'    => 'Ver mercados',
+                'tms_mercados.crear'  => 'Crear mercados',
+                'tms_mercados.editar' => 'Editar mercados',
+            ],
+            'Vehículos' => [
+                'tms_vehiculos.ver'    => 'Ver vehículos',
+                'tms_vehiculos.crear'  => 'Crear vehículos',
+                'tms_vehiculos.editar' => 'Editar vehículos',
+            ],
+            'Conductores' => [
+                'tms_conductores.ver'    => 'Ver conductores',
+                'tms_conductores.crear'  => 'Crear conductores',
+                'tms_conductores.editar' => 'Editar conductores',
+            ],
+            'Rutas' => [
+                'tms_rutas.ver'    => 'Ver rutas',
+                'tms_rutas.crear'  => 'Crear rutas',
+                'tms_rutas.editar' => 'Editar rutas',
+            ],
+            'Despachos' => [
+                'tms_despachos.ver'    => 'Ver despachos',
+                'tms_despachos.crear'  => 'Armar despachos',
+                'tms_despachos.editar' => 'Editar despachos',
+                'tms_despachos.pdf'    => 'Hoja de carga / guías PDF',
             ],
             'Reportes' => [
                 'reportes.ver'      => 'Ver reportes',
@@ -136,8 +152,10 @@ class PermissionSeeder extends Seeder
                 'permisos.editar' => 'Editar permisos',
                 'permisos.borrar' => 'Eliminar permisos',
             ],
-            'Administración' => [
-                'auditoria.ver'          => 'Ver auditoría',
+            'Auditoría' => [
+                'auditoria.ver' => 'Ver registro de auditoría',
+            ],
+            'Correlativos' => [
                 'correlativos.gestionar' => 'Configurar correlativos',
             ],
         ];

@@ -19,6 +19,8 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -225,6 +227,7 @@ class MiCaja extends Page implements HasTable
 
                 TextColumn::make('descripcion')
                     ->label('Descripción')
+                    ->searchable()
                     ->wrap()
                     ->limit(50),
 
@@ -251,6 +254,50 @@ class MiCaja extends Page implements HasTable
                     ->boolean()
                     ->getStateUsing(fn ($record): bool => $record->estado === 'CONFIRMADO')
                     ->tooltip(fn ($record): string => ucfirst(strtolower($record->estado ?? ''))),
+            ])
+            ->filters([
+                SelectFilter::make('tipo')
+                    ->label('Tipo')
+                    ->options([
+                        'INGRESO' => 'Ingreso',
+                        'EGRESO'  => 'Egreso',
+                    ]),
+
+                SelectFilter::make('categoria')
+                    ->label('Categoría')
+                    ->options([
+                        'APERTURA' => 'Apertura',
+                        'MANUAL'   => 'Manual',
+                        'COMPRA'   => 'Compra',
+                        'AJUSTE'   => 'Ajuste',
+                        'CIERRE'   => 'Cierre',
+                        'CUADRE'   => 'Cuadre',
+                        'TMS'      => 'TMS (despachos)',
+                    ]),
+
+                SelectFilter::make('instrumento_tipo')
+                    ->label('Instrumento')
+                    ->options([
+                        'EFECTIVO'          => 'Efectivo',
+                        'TRANSFERENCIA'     => 'Transferencia',
+                        'BILLETERA_DIGITAL' => 'Billetera digital',
+                    ]),
+
+                Filter::make('fecha')
+                    ->form([
+                        DatePicker::make('desde')->label('Desde'),
+                        DatePicker::make('hasta')->label('Hasta'),
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => $query
+                        ->when($data['desde'], fn (Builder $q) => $q->whereDate('fecha', '>=', $data['desde']))
+                        ->when($data['hasta'], fn (Builder $q) => $q->whereDate('fecha', '<=', $data['hasta'])))
+                    ->indicateUsing(function (array $data): ?string {
+                        if (! $data['desde'] && ! $data['hasta']) {
+                            return null;
+                        }
+
+                        return 'Fecha: ' . ($data['desde'] ?: '…') . ' — ' . ($data['hasta'] ?: '…');
+                    }),
             ])
             ->actions([
                 Action::make('ver_apertura')

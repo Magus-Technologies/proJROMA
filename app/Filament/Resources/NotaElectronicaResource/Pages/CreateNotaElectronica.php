@@ -5,7 +5,9 @@ namespace App\Filament\Resources\NotaElectronicaResource\Pages;
 use App\Filament\Resources\NotaElectronicaResource;
 use App\Models\NotaElectronica;
 use App\Models\Venta;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
+use Filament\Schemas\Components\Actions;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -132,6 +134,23 @@ class CreateNotaElectronica extends CreateRecord
                                 . '</div>'
                             );
                         }),
+
+                    Actions::make([
+                        Action::make('ver_comprobante')
+                            ->label('Ver comprobante afectado')
+                            ->icon('heroicon-o-eye')
+                            ->color('info')
+                            ->outlined()
+                            ->visible(fn (callable $get): bool => filled($get('id_venta')))
+                            ->modalHeading(fn (callable $get): string =>
+                                'Comprobante ' . (Venta::find($get('id_venta'))?->documento_completo ?? ''))
+                            ->modalWidth('4xl')
+                            ->modalContent(fn (callable $get) => view('filament.modals.pdf-preview', [
+                                'url' => url('/venta/comprobante/pdf/' . $get('id_venta')),
+                            ]))
+                            ->modalSubmitAction(false)
+                            ->modalCancelActionLabel('Cerrar'),
+                    ])->columnSpanFull(),
                 ]),
 
             Section::make('Datos de la nota')

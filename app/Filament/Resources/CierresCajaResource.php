@@ -90,6 +90,15 @@ class CierresCajaResource extends Resource
                         default     => 'gray',
                     }),
 
+                TextColumn::make('deuda_info')
+                    ->label('Deuda trabajador')
+                    ->badge()
+                    ->getStateUsing(fn (CierreCaja $record): ?string => $record->deuda
+                        ? 'S/ ' . number_format($record->deuda->monto, 2) . ' · ' . ucfirst(strtolower($record->deuda->estado))
+                        : null)
+                    ->placeholder('—')
+                    ->color(fn (CierreCaja $record): string => $record->deuda?->estado === 'PENDIENTE' ? 'danger' : 'success'),
+
                 TextColumn::make('observaciones')
                     ->label('Observaciones')
                     ->wrap()
@@ -122,11 +131,37 @@ class CierresCajaResource extends Resource
                     ),
             ])
             ->actions([
+                Action::make('ver_conteo')
+                    ->label('Ver conteo')
+                    ->iconButton()
+                    ->tooltip('Ver conteo de billetes y monedas')
+                    ->icon('heroicon-o-eye')
+                    ->color('gray')
+                    ->modalHeading(fn (CierreCaja $record): string => 'Conteo del cierre — ' . ($record->caja?->nombre ?? '') . ' (' . $record->fecha?->format('d/m/Y') . ')')
+                    ->modalWidth('lg')
+                    ->modalContent(fn (CierreCaja $record) => view('filament.caja.cierre-detalle', [
+                        'cierre'   => $record,
+                        'detalles' => collect($record->desglose_instrumentos ?? []),
+                    ]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Cerrar'),
+
                 Action::make('aprobar')
                     ->label('Aprobar')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->requiresConfirmation()
+                    ->modalDescription(function (CierreCaja $record): string {
+                        $dif = round($record->saldo_declarado - $record->saldo_sistema, 2);
+                        if ($dif < -0.001) {
+                            return 'Hay un FALTANTE de S/ ' . number_format(abs($dif), 2) . ': al aprobar quedará registrado como deuda del trabajador para descontar.';
+                        }
+                        if ($dif > 0.001) {
+                            return 'Hay un sobrante de S/ ' . number_format($dif, 2) . ' que se ajustará al saldo.';
+                        }
+
+                        return 'El cierre cuadra exacto.';
+                    })
                     ->visible(fn (CierreCaja $record): bool => $record->estado === 'PENDIENTE')
                     ->action(function (CierreCaja $record): void {
                         app(CajaService::class)->aprobarCierre(
@@ -134,7 +169,14 @@ class CierresCajaResource extends Resource
                             (int) auth()->user()->usuario_id,
                             'APROBADO'
                         );
-                        Notification::make()->success()->title('Cierre aprobado')->send();
+
+                        $dif = round($record->saldo_declarado - $record->saldo_sistema, 2);
+                        Notification::make()->success()
+                            ->title('Cierre aprobado')
+                            ->body($dif < -0.001
+                                ? 'Faltante de S/ ' . number_format(abs($dif), 2) . ' registrado como deuda de ' . ($record->usuarioCierra?->nombres ?? 'el trabajador') . '.'
+                                : 'Saldo ajustado y consolidado.')
+                            ->send();
                     }),
 
                 Action::make('rechazar')
@@ -154,7 +196,27 @@ class CierresCajaResource extends Resource
                             'RECHAZADO',
                             $data['observaciones'] ?? null
                         );
-                        Notification::make()->success()->title('Cierre rechazado')->send();
+                        Notification::make()->success()
+                            ->title('Cierre rechazado')
+                            ->body('La caja quedó reabierta para que el trabajador corrija y vuelva a cerrar.')
+                            ->send();
+                    }),
+
+                Action::make('marcar_descontada')
+                    ->label('Deuda descontada')
+                    ->iconButton()
+                    ->tooltip('Marcar deuda como descontada al trabajador')
+                    ->icon('heroicon-o-banknotes')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalDescription(fn (CierreCaja $record): string => 'Confirma que ya se descontó S/ ' . number_format($record->deuda?->monto ?? 0, 2) . ' a ' . ($record->usuarioCierra?->nombres ?? 'el trabajador') . '.')
+                    ->visible(fn (CierreCaja $record): bool => $record->deuda?->estado === 'PENDIENTE')
+                    ->action(function (CierreCaja $record): void {
+                        $record->deuda->update([
+                            'estado'              => 'DESCONTADO',
+                            'id_usuario_registra' => (int) auth()->user()->usuario_id,
+                        ]);
+                        Notification::make()->success()->title('Deuda marcada como descontada.')->send();
                     }),
             ])
             ->defaultSort('fecha', 'desc');
@@ -163,7 +225,7 @@ class CierresCajaResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['caja', 'usuarioCierra', 'usuarioAprueba'])
+            ->with(['caja', 'usuarioCierra', 'usuarioAprueba', 'deuda'])
             ->whereHas('caja', fn (Builder $q) =>
                 $q->where('id_empresa', (int) session('id_empresa'))
             );

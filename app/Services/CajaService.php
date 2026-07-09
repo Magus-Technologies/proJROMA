@@ -122,22 +122,10 @@ class CajaService
             if (!$caja) throw new \RuntimeException('Caja no encontrada.');
 
             $saldoSistema = (float) $caja->saldo_actual;
-            $diferencia = $saldoDeclarado - $saldoSistema;
 
-            // Registrar movimiento de AJUSTE si hay diferencia
-            if (abs($diferencia) > 0.001) {
-                $tipoAjuste = $diferencia > 0 ? 'INGRESO' : 'EGRESO';
-                $montoAjuste = abs($diferencia);
-                $this->registrarMovimiento([
-                    'id_caja' => $idCaja,
-                    'fecha' => now()->toDateString(),
-                    'tipo' => $tipoAjuste,
-                    'categoria' => 'AJUSTE',
-                    'descripcion' => $diferencia > 0 ? 'Ajuste por sobrante en cierre' : 'Ajuste por faltante en cierre',
-                    'monto' => $montoAjuste,
-                    'id_usuario' => $idUsuario,
-                ]);
-            }
+            // La diferencia NO se ajusta aquí: el AJUSTE (y la deuda del
+            // trabajador si hay faltante) se generan al APROBAR el cierre.
+            // Así un cierre rechazado no deja rastros que revertir.
 
             // Registrar el movimiento de CIERRE (monto 0 para no alterar saldo)
             $this->registrarMovimiento([
@@ -185,6 +173,38 @@ class CajaService
             ]);
 
             if ($nuevoEstado === 'APROBADO') {
+                $diferencia = round((float) $cierre->saldo_declarado - (float) $cierre->saldo_sistema, 2);
+
+                // Ajustar el saldo de la caja a lo realmente declarado
+                if (abs($diferencia) > 0.001) {
+                    $this->registrarMovimiento([
+                        'id_caja'     => $cierre->id_caja,
+                        'fecha'       => now()->toDateString(),
+                        'tipo'        => $diferencia > 0 ? 'INGRESO' : 'EGRESO',
+                        'categoria'   => 'AJUSTE',
+                        'descripcion' => ($diferencia > 0 ? 'Ajuste por sobrante' : 'Ajuste por faltante') . ' en cierre #' . $idCierre,
+                        'monto'       => abs($diferencia),
+                        'origen_tipo' => 'CIERRE',
+                        'origen_id'   => $idCierre,
+                        'id_usuario'  => $idUsuarioAprueba,
+                    ]);
+                }
+
+                // El faltante queda como deuda del trabajador que cerró
+                if ($diferencia < -0.001) {
+                    DB::table('caja_cierre_deudas')->insert([
+                        'id_cierre'           => $idCierre,
+                        'id_caja'             => $cierre->id_caja,
+                        'id_usuario'          => $cierre->id_usuario_cierra,
+                        'monto'               => abs($diferencia),
+                        'estado'              => 'PENDIENTE',
+                        'observaciones'       => 'Faltante en cierre de caja del ' . $cierre->fecha,
+                        'id_usuario_registra' => $idUsuarioAprueba,
+                        'created_at'          => now(),
+                        'updated_at'          => now(),
+                    ]);
+                }
+
                 // Generar movimiento de CUADRE en la caja principal (padre) si existe
                 $cajaHija = DB::table('cajas')->where('id', $cierre->id_caja)->first();
                 if ($cajaHija && $cajaHija->id_caja_padre) {
@@ -197,6 +217,19 @@ class CajaService
                         'monto' => 0,
                         'id_usuario' => $idUsuarioAprueba,
                     ]);
+                }
+            }
+
+            if ($nuevoEstado === 'RECHAZADO') {
+                // Reabrir la apertura para que el trabajador corrija y vuelva a cerrar
+                $apertura = DB::table('caja_aperturas')
+                    ->where('id_caja', $cierre->id_caja)
+                    ->where('estado', 'CERRADA')
+                    ->orderByDesc('id')
+                    ->first();
+                if ($apertura) {
+                    DB::table('caja_aperturas')->where('id', $apertura->id)
+                        ->update(['estado' => 'ABIERTA', 'updated_at' => now()]);
                 }
             }
         });

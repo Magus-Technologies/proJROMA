@@ -7,7 +7,6 @@ use App\Services\CajaService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\DB;
@@ -18,52 +17,9 @@ class ListCierresCaja extends ListRecords
 
     protected function getHeaderActions(): array
     {
+        // El cierre lo registra cada trabajador contando su caja en Mi Caja;
+        // esta vista solo lista, revisa y aprueba esos cierres.
         return [
-            Action::make('cerrar_caja')
-                ->label('Cerrar Caja')
-                ->icon('heroicon-o-lock-closed')
-                ->color('warning')
-                ->form([
-                    Select::make('id_caja')
-                        ->label('Caja hija')
-                        ->options(fn () => DB::table('cajas')
-                            ->where('id_empresa', (int) session('id_empresa'))
-                            ->where('estado', 'ACTIVA')
-                            ->whereNotNull('id_caja_padre')
-                            ->pluck('nombre', 'id')
-                            ->toArray())
-                        ->required()
-                        ->live()
-                        ->afterStateUpdated(function ($state, callable $set): void {
-                            $saldo = DB::table('cajas')->where('id', $state)->value('saldo_actual');
-                            $set('saldo_sistema', number_format((float) $saldo, 2, '.', ''));
-                        }),
-
-                    TextInput::make('saldo_sistema')
-                        ->label('Saldo según sistema (S/)')
-                        ->disabled()
-                        ->dehydrated(false),
-
-                    TextInput::make('saldo_declarado')
-                        ->label('Saldo declarado (S/)')
-                        ->numeric()
-                        ->minValue(0)
-                        ->required(),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        app(CajaService::class)->cerrarCaja(
-                            (int) $data['id_caja'],
-                            (float) $data['saldo_declarado'],
-                            [],
-                            (int) auth()->user()->usuario_id
-                        );
-                        Notification::make()->success()->title('Cierre registrado')->body('Queda pendiente de aprobación.')->send();
-                    } catch (\Throwable $e) {
-                        Notification::make()->danger()->title('Error al cerrar caja')->body($e->getMessage())->send();
-                    }
-                }),
-
             Action::make('cuadre_consolidado')
                 ->label('Cuadre Consolidado')
                 ->icon('heroicon-o-scale')

@@ -40,6 +40,7 @@ use Illuminate\Validation\ValidationException;
 class CreateVenta extends CreateRecord
 {
     use \App\Filament\Concerns\HasClienteBuscador;
+    use \App\Filament\Concerns\ReparteCuotas;
 
     protected static string $resource = VentaResource::class;
 
@@ -256,29 +257,49 @@ class CreateVenta extends CreateRecord
                                         ->modalWidth('3xl')
                                         ->modalSubmitActionLabel('Guardar cuotas')
                                         ->fillForm(function (callable $get): array {
+                                            $total = collect($get('productos') ?? [])->sum(
+                                                fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['precio'] ?? 0)
+                                            );
+
                                             $cuotas = $get('lista_pagos') ?: [];
 
                                             if (blank($cuotas)) {
-                                                $total = collect($get('productos') ?? [])->sum(
-                                                    fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['precio'] ?? 0)
-                                                );
                                                 $cuotas = [[
                                                     'fecha'     => now()->addDays(30)->toDateString(),
-                                                    'monto'     => round($total, 2),
+                                                    'monto'     => number_format(round($total, 2), 2, '.', ''),
                                                     'tipo_pago' => 'EFECTIVO',
                                                     'pagado'    => false,
                                                 ]];
                                             }
 
-                                            return ['lista_pagos' => $cuotas];
+                                            return [
+                                                'lista_pagos' => $cuotas,
+                                                'total_ref'   => $total,
+                                                'n_cuotas'    => count($cuotas),
+                                            ];
                                         })
                                         ->form([
+                                            // Contexto para repartir montos dentro del modal.
+                                            Hidden::make('total_ref'),
+                                            Hidden::make('n_cuotas'),
+
                                             Repeater::make('lista_pagos')
                                                 ->hiddenLabel()
                                                 ->columns(4)
                                                 ->minItems(1)
                                                 ->defaultItems(1)
+                                                ->live()
                                                 ->addActionLabel('Agregar cuota')
+                                                ->afterStateUpdated(function (?array $state, callable $get, callable $set): void {
+                                                    $cantidad = count($state ?? []);
+
+                                                    if ($cantidad === 0 || (int) $get('n_cuotas') === $cantidad) {
+                                                        return;
+                                                    }
+
+                                                    $set('n_cuotas', $cantidad);
+                                                    $set('lista_pagos', static::repartirCuotas($state, (float) $get('total_ref')));
+                                                })
                                                 ->schema([
                                                     DatePicker::make('fecha')
                                                         ->label('Fecha de cuota')

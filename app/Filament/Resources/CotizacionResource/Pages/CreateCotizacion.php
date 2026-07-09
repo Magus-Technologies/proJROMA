@@ -31,6 +31,7 @@ use Illuminate\Validation\ValidationException;
 class CreateCotizacion extends CreateRecord
 {
     use \App\Filament\Concerns\HasClienteBuscador;
+    use \App\Filament\Concerns\ReparteCuotas;
 
     protected static string $resource = CotizacionResource::class;
 
@@ -191,29 +192,51 @@ class CreateCotizacion extends CreateRecord
                                         ->modalWidth('3xl')
                                         ->modalSubmitActionLabel('Guardar cuotas')
                                         ->fillForm(function (callable $get): array {
+                                            $total = collect($get('productos') ?? [])->sum(
+                                                fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['precio'] ?? 0)
+                                            );
+
                                             $cuotas = $get('cuotas') ?: [];
 
                                             // Sin cuotas aún: proponer una por el total, a 30 días.
                                             if (blank($cuotas)) {
-                                                $total = collect($get('productos') ?? [])->sum(
-                                                    fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['precio'] ?? 0)
-                                                );
                                                 $cuotas = [[
                                                     'fecha'     => now()->addDays(30)->toDateString(),
-                                                    'monto'     => round($total, 2),
+                                                    'monto'     => number_format(round($total, 2), 2, '.', ''),
                                                     'tipo_pago' => 'EFECTIVO',
                                                 ]];
                                             }
 
-                                            return ['cuotas' => $cuotas];
+                                            return [
+                                                'cuotas'     => $cuotas,
+                                                'total_ref'  => $total,
+                                                'n_cuotas'   => count($cuotas),
+                                            ];
                                         })
                                         ->form([
+                                            // Contexto para repartir montos dentro del modal.
+                                            Hidden::make('total_ref'),
+                                            Hidden::make('n_cuotas'),
+
                                             Repeater::make('cuotas')
                                                 ->hiddenLabel()
                                                 ->columns(3)
                                                 ->minItems(1)
                                                 ->defaultItems(1)
+                                                ->live()
                                                 ->addActionLabel('Agregar cuota')
+                                                ->afterStateUpdated(function (?array $state, callable $get, callable $set): void {
+                                                    $cantidad = count($state ?? []);
+
+                                                    // Solo repartir cuando cambia la CANTIDAD de cuotas;
+                                                    // si el usuario editó un monto, se respeta.
+                                                    if ($cantidad === 0 || (int) $get('n_cuotas') === $cantidad) {
+                                                        return;
+                                                    }
+
+                                                    $set('n_cuotas', $cantidad);
+                                                    $set('cuotas', static::repartirCuotas($state, (float) $get('total_ref')));
+                                                })
                                                 ->schema([
                                                     DatePicker::make('fecha')
                                                         ->label('Fecha de cuota')

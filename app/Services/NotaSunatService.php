@@ -3,7 +3,11 @@
 namespace App\Services;
 
 use App\Models\Empresa;
+use App\Models\InventarioMovimiento;
+use App\Models\MotivoMovimiento;
 use App\Models\NotaElectronica;
+use App\Models\Producto;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -129,7 +133,70 @@ class NotaSunatService
             'sunat_mensaje' => 'Aceptada por SUNAT.',
         ]);
 
-        return ['ok' => true, 'msg' => 'Nota aceptada por SUNAT.'];
+        $msg = 'Nota aceptada por SUNAT.';
+
+        if ($this->anulaLaVenta($nota)) {
+            $this->anularVentaAfectada($nota);
+            $msg .= ' La venta ' . $nota->venta->documento_completo . ' quedó anulada y se repuso el stock.';
+        }
+
+        return ['ok' => true, 'msg' => $msg];
+    }
+
+    /**
+     * Motivos del catálogo 09 que anulan la operación completa.
+     * Las notas de débito nunca anulan (aumentan el importe).
+     */
+    private function anulaLaVenta(NotaElectronica $nota): bool
+    {
+        return $nota->tipo === 'credito'
+            && in_array((string) $nota->cod_motivo, ['01', '02', '06'], true)
+            && $nota->venta
+            && $nota->venta->estado !== '0';
+    }
+
+    /** Anula la venta afectada y repone el stock (igual que la acción "Anular"). */
+    private function anularVentaAfectada(NotaElectronica $nota): void
+    {
+        DB::transaction(function () use ($nota): void {
+            $venta = $nota->venta->loadMissing('productosVenta');
+            $empresa = (int) $venta->id_empresa;
+            $usuario = (int) ($nota->id_usuario ?? auth()->user()->usuario_id ?? 0);
+
+            $motivo = MotivoMovimiento::where('id_empresa', $empresa)
+                ->where('nombre', 'Venta')
+                ->value('id_motivo');
+
+            $docNota = $nota->serie . '-' . str_pad((string) $nota->numero, 8, '0', STR_PAD_LEFT);
+
+            foreach ($venta->productosVenta as $det) {
+                $producto = Producto::find($det->id_producto);
+                if (! $producto) {
+                    continue;
+                }
+
+                $anterior = (int) $producto->cantidad;
+                $cantidad = (int) $det->cantidad;
+                $producto->increment('cantidad', $det->cantidad);
+
+                InventarioMovimiento::create([
+                    'id_empresa'     => $empresa,
+                    'almacen'        => $producto->almacen ?? '',
+                    'id_producto'    => $producto->id_producto,
+                    'tipo'           => 'I',
+                    'id_motivo'      => $motivo,
+                    'cantidad'       => $cantidad,
+                    'stock_anterior' => $anterior,
+                    'stock_nuevo'    => $anterior + $cantidad,
+                    'costo'          => $producto->costo,
+                    'observacion'    => "Anulación por nota de crédito {$docNota}",
+                    'id_usuario'     => $usuario,
+                    'fecha'          => now(),
+                ]);
+            }
+
+            $venta->update(['estado' => '0']);
+        });
     }
 
     /** Arma el JSON que espera api-sunat-laravel para generar la nota. */

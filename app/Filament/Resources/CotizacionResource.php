@@ -127,7 +127,7 @@ class CotizacionResource extends Resource
                     ->label('Editar')
                     ->icon('heroicon-m-pencil')
                     ->color('info')
-                    ->url(fn (Cotizacion $record) => CotizacionResource::getUrl('edit', ['record' => $record->cotizacion_id]))
+                    ->url(fn (Cotizacion $record) => CotizacionResource::getUrl('edit', ['cotizacion' => $record->cotizacion_id]))
                     ->visible(fn (Cotizacion $record) => $record->estado === '1' && ! $record->id_venta),
 
                 Action::make('pdf')
@@ -260,7 +260,8 @@ class CotizacionResource extends Resource
         return [
             'index'  => Pages\ListCotizaciones::route('/'),
             'create' => Pages\CreateCotizacion::route('/create'),
-            'edit'   => Pages\EditCotizacion::route('/{record}/edit'),
+            // {cotizacion} y no {record}: ver el comentario en EditCotizacion::mount().
+            'edit'   => Pages\EditCotizacion::route('/{cotizacion}/edit'),
         ];
     }
 }

@@ -19,7 +19,11 @@ class Compra extends Model
         'instrumento_tipo','instrumento_id',
     ];
 
-    protected $casts = ['total'=>'float'];
+    protected $casts = [
+        'total'             => 'float',
+        'fecha_emision'     => 'date',
+        'fecha_vencimiento' => 'date',
+    ];
 
     public function proveedor()     { return $this->belongsTo(Proveedor::class,'id_proveedor','proveedor_id'); }
     public function tipoDocumento() { return $this->belongsTo(DocumentoEmpresa::class,'id_tido','id_tido'); }

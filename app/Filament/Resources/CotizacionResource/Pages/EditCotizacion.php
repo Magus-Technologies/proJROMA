@@ -23,11 +23,16 @@ class EditCotizacion extends CreateCotizacion
 
     public ?Cotizacion $cotizacionEditando = null;
 
-    public function mount(): void
+    /**
+     * El parámetro de ruta se llama {cotizacion}, NO {record}: CreateRecord
+     * declara `public ?Model $record` y Livewire intentaría instanciar esa
+     * clase abstracta al hacer implicit route binding. Con otro nombre, no matchea.
+     */
+    public function mount(int|string $cotizacion = 0): void
     {
         parent::mount(); // bootea el formulario
 
-        $id = (int) request()->route('record');
+        $id = (int) $cotizacion;
 
         $coti = Cotizacion::with(['productos', 'cuotas'])
             ->where('id_empresa', (int) session('id_empresa'))

@@ -8,6 +8,7 @@ use App\Models\GuiaDetalle;
 use App\Models\GuiaRemision;
 use App\Models\ProductoVenta;
 use App\Models\Venta;
+use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
@@ -24,6 +25,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 
@@ -367,11 +369,17 @@ class CreateGuiaRemision extends CreateRecord
                                 TextInput::make('ruc_transporte')
                                     ->label('RUC del transportista')
                                     ->placeholder('20123456789')
-                                    ->helperText('11 dígitos')
+                                    ->helperText('11 dígitos. Tocá la lupa para traerlo de SUNAT.')
                                     ->rule('digits:11')
                                     ->required(fn (callable $get): bool => static::esPublico($get))
                                     ->visible(fn (callable $get): bool => static::esPublico($get))
-                                    ->maxLength(11),
+                                    ->maxLength(11)
+                                    ->suffixAction(
+                                        Action::make('consultar_transportista')
+                                            ->icon('heroicon-m-magnifying-glass')
+                                            ->tooltip('Consultar SUNAT')
+                                            ->action(fn ($state, callable $set) => static::consultarTransportista($state, $set))
+                                    ),
 
                                 TextInput::make('razon_transporte')
                                     ->label('Razón social del transportista')
@@ -409,9 +417,16 @@ class CreateGuiaRemision extends CreateRecord
 
                                 TextInput::make('conductor_documento')
                                     ->label('DNI del conductor')
+                                    ->helperText('8 dígitos. Tocá la lupa para traerlo de RENIEC.')
                                     ->rule('digits:8')
                                     ->visible(fn (callable $get): bool => static::esPrivado($get))
-                                    ->maxLength(8),
+                                    ->maxLength(8)
+                                    ->suffixAction(
+                                        Action::make('consultar_conductor')
+                                            ->icon('heroicon-m-magnifying-glass')
+                                            ->tooltip('Consultar RENIEC')
+                                            ->action(fn ($state, callable $set) => static::consultarConductor($state, $set))
+                                    ),
 
                                 TextInput::make('conductor_licencia')
                                     ->label('Licencia de conducir')
@@ -431,6 +446,74 @@ class CreateGuiaRemision extends CreateRecord
                     ])->columnSpan(1),
                 ]),
         ]);
+    }
+
+    /** Trae nombres y apellidos del conductor desde RENIEC por su DNI. */
+    protected static function consultarConductor(?string $dni, callable $set): void
+    {
+        $dni = preg_replace('/\D/', '', (string) $dni);
+
+        if (strlen($dni) !== 8) {
+            Notification::make()->warning()->title('Ingresá los 8 dígitos del DNI.')->send();
+
+            return;
+        }
+
+        try {
+            $data = Http::timeout(8)
+                ->get(config('apisperu.url') . "/dni/{$dni}", ['token' => config('apisperu.token')])
+                ->json();
+        } catch (\Throwable) {
+            Notification::make()->warning()->title('No se pudo consultar RENIEC. Intentá de nuevo.')->send();
+
+            return;
+        }
+
+        $nombres   = trim((string) ($data['nombres'] ?? ''));
+        $apellidos = trim(($data['apellidoPaterno'] ?? '') . ' ' . ($data['apellidoMaterno'] ?? ''));
+
+        if ($nombres === '' && $apellidos === '') {
+            Notification::make()->warning()->title($data['message'] ?? 'DNI no encontrado.')->send();
+
+            return;
+        }
+
+        $set('conductor_nombres', $nombres);
+        $set('conductor_apellidos', $apellidos);
+
+        Notification::make()->success()->title('Conductor cargado desde RENIEC')->send();
+    }
+
+    /** Trae la razón social del transportista desde SUNAT por su RUC. */
+    protected static function consultarTransportista(?string $ruc, callable $set): void
+    {
+        $ruc = preg_replace('/\D/', '', (string) $ruc);
+
+        if (strlen($ruc) !== 11) {
+            Notification::make()->warning()->title('Ingresá los 11 dígitos del RUC.')->send();
+
+            return;
+        }
+
+        try {
+            $data = Http::timeout(8)
+                ->get(config('apisperu.url') . "/ruc/{$ruc}", ['token' => config('apisperu.token')])
+                ->json();
+        } catch (\Throwable) {
+            Notification::make()->warning()->title('No se pudo consultar SUNAT. Intentá de nuevo.')->send();
+
+            return;
+        }
+
+        if (empty($data['razonSocial'])) {
+            Notification::make()->warning()->title('RUC no encontrado.')->send();
+
+            return;
+        }
+
+        $set('razon_transporte', $data['razonSocial']);
+
+        Notification::make()->success()->title('Transportista cargado desde SUNAT')->send();
     }
 
     /** Error de negocio siempre visible (una notificación, no un campo oculto). */

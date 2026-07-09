@@ -186,11 +186,76 @@ class CreateGuiaRemision extends CreateRecord
                                             ->required(),
                                     ]),
                             ]),
+                        Section::make('Punto de partida')
+                            ->compact()
+                            ->description('Desde dónde sale la mercadería. Si lo dejás vacío, se usa la dirección de la empresa.')
+                            ->columns(3)
+                            ->schema([
+                                TextInput::make('dir_partida')
+                                    ->label('Dirección de partida')
+                                    ->placeholder('Dirección de la empresa')
+                                    ->maxLength(220)
+                                    ->columnSpan(2),
+
+                                TextInput::make('ubigeo_partida')
+                                    ->label('Ubigeo')
+                                    ->placeholder('150128')
+                                    ->helperText('6 dígitos')
+                                    ->maxLength(6),
+                            ]),
+
+                        // ── Destino: a quién y a dónde llega ─────────────────
+                        Section::make('Punto de llegada')
+                            ->compact()
+                            ->description('A quién se entrega la mercadería y en qué dirección.')
+                            ->columns(3)
+                            ->schema([
+                                Placeholder::make('destinatario')
+                                    ->label('Destinatario')
+                                    ->columnSpanFull()
+                                    ->content(function (callable $get): HtmlString {
+                                        $venta = Venta::with('cliente')->find($get('id_venta'));
+                                        $cliente = $venta?->cliente;
+
+                                        if (! $cliente) {
+                                            return new HtmlString(
+                                                '<div style="padding:10px 14px;border-radius:10px;border:1px dashed rgba(148,163,184,.5);'
+                                                . 'color:#94a3b8;font-size:.85rem">Elegí una venta para ver el destinatario</div>'
+                                            );
+                                        }
+
+                                        $doc = $cliente->documento ?: '—';
+                                        $tipo = strlen((string) $cliente->documento) === 11 ? 'RUC' : 'DNI';
+
+                                        return new HtmlString(
+                                            '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;'
+                                            . 'padding:11px 14px;border-radius:12px;border:1px solid rgba(59,130,246,.35);background:rgba(59,130,246,.07)">'
+                                            . '<div><strong>' . e($cliente->datos) . '</strong>'
+                                            . '<div style="opacity:.65;font-size:.8rem;font-family:monospace">' . $tipo . ' ' . e($doc) . '</div></div>'
+                                            . '<span style="opacity:.7;font-size:.8rem;text-align:right">' . e($cliente->direccion ?: 'Sin dirección registrada') . '</span>'
+                                            . '</div>'
+                                        );
+                                    }),
+
+                                TextInput::make('dir_llegada')
+                                    ->label('Dirección de llegada')
+                                    ->required()
+                                    ->maxLength(220)
+                                    ->columnSpan(2),
+
+                                TextInput::make('ubigeo')
+                                    ->label('Ubigeo')
+                                    ->placeholder('150128')
+                                    ->helperText('6 dígitos')
+                                    ->required()
+                                    ->maxLength(6),
+                            ]),
+
                     ])->columnSpan(['default' => 1, 'xl' => 2]),
 
                     // ── DERECHA (angosta): datos de la guía y del traslado ──
                     Group::make([
-                        Section::make('Guía')
+                        Section::make('Datos de la guía')
                             ->compact()
                             ->columns(2)
                             ->schema([
@@ -226,27 +291,6 @@ class CreateGuiaRemision extends CreateRecord
                                     ->default(now())
                                     ->required(),
 
-                                TextInput::make('dir_partida')
-                                    ->label('Dirección de partida (origen)')
-                                    ->helperText('Si se deja vacío, se usa la dirección de la empresa.')
-                                    ->maxLength(220),
-
-                                TextInput::make('ubigeo_partida')
-                                    ->label('Ubigeo de partida')
-                                    ->helperText('6 dígitos. Vacío = ubigeo de la empresa.')
-                                    ->maxLength(6),
-
-                                TextInput::make('dir_llegada')
-                                    ->label('Dirección de llegada')
-                                    ->required()
-                                    ->maxLength(220)
-                                    ->columnSpanFull(),
-
-                                TextInput::make('ubigeo')
-                                    ->label('Ubigeo de llegada')
-                                    ->required()
-                                    ->maxLength(6),
-
                                 TextInput::make('nro_bultos')
                                     ->label('N° de bultos')
                                     ->numeric()
@@ -259,10 +303,10 @@ class CreateGuiaRemision extends CreateRecord
                                     ->numeric()
                                     ->minValue(0.001)
                                     ->default(1)
-                                    ->required()
-                                    ->columnSpanFull(),
+                                    ->required(),
                             ]),
 
+                        // ── Origen: de dónde sale la mercadería ──────────────
                         Section::make('Transporte')
                             ->compact()
                             ->columns(2)

@@ -17,6 +17,7 @@ use App\Models\ProductoVenta;
 use App\Models\Venta;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
@@ -319,10 +320,31 @@ class CreateVenta extends CreateRecord
                                                             'TRANSFERENCIA' => 'Transferencia',
                                                             'DEPOSITO'      => 'Depósito',
                                                         ])
-                                                        ->default('EFECTIVO'),
+                                                        ->default('EFECTIVO')
+                                                        ->live(),
                                                     Toggle::make('pagado')
                                                         ->label('Ya pagado')
                                                         ->inline(false),
+
+                                                    // Referencia y captura: solo si el pago no fue en efectivo.
+                                                    TextInput::make('referencia')
+                                                        ->label('N° de operación')
+                                                        ->placeholder('Código del comprobante de pago')
+                                                        ->maxLength(60)
+                                                        ->visible(fn (callable $get): bool =>
+                                                            filled($get('tipo_pago')) && $get('tipo_pago') !== 'EFECTIVO')
+                                                        ->columnSpan(2),
+
+                                                    FileUpload::make('voucher')
+                                                        ->label('Captura del pago')
+                                                        ->image()
+                                                        ->disk('public')
+                                                        ->directory('vouchers')
+                                                        ->imagePreviewHeight('90')
+                                                        ->maxSize(4096)
+                                                        ->visible(fn (callable $get): bool =>
+                                                            filled($get('tipo_pago')) && $get('tipo_pago') !== 'EFECTIVO')
+                                                        ->columnSpan(2),
                                                 ]),
                                         ])
                                         ->action(function (array $data, callable $set): void {
@@ -385,6 +407,47 @@ class CreateVenta extends CreateRecord
                                     ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 2)
                                     ->requiredIf('id_tipo_pago', 2)
                                     ->after('fecha'),
+
+                                // ── Pago al contado ──────────────────────────
+                                // En crédito el pago se registra por cuota (modal),
+                                // así que estos campos solo aplican al contado.
+                                Select::make('metodo_pago')
+                                    ->label('Método de pago')
+                                    ->options([
+                                        'EFECTIVO'      => 'Efectivo',
+                                        'YAPE'          => 'Yape',
+                                        'PLIN'          => 'Plin',
+                                        'TRANSFERENCIA' => 'Transferencia',
+                                        'DEPOSITO'      => 'Depósito',
+                                    ])
+                                    ->default('EFECTIVO')
+                                    ->live()
+                                    ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 1)
+                                    ->columnSpanFull(),
+
+                                TextInput::make('pago_referencia')
+                                    ->label('N° de operación')
+                                    ->placeholder('Código que figura en el comprobante del pago')
+                                    ->maxLength(60)
+                                    ->visible(fn (callable $get): bool =>
+                                        (int) $get('id_tipo_pago') === 1
+                                        && filled($get('metodo_pago'))
+                                        && $get('metodo_pago') !== 'EFECTIVO')
+                                    ->columnSpanFull(),
+
+                                FileUpload::make('pago_voucher')
+                                    ->label('Captura del pago')
+                                    ->helperText('Opcional. Imagen del Yape, Plin o la transferencia.')
+                                    ->image()
+                                    ->disk('public')
+                                    ->directory('vouchers')
+                                    ->imagePreviewHeight('120')
+                                    ->maxSize(4096)
+                                    ->visible(fn (callable $get): bool =>
+                                        (int) $get('id_tipo_pago') === 1
+                                        && filled($get('metodo_pago'))
+                                        && $get('metodo_pago') !== 'EFECTIVO')
+                                    ->columnSpanFull(),
 
                                 TextInput::make('observacion')
                                     ->label('Observación')
@@ -573,6 +636,8 @@ class CreateVenta extends CreateRecord
                 ->firstOrFail();
             $numero = $tido->numero + 1;
 
+            $esContado = (int) $data['id_tipo_pago'] === 1;
+
             // Afectación IGV del comprobante: gravado descompone el 18%;
             // exonerado/inafecto no llevan IGV (subtotal = total).
             $afectacion = $data['tipo_igv'] ?? 'gravado';
@@ -583,6 +648,11 @@ class CreateVenta extends CreateRecord
             $venta = Venta::create([
                 'id_tido'           => $data['id_tido'],
                 'id_tipo_pago'      => $data['id_tipo_pago'],
+                // El pago del contado se registra en la venta; el del crédito,
+                // por cuota (dias_ventas).
+                'metodo_pago'       => $esContado ? ($data['metodo_pago'] ?? 'EFECTIVO') : null,
+                'pago_referencia'   => $esContado ? ($data['pago_referencia'] ?? null) : null,
+                'pago_voucher'      => $esContado ? ($data['pago_voucher'] ?? null) : null,
                 'fecha_emision'     => $data['fecha'],
                 'fecha_vencimiento' => $data['fecha_vencimiento'] ?? $data['fecha'],
                 'direccion'         => $data['direccion'] ?? '-',
@@ -660,6 +730,8 @@ class CreateVenta extends CreateRecord
                     'monto'      => $pago['monto'],
                     'estado'     => ($pago['pagado'] ?? false) ? '1' : '0',
                     'tipo_pago'  => $pago['tipo_pago'] ?? 'EFECTIVO',
+                    'referencia' => $pago['referencia'] ?? null,
+                    'voucher'    => $pago['voucher'] ?? null,
                     'id_usuario' => $usuario,
                 ]);
 

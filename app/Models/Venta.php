@@ -17,6 +17,7 @@ class Venta extends Model
         'dias_pagos','direccion','serie','numero','id_cliente','total',
         'subtotal','estado','enviado_sunat','id_empresa','sucursal',
         'apli_igv','tipo_igv','observacion','igv','medoto_pago_id','pagado',
+        'metodo_pago','pago_referencia','pago_voucher',
         'id_vendedor','id_coti',
         'sunat_estado','sunat_mensaje','hash_cpe','xml_ruta','cdr_ruta',
     ];

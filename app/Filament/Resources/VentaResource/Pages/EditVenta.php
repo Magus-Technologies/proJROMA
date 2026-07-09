@@ -57,6 +57,9 @@ class EditVenta extends CreateVenta
             'id_tido'           => (string) $venta->id_tido,
             'id_cliente'        => $venta->id_cliente,
             'id_tipo_pago'      => (string) $venta->id_tipo_pago,
+            'metodo_pago'       => $venta->metodo_pago ?: 'EFECTIVO',
+            'pago_referencia'   => $venta->pago_referencia,
+            'pago_voucher'      => $venta->pago_voucher,
             'tipo_igv'          => $venta->tipo_igv ?: 'gravado',
             'fecha'             => optional($venta->fecha_emision)->toDateString(),
             'fecha_vencimiento' => optional($venta->fecha_vencimiento)->toDateString(),
@@ -70,10 +73,12 @@ class EditVenta extends CreateVenta
                 'linea_total' => number_format((float) $p->total, 2, '.', ''),
             ])->values()->toArray(),
             'lista_pagos'       => $venta->pagos->map(fn (DiasVenta $c): array => [
-                'fecha'     => optional($c->fecha)->toDateString(),
-                'monto'     => $c->monto,
-                'tipo_pago' => $c->tipo_pago ?: 'EFECTIVO',
-                'pagado'    => $c->estado === '1',
+                'fecha'      => optional($c->fecha)->toDateString(),
+                'monto'      => $c->monto,
+                'tipo_pago'  => $c->tipo_pago ?: 'EFECTIVO',
+                'pagado'     => $c->estado === '1',
+                'referencia' => $c->referencia,
+                'voucher'    => $c->voucher,
             ])->values()->toArray(),
         ]);
     }
@@ -153,8 +158,13 @@ class EditVenta extends CreateVenta
             $subtotal   = $esGravado ? round($total / 1.18, 2) : $total;
             $igv        = $esGravado ? round($total - $subtotal, 2) : 0.0;
 
+            $esContado = (int) $data['id_tipo_pago'] === 1;
+
             $venta->update([
                 'id_tipo_pago'      => $data['id_tipo_pago'],
+                'metodo_pago'       => $esContado ? ($data['metodo_pago'] ?? 'EFECTIVO') : null,
+                'pago_referencia'   => $esContado ? ($data['pago_referencia'] ?? null) : null,
+                'pago_voucher'      => $esContado ? ($data['pago_voucher'] ?? null) : null,
                 'fecha_emision'     => $data['fecha'],
                 'fecha_vencimiento' => $data['fecha_vencimiento'] ?? $data['fecha'],
                 'direccion'         => $data['direccion'] ?? '-',
@@ -219,6 +229,8 @@ class EditVenta extends CreateVenta
                     'monto'      => $pago['monto'],
                     'estado'     => ($pago['pagado'] ?? false) ? '1' : '0',
                     'tipo_pago'  => $pago['tipo_pago'] ?? 'EFECTIVO',
+                    'referencia' => $pago['referencia'] ?? null,
+                    'voucher'    => $pago['voucher'] ?? null,
                     'id_usuario' => $usuario,
                 ]);
             }

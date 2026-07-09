@@ -10,7 +10,8 @@ class DiasVenta extends Model
 
     protected $fillable = [
         'id_venta','fecha','monto','estado',
-        'tipo_pago','id_usuario','id_caja_empresa','fecha_pago_real',
+        'tipo_pago','referencia','voucher',
+        'id_usuario','id_caja_empresa','fecha_pago_real',
     ];
 
     protected $casts = ['monto'=>'float','fecha'=>'date','fecha_pago_real'=>'date'];

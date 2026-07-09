@@ -21,84 +21,71 @@ class ListMovimientosCaja extends ListRecords
             ->pluck('nombre', 'id')
             ->toArray();
 
+        $movimientoForm = [
+            Select::make('id_caja')
+                ->label('Caja')
+                ->options($cajaOptions)
+                ->required()
+                ->searchable(),
+            TextInput::make('descripcion')
+                ->label('Descripción')
+                ->required(),
+            TextInput::make('monto')
+                ->label('Monto')
+                ->numeric()
+                ->prefix('S/')
+                ->required(),
+            DatePicker::make('fecha')
+                ->label('Fecha')
+                ->default(now())
+                ->required(),
+            Select::make('metodo_pago')
+                ->label('Método de pago')
+                ->options(fn (): array => CajaService::opcionesMetodoPago())
+                ->default('EFECTIVO')
+                ->live()
+                ->required(),
+            TextInput::make('referencia')
+                ->label('N° de operación')
+                ->placeholder('Código del comprobante del pago')
+                ->maxLength(60)
+                ->visible(fn (callable $get): bool =>
+                    filled($get('metodo_pago')) && $get('metodo_pago') !== 'EFECTIVO')
+                ->required(fn (callable $get): bool =>
+                    filled($get('metodo_pago')) && $get('metodo_pago') !== 'EFECTIVO'),
+        ];
+
+        $registrar = function (array $data, string $tipo): void {
+            [$instrumentoTipo, $instrumentoId] = CajaService::mapInstrumento($data['metodo_pago'] ?? 'EFECTIVO');
+
+            app(CajaService::class)->registrarMovimiento([
+                'id_caja'          => $data['id_caja'],
+                'tipo'             => $tipo,
+                'categoria'        => 'MANUAL',
+                'fecha'            => $data['fecha'],
+                'descripcion'      => $data['descripcion'],
+                'monto'            => $data['monto'],
+                'instrumento_tipo' => $instrumentoTipo,
+                'instrumento_id'   => $instrumentoId,
+                'referencia'       => $data['referencia'] ?? null,
+                'id_usuario'       => auth()->id(),
+            ]);
+        };
+
         return [
             Action::make('ingreso')
                 ->label('Registrar Ingreso')
                 ->color('success')
                 ->icon('heroicon-o-arrow-down-circle')
-                ->form([
-                    Select::make('id_caja')
-                        ->label('Caja')
-                        ->options($cajaOptions)
-                        ->required()
-                        ->searchable(),
-                    TextInput::make('descripcion')
-                        ->label('Descripción')
-                        ->required(),
-                    TextInput::make('monto')
-                        ->label('Monto')
-                        ->numeric()
-                        ->prefix('S/')
-                        ->required(),
-                    DatePicker::make('fecha')
-                        ->label('Fecha')
-                        ->default(now())
-                        ->required(),
-                    Select::make('instrumento_tipo')
-                        ->label('Instrumento')
-                        ->options([
-                            'EFECTIVO'          => 'Efectivo',
-                            'TRANSFERENCIA'     => 'Transferencia',
-                            'BILLETERA_DIGITAL' => 'Billetera Digital',
-                        ])
-                        ->required(),
-                ])
-                ->action(function (array $data): void {
-                    app()->make(CajaService::class)->registrarMovimiento(array_merge($data, [
-                        'tipo'      => 'INGRESO',
-                        'categoria' => 'MANUAL',
-                        'id_usuario' => auth()->id(),
-                    ]));
-                }),
+                ->form($movimientoForm)
+                ->action(fn (array $data) => $registrar($data, 'INGRESO')),
 
             Action::make('egreso')
                 ->label('Registrar Egreso')
                 ->color('danger')
                 ->icon('heroicon-o-arrow-up-circle')
-                ->form([
-                    Select::make('id_caja')
-                        ->label('Caja')
-                        ->options($cajaOptions)
-                        ->required()
-                        ->searchable(),
-                    TextInput::make('descripcion')
-                        ->label('Descripción')
-                        ->required(),
-                    TextInput::make('monto')
-                        ->label('Monto')
-                        ->numeric()
-                        ->prefix('S/')
-                        ->required(),
-                    DatePicker::make('fecha')
-                        ->label('Fecha')
-                        ->default(now())
-                        ->required(),
-                    Select::make('instrumento_tipo')
-                        ->label('Instrumento')
-                        ->options([
-                            'EFECTIVO'          => 'Efectivo',
-                            'TRANSFERENCIA'     => 'Transferencia',
-                            'BILLETERA_DIGITAL' => 'Billetera Digital',
-                        ])
-                        ->required(),
-                ])
-                ->action(function (array $data): void {
-                    app()->make(CajaService::class)->registrarMovimiento(array_merge($data, [
-                        'tipo'      => 'EGRESO',
-                        'categoria' => 'MANUAL',
-                        'id_usuario' => auth()->id(),
-                    ]));
-                }),
+                ->form($movimientoForm)
+                ->action(fn (array $data) => $registrar($data, 'EGRESO')),
         ];
     }
 }

@@ -100,8 +100,7 @@ class CuentaPorCobrarResource extends Resource
 
                 TextColumn::make('tipo_pago')
                     ->label('Tipo Pago')
-                    ->formatStateUsing(fn (?string $state): string =>
-                        self::TIPOS_PAGO[strtoupper((string) $state)] ?? ($state ?: '—')),
+                    ->formatStateUsing(fn (?string $state): string => CajaService::etiquetaMetodoPago($state)),
 
                 TextColumn::make('fecha_pago_real')
                     ->label('Fecha Pago')
@@ -121,7 +120,7 @@ class CuentaPorCobrarResource extends Resource
             ->filters([
                 SelectFilter::make('tipo_pago')
                     ->label('Tipo Pago')
-                    ->options(self::TIPOS_PAGO),
+                    ->options(fn (): array => CajaService::opcionesMetodoPago()),
             ])
             ->actions([
                 Action::make('cobrar')
@@ -136,9 +135,18 @@ class CuentaPorCobrarResource extends Resource
                     ->form([
                         Select::make('tipo_pago')
                             ->label('Tipo de pago')
-                            ->options(self::TIPOS_PAGO)
+                            ->options(fn (): array => CajaService::opcionesMetodoPago())
                             ->default('EFECTIVO')
+                            ->live()
                             ->required(),
+                        \Filament\Forms\Components\TextInput::make('referencia')
+                            ->label('N° de operación')
+                            ->placeholder('Código del comprobante del pago')
+                            ->maxLength(60)
+                            ->visible(fn (callable $get): bool =>
+                                filled($get('tipo_pago')) && $get('tipo_pago') !== 'EFECTIVO')
+                            ->required(fn (callable $get): bool =>
+                                filled($get('tipo_pago')) && $get('tipo_pago') !== 'EFECTIVO'),
                     ])
                     ->action(function (DiasVenta $record, array $data): void {
                         $idUsuario = (int) auth()->user()->usuario_id;
@@ -146,6 +154,7 @@ class CuentaPorCobrarResource extends Resource
                         $record->update([
                             'estado'          => '1',
                             'tipo_pago'       => $data['tipo_pago'],
+                            'referencia'      => $data['referencia'] ?? null,
                             'fecha_pago_real' => now()->toDateString(),
                             'id_usuario'      => $idUsuario,
                         ]);

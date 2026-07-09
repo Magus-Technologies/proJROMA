@@ -57,12 +57,14 @@ class RegistroCajaResource extends Resource
 
                 TextColumn::make('instrumento_tipo')
                     ->label('Método de pago')
-                    ->formatStateUsing(fn (?string $state): string => match ($state) {
-                        'EFECTIVO'          => 'Efectivo',
-                        'TRANSFERENCIA'     => 'Transferencia',
-                        'BILLETERA_DIGITAL' => 'Billetera digital',
-                        default             => $state ?? '—',
-                    }),
+                    ->formatStateUsing(fn (?string $state, $record): string =>
+                        \App\Services\CajaService::etiquetaInstrumento($state, $record->instrumento_id ? (int) $record->instrumento_id : null))
+                    ->wrap(),
+
+                TextColumn::make('referencia')
+                    ->label('N° operación')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('monto')
                     ->label('Monto')

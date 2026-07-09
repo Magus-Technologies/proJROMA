@@ -190,6 +190,48 @@ class MiCaja extends Page implements HasTable
         return [$total, $detalles, $fijo > 0];
     }
 
+    /**
+     * Saldo de la caja separado por instrumento: el conteo del cierre es
+     * solo efectivo; lo que entró por transferencia/billetera se declara
+     * aparte. Movimientos sin instrumento cuentan como efectivo.
+     */
+    protected function saldosPorInstrumento(): array
+    {
+        $filas = DB::table('caja_movimientos')
+            ->where('id_caja', (int) ($this->caja->id ?? 0))
+            ->where('estado', 'CONFIRMADO')
+            ->selectRaw("
+                COALESCE(instrumento_tipo, 'EFECTIVO') as instrumento,
+                SUM(CASE WHEN tipo = 'INGRESO' THEN monto ELSE -monto END) as saldo
+            ")
+            ->groupBy('instrumento')
+            ->pluck('saldo', 'instrumento');
+
+        $efectivo = (float) ($filas['EFECTIVO'] ?? 0);
+        $otros    = round((float) $filas->sum() - $efectivo, 2);
+
+        return ['efectivo' => round($efectivo, 2), 'otros' => $otros];
+    }
+
+    /** Movimiento manual: traduce el método de pago elegido a instrumento de caja. */
+    protected function datosMovimientoManual(array $data, int $cajaId, string $tipo): array
+    {
+        [$instrumentoTipo, $instrumentoId] = CajaService::mapInstrumento($data['metodo_pago'] ?? 'EFECTIVO');
+
+        return [
+            'id_caja'          => $cajaId,
+            'tipo'             => $tipo,
+            'categoria'        => 'MANUAL',
+            'fecha'            => $data['fecha'],
+            'descripcion'      => $data['descripcion'],
+            'monto'            => $data['monto'],
+            'instrumento_tipo' => $instrumentoTipo,
+            'instrumento_id'   => $instrumentoId,
+            'referencia'       => $data['referencia'] ?? null,
+            'id_usuario'       => (int) auth()->user()->usuario_id,
+        ];
+    }
+
     protected function resolverCaja(): ?object
     {
         return DB::table('cajas')
@@ -233,12 +275,14 @@ class MiCaja extends Page implements HasTable
 
                 TextColumn::make('instrumento_tipo')
                     ->label('Instrumento')
-                    ->formatStateUsing(fn (?string $state): string => match ($state) {
-                        'EFECTIVO'          => 'Efectivo',
-                        'TRANSFERENCIA'     => 'Transferencia',
-                        'BILLETERA_DIGITAL' => 'Billetera digital',
-                        default             => $state ?? '—',
-                    }),
+                    ->formatStateUsing(fn (?string $state, CajaMovimiento $record): string =>
+                        CajaService::etiquetaInstrumento($state, $record->instrumento_id ? (int) $record->instrumento_id : null))
+                    ->wrap(),
+
+                TextColumn::make('referencia')
+                    ->label('N° operación')
+                    ->placeholder('—')
+                    ->toggleable(),
 
                 TextColumn::make('monto')
                     ->label('Monto')
@@ -472,14 +516,20 @@ class MiCaja extends Page implements HasTable
                 ->label('Fecha')
                 ->default(now())
                 ->required(),
-            Select::make('instrumento_tipo')
-                ->label('Instrumento')
-                ->options([
-                    'EFECTIVO'          => 'Efectivo',
-                    'TRANSFERENCIA'     => 'Transferencia',
-                    'BILLETERA_DIGITAL' => 'Billetera Digital',
-                ])
+            Select::make('metodo_pago')
+                ->label('Método de pago')
+                ->options(fn (): array => CajaService::opcionesMetodoPago())
+                ->default('EFECTIVO')
+                ->live()
                 ->required(),
+            TextInput::make('referencia')
+                ->label('N° de operación')
+                ->placeholder('Código del comprobante del pago')
+                ->maxLength(60)
+                ->visible(fn (callable $get): bool =>
+                    filled($get('metodo_pago')) && $get('metodo_pago') !== 'EFECTIVO')
+                ->required(fn (callable $get): bool =>
+                    filled($get('metodo_pago')) && $get('metodo_pago') !== 'EFECTIVO'),
         ];
 
         return [
@@ -564,12 +614,7 @@ class MiCaja extends Page implements HasTable
                 ->icon('heroicon-o-arrow-down-circle')
                 ->form($movimientoForm)
                 ->action(function (array $data) use ($cajaId): void {
-                    app(CajaService::class)->registrarMovimiento(array_merge($data, [
-                        'id_caja'    => $cajaId,
-                        'tipo'       => 'INGRESO',
-                        'categoria'  => 'MANUAL',
-                        'id_usuario' => (int) auth()->user()->usuario_id,
-                    ]));
+                    app(CajaService::class)->registrarMovimiento($this->datosMovimientoManual($data, $cajaId, 'INGRESO'));
                     Notification::make()->success()->title('Ingreso registrado')->send();
                     $this->caja = $this->resolverCaja();
                 }),
@@ -580,12 +625,7 @@ class MiCaja extends Page implements HasTable
                 ->icon('heroicon-o-arrow-up-circle')
                 ->form($movimientoForm)
                 ->action(function (array $data) use ($cajaId): void {
-                    app(CajaService::class)->registrarMovimiento(array_merge($data, [
-                        'id_caja'    => $cajaId,
-                        'tipo'       => 'EGRESO',
-                        'categoria'  => 'MANUAL',
-                        'id_usuario' => (int) auth()->user()->usuario_id,
-                    ]));
+                    app(CajaService::class)->registrarMovimiento($this->datosMovimientoManual($data, $cajaId, 'EGRESO'));
                     Notification::make()->success()->title('Egreso registrado')->send();
                     $this->caja = $this->resolverCaja();
                 }),
@@ -596,13 +636,25 @@ class MiCaja extends Page implements HasTable
                 ->icon('heroicon-o-lock-closed')
                 ->visible(fn (): bool => $esHija)
                 ->modalWidth('3xl')
-                ->modalDescription('Cuenta el efectivo de tu caja: el saldo declarado se calcula solo con el desglose de billetes y monedas. Saldo según sistema: S/ ' . number_format((float) ($this->caja->saldo_actual ?? 0), 2))
+                ->modalDescription(function (): string {
+                    $saldos = $this->saldosPorInstrumento();
+
+                    $texto = 'Cuenta solo el EFECTIVO de tu caja. Efectivo según sistema: S/ ' . number_format($saldos['efectivo'], 2);
+                    if (abs($saldos['otros']) > 0.001) {
+                        $texto .= ' · Transferencias/billeteras: S/ ' . number_format($saldos['otros'], 2) . ' (se suman solas, no las cuentes).';
+                    }
+
+                    return $texto;
+                })
                 ->form($this->componentesConteoEfectivo())
                 ->action(function (array $data) use ($cajaId): void {
-                    [$saldoDeclarado, $detalles, $esMontoFijo] = self::resolverConteo($data);
+                    [$conteoEfectivo, $detalles, $esMontoFijo] = self::resolverConteo($data);
 
-                    $saldoSistema = (float) ($this->caja->saldo_actual ?? 0);
-                    $diferencia   = round($saldoDeclarado - $saldoSistema, 2);
+                    $saldos = $this->saldosPorInstrumento();
+
+                    // El cuadre es contra el efectivo; lo no-efectivo se suma tal cual
+                    $diferencia     = round($conteoEfectivo - $saldos['efectivo'], 2);
+                    $saldoDeclarado = round($conteoEfectivo + $saldos['otros'], 2);
 
                     try {
                         app(CajaService::class)->cerrarCaja(
@@ -617,13 +669,13 @@ class MiCaja extends Page implements HasTable
                             ->update(['estado' => 'CERRADA', 'updated_at' => now()]);
 
                         $detalleDif = $diferencia == 0.0
-                            ? 'Cuadre exacto.'
+                            ? 'Cuadre de efectivo exacto.'
                             : ($diferencia > 0
-                                ? 'Sobrante de S/ ' . number_format($diferencia, 2) . '.'
-                                : 'Faltante de S/ ' . number_format(abs($diferencia), 2) . '.');
+                                ? 'Sobrante de efectivo: S/ ' . number_format($diferencia, 2) . '.'
+                                : 'Faltante de efectivo: S/ ' . number_format(abs($diferencia), 2) . ' (si se aprueba, queda como deuda).');
 
                         Notification::make()->success()
-                            ->title('Cierre registrado — contado S/ ' . number_format($saldoDeclarado, 2))
+                            ->title('Cierre registrado — efectivo contado S/ ' . number_format($conteoEfectivo, 2))
                             ->body($detalleDif . ' Queda pendiente de aprobación.')
                             ->send();
                         $this->caja = $this->resolverCaja();

@@ -185,24 +185,20 @@ class CuentaPorPagarResource extends Resource
                                 ->label('Fecha')
                                 ->default(now())
                                 ->required(),
-                            Select::make('instrumento_tipo')
+                            Select::make('metodo_pago')
                                 ->label('Método de Pago')
-                                ->options(function () {
-                                    $opts = [
-                                        'EFECTIVO'      => 'Efectivo',
-                                        'TRANSFERENCIA' => 'Transferencia',
-                                    ];
-
-                                    $wallets = BilleteraTipo::where('estado', '1')
-                                        ->where('id_empresa', (int) session('id_empresa'))
-                                        ->pluck('nombre', 'nombre');
-
-                                    foreach ($wallets as $nombre) {
-                                        $opts[strtoupper($nombre)] = $nombre;
-                                    }
-
-                                    return $opts;
-                                }),
+                                ->options(fn (): array => CajaService::opcionesMetodoPago())
+                                ->default('EFECTIVO')
+                                ->live()
+                                ->required(),
+                            TextInput::make('referencia')
+                                ->label('N° de operación')
+                                ->placeholder('Código del comprobante del pago')
+                                ->maxLength(60)
+                                ->visible(fn (callable $get): bool =>
+                                    filled($get('metodo_pago')) && $get('metodo_pago') !== 'EFECTIVO')
+                                ->required(fn (callable $get): bool =>
+                                    filled($get('metodo_pago')) && $get('metodo_pago') !== 'EFECTIVO'),
                         ];
                     })
                     ->action(function (Compra $record, array $data): void {
@@ -218,6 +214,8 @@ class CuentaPorPagarResource extends Resource
                         }
 
                         DB::transaction(function () use ($record, $data): void {
+                            [$instrumentoTipo, $instrumentoId] = CajaService::mapInstrumento($data['metodo_pago'] ?? 'EFECTIVO');
+
                             $idCaja = null;
                             $caja = static::cajaDelUsuario();
 
@@ -232,7 +230,9 @@ class CuentaPorPagarResource extends Resource
                                     'descripcion'      => 'Pago compra ' . ($doc ?: "#{$record->id_compra}"),
                                     'monto'            => (float) $data['monto'],
                                     'fecha'            => $data['fecha'],
-                                    'instrumento_tipo' => $data['instrumento_tipo'] ?? null,
+                                    'instrumento_tipo' => $instrumentoTipo,
+                                    'instrumento_id'   => $instrumentoId,
+                                    'referencia'       => $data['referencia'] ?? null,
                                     'id_usuario'       => (int) auth()->user()->usuario_id,
                                 ]);
                             }
@@ -243,7 +243,7 @@ class CuentaPorPagarResource extends Resource
                                 'fecha'            => $data['fecha'],
                                 'estado'           => '1',
                                 'id_caja'          => $idCaja,
-                                'instrumento_tipo' => $data['instrumento_tipo'] ?? null,
+                                'instrumento_tipo' => $instrumentoTipo,
                             ]);
                         });
 

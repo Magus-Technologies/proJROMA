@@ -63,7 +63,7 @@ class MisCobroResource extends Resource
                 TextColumn::make('tipo_pago')
                     ->label('Tipo Pago')
                     ->formatStateUsing(fn (?string $state): string =>
-                        CuentaPorCobrarResource::TIPOS_PAGO[strtoupper((string) $state)] ?? ($state ?: '—')),
+                        \App\Services\CajaService::etiquetaMetodoPago($state)),
 
                 TextColumn::make('monto')
                     ->label('Monto')
@@ -74,7 +74,7 @@ class MisCobroResource extends Resource
             ->filters([
                 SelectFilter::make('tipo_pago')
                     ->label('Tipo Pago')
-                    ->options(CuentaPorCobrarResource::TIPOS_PAGO),
+                    ->options(fn (): array => \App\Services\CajaService::opcionesMetodoPago()),
             ])
             ->actions([
                 Action::make('ver_venta')

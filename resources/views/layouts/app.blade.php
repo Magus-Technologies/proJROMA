@@ -102,7 +102,6 @@
                 <x-nav-link href="{{ route('caja.gestion') }}"     icon="ti ti-building-bank" label="Gestión de Cajas" />
                 <x-nav-link href="{{ route('caja.movimientos') }}" icon="ti ti-arrows-exchange" label="Movimientos" />
                 <x-nav-link href="{{ route('caja.rendiciones') }}" icon="ti ti-coins"           label="Cierres y Cuadre" />
-                <x-nav-link href="{{ route('caja.arqueo') }}"      icon="ti ti-calculator"      label="Arqueo Diario" />
                 <x-nav-link href="{{ route('caja.micaja') }}"      icon="ti ti-wallet"          label="Mi Caja" />
                 <x-nav-link href="{{ route('pago.instrumentos') }}" icon="ti ti-credit-card"    label="Métodos de Pago" />
             </x-nav-group>

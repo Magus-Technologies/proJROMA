@@ -39,4 +39,9 @@ class CierreCaja extends Model
     {
         return $this->belongsTo(User::class, 'id_usuario_aprueba', 'usuario_id');
     }
+
+    public function deuda()
+    {
+        return $this->hasOne(CajaCierreDeuda::class, 'id_cierre');
+    }
 }

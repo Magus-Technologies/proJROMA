@@ -39,6 +39,7 @@ class CajaService
                 'monto'            => $monto,
                 'instrumento_tipo' => $data['instrumento_tipo'] ?? null,
                 'instrumento_id'   => $data['instrumento_id'] ?? null,
+                'referencia'       => $data['referencia'] ?? null,
                 'saldo_anterior'   => $saldoAnterior,
                 'saldo_posterior'  => $saldoPosterior,
                 'origen_tipo'      => $data['origen_tipo'] ?? null,
@@ -122,22 +123,10 @@ class CajaService
             if (!$caja) throw new \RuntimeException('Caja no encontrada.');
 
             $saldoSistema = (float) $caja->saldo_actual;
-            $diferencia = $saldoDeclarado - $saldoSistema;
 
-            // Registrar movimiento de AJUSTE si hay diferencia
-            if (abs($diferencia) > 0.001) {
-                $tipoAjuste = $diferencia > 0 ? 'INGRESO' : 'EGRESO';
-                $montoAjuste = abs($diferencia);
-                $this->registrarMovimiento([
-                    'id_caja' => $idCaja,
-                    'fecha' => now()->toDateString(),
-                    'tipo' => $tipoAjuste,
-                    'categoria' => 'AJUSTE',
-                    'descripcion' => $diferencia > 0 ? 'Ajuste por sobrante en cierre' : 'Ajuste por faltante en cierre',
-                    'monto' => $montoAjuste,
-                    'id_usuario' => $idUsuario,
-                ]);
-            }
+            // La diferencia NO se ajusta aquí: el AJUSTE (y la deuda del
+            // trabajador si hay faltante) se generan al APROBAR el cierre.
+            // Así un cierre rechazado no deja rastros que revertir.
 
             // Registrar el movimiento de CIERRE (monto 0 para no alterar saldo)
             $this->registrarMovimiento([
@@ -185,6 +174,38 @@ class CajaService
             ]);
 
             if ($nuevoEstado === 'APROBADO') {
+                $diferencia = round((float) $cierre->saldo_declarado - (float) $cierre->saldo_sistema, 2);
+
+                // Ajustar el saldo de la caja a lo realmente declarado
+                if (abs($diferencia) > 0.001) {
+                    $this->registrarMovimiento([
+                        'id_caja'     => $cierre->id_caja,
+                        'fecha'       => now()->toDateString(),
+                        'tipo'        => $diferencia > 0 ? 'INGRESO' : 'EGRESO',
+                        'categoria'   => 'AJUSTE',
+                        'descripcion' => ($diferencia > 0 ? 'Ajuste por sobrante' : 'Ajuste por faltante') . ' en cierre #' . $idCierre,
+                        'monto'       => abs($diferencia),
+                        'origen_tipo' => 'CIERRE',
+                        'origen_id'   => $idCierre,
+                        'id_usuario'  => $idUsuarioAprueba,
+                    ]);
+                }
+
+                // El faltante queda como deuda del trabajador que cerró
+                if ($diferencia < -0.001) {
+                    DB::table('caja_cierre_deudas')->insert([
+                        'id_cierre'           => $idCierre,
+                        'id_caja'             => $cierre->id_caja,
+                        'id_usuario'          => $cierre->id_usuario_cierra,
+                        'monto'               => abs($diferencia),
+                        'estado'              => 'PENDIENTE',
+                        'observaciones'       => 'Faltante en cierre de caja del ' . $cierre->fecha,
+                        'id_usuario_registra' => $idUsuarioAprueba,
+                        'created_at'          => now(),
+                        'updated_at'          => now(),
+                    ]);
+                }
+
                 // Generar movimiento de CUADRE en la caja principal (padre) si existe
                 $cajaHija = DB::table('cajas')->where('id', $cierre->id_caja)->first();
                 if ($cajaHija && $cajaHija->id_caja_padre) {
@@ -199,21 +220,127 @@ class CajaService
                     ]);
                 }
             }
+
+            if ($nuevoEstado === 'RECHAZADO') {
+                // Reabrir la apertura para que el trabajador corrija y vuelva a cerrar
+                $apertura = DB::table('caja_aperturas')
+                    ->where('id_caja', $cierre->id_caja)
+                    ->where('estado', 'CERRADA')
+                    ->orderByDesc('id')
+                    ->first();
+                if ($apertura) {
+                    DB::table('caja_aperturas')->where('id', $apertura->id)
+                        ->update(['estado' => 'ABIERTA', 'updated_at' => now()]);
+                }
+            }
         });
     }
 
     /**
      * Mapear tipo de pago al instrumento_tipo de caja.
      */
+    /** Cache por request de las opciones de método de pago. */
+    protected static ?array $opcionesMetodoPago = null;
+
+    /**
+     * Métodos de pago disponibles según Métodos de Pago: Efectivo (fijo) +
+     * billeteras registradas + cuentas bancarias (transferencia/depósito).
+     * Las claves caben en ventas.metodo_pago (varchar 20).
+     */
+    public static function opcionesMetodoPago(): array
+    {
+        if (static::$opcionesMetodoPago !== null) {
+            return static::$opcionesMetodoPago;
+        }
+
+        $empresa  = (int) session('id_empresa');
+        $opciones = ['EFECTIVO' => 'Efectivo'];
+
+        DB::table('billeteras_digitales as bd')
+            ->join('billetera_tipos as bt', 'bt.id', '=', 'bd.id_billetera_tipo')
+            ->where('bd.id_empresa', $empresa)
+            ->where('bd.estado', 1)
+            ->orderBy('bt.nombre')
+            ->get(['bd.id_billetera', 'bt.nombre', 'bd.telefono', 'bd.titular'])
+            ->each(function ($b) use (&$opciones): void {
+                $opciones["BILLETERA|{$b->id_billetera}"] = trim("{$b->nombre} · {$b->telefono} · {$b->titular}", ' ·');
+            });
+
+        DB::table('cuentas_bancarias as c')
+            ->join('bancos as b', 'b.id_banco', '=', 'c.id_banco')
+            ->where('c.id_empresa', $empresa)
+            ->where('c.estado', '1')
+            ->orderBy('b.nombre')
+            ->get(['c.id_cuenta', 'b.nombre as banco', 'c.numero_cuenta', 'c.titular'])
+            ->each(function ($c) use (&$opciones): void {
+                $opciones["CUENTA|{$c->id_cuenta}"] = trim("Transferencia {$c->banco} · {$c->numero_cuenta} · {$c->titular}", ' ·');
+            });
+
+        return static::$opcionesMetodoPago = $opciones;
+    }
+
+    /** Etiqueta legible de un método de pago (incluye valores legados). */
+    public static function etiquetaMetodoPago(?string $valor): string
+    {
+        if (blank($valor)) {
+            return '—';
+        }
+
+        $legados = [
+            'EFECTIVO' => 'Efectivo', 'YAPE' => 'Yape', 'PLIN' => 'Plin',
+            'TRANSFERENCIA' => 'Transferencia', 'DEPOSITO' => 'Depósito',
+        ];
+
+        return static::opcionesMetodoPago()[$valor]
+            ?? $legados[strtoupper($valor)]
+            ?? $valor;
+    }
+
+    /** Etiqueta de un instrumento de caja (con detalle si hay id registrado). */
+    public static function etiquetaInstrumento(?string $tipo, ?int $id): string
+    {
+        $base = match ($tipo) {
+            'EFECTIVO'          => 'Efectivo',
+            'TRANSFERENCIA'     => 'Transferencia',
+            'BILLETERA_DIGITAL' => 'Billetera digital',
+            default             => $tipo ?: '—',
+        };
+
+        if (! $id) {
+            return $base;
+        }
+
+        $detalle = match ($tipo) {
+            'BILLETERA_DIGITAL' => static::opcionesMetodoPago()["BILLETERA|{$id}"] ?? null,
+            'TRANSFERENCIA'     => static::opcionesMetodoPago()["CUENTA|{$id}"] ?? null,
+            default             => null,
+        };
+
+        return $detalle ?? $base;
+    }
+
+    /** [instrumento_tipo, instrumento_id] para el movimiento de caja. */
+    public static function mapInstrumento(string $tipoPago): array
+    {
+        if (str_starts_with($tipoPago, 'BILLETERA|')) {
+            return ['BILLETERA_DIGITAL', (int) substr($tipoPago, 10)];
+        }
+        if (str_starts_with($tipoPago, 'CUENTA|')) {
+            return ['TRANSFERENCIA', (int) substr($tipoPago, 7)];
+        }
+
+        $tipo = match (strtoupper($tipoPago)) {
+            'YAPE', 'PLIN', 'TUNKI', 'AGORA', 'BIM', 'OTRO' => 'BILLETERA_DIGITAL',
+            'TRANSFERENCIA', 'DEPOSITO'                     => 'TRANSFERENCIA',
+            default                                         => 'EFECTIVO',
+        };
+
+        return [$tipo, null];
+    }
+
     public function mapInstrumentoTipo(string $tipoPago): string
     {
-        return match (strtoupper($tipoPago)) {
-            'EFECTIVO'      => 'EFECTIVO',
-            'YAPE', 'PLIN'  => 'BILLETERA_DIGITAL',
-            'TRANSFERENCIA',
-            'DEPOSITO'      => 'TRANSFERENCIA',
-            default         => 'EFECTIVO',
-        };
+        return static::mapInstrumento($tipoPago)[0];
     }
 
     /**
@@ -239,6 +366,8 @@ class CajaService
 
         if (!$caja) return null;
 
+        [$instrumentoTipo, $instrumentoId] = static::mapInstrumento($tipoPago);
+
         return $this->registrarMovimiento([
             'id_caja'          => $caja->id,
             'fecha'            => now()->toDateString(),
@@ -248,7 +377,8 @@ class CajaService
                 ? "Cobro venta {$documento}"
                 : "Cobro {$documento}",
             'monto'            => $monto,
-            'instrumento_tipo' => $this->mapInstrumentoTipo($tipoPago),
+            'instrumento_tipo' => $instrumentoTipo,
+            'instrumento_id'   => $instrumentoId,
             'origen_tipo'      => 'DiasVenta',
             'origen_id'        => $idDiasVenta,
             'id_usuario'       => $idUsuario,

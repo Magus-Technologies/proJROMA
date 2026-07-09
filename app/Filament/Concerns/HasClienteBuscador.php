@@ -140,6 +140,14 @@ trait HasClienteBuscador
 
                     return $c ? $c->datos . ($c->documento ? " — {$c->documento}" : '') : null;
                 })
+                // Al elegir cliente, traer su dirección al campo `direccion` del
+                // documento (venta / cotización). Sigue siendo editable.
+                ->live()
+                ->afterStateUpdated(function ($state, callable $set): void {
+                    if ($direccion = Cliente::find($state)?->direccion) {
+                        $set('direccion', $direccion);
+                    }
+                })
                 ->createOptionForm(static::clienteFormFields())
                 ->createOptionUsing(fn (array $data): int => Cliente::create(array_merge($data, [
                     'id_empresa' => (int) session('id_empresa'),

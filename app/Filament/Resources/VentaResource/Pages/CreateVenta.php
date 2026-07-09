@@ -58,7 +58,7 @@ class CreateVenta extends CreateRecord
             return;
         }
 
-        $coti = Cotizacion::with('productos')
+        $coti = Cotizacion::with(['productos', 'cliente'])
             ->where('id_empresa', (int) session('id_empresa'))
             ->find($cotiId);
 
@@ -105,7 +105,8 @@ class CreateVenta extends CreateRecord
             'id_cliente'   => $coti->id_cliente,
             'id_tipo_pago' => (int) $coti->id_tipo_pago,
             'fecha'        => now()->toDateString(),
-            'direccion'    => $coti->direccion,
+            // Muchas cotizaciones no llevan dirección: caer en la del cliente.
+            'direccion'    => $coti->direccion ?: $coti->cliente?->direccion,
             'observacion'  => 'Convertido de cotización N° ' . $coti->numero,
             'productos'    => $productos,
             'lista_pagos'  => $cuotas ?: null,

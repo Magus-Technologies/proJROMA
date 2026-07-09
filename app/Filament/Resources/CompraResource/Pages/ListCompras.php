@@ -17,7 +17,7 @@ class ListCompras extends ListRecords
                 ->label('Nueva Compra')
                 ->icon('heroicon-m-plus')
                 ->color('primary')
-                ->url(url('/compras/add')),
+                ->url(CompraResource::getUrl('create')),
         ];
     }
 }

@@ -22,7 +22,8 @@ class GuiaRemision extends Model
         'conductor_apellidos','conductor_licencia',
         'und_peso_total','ubigeo_partida','dir_partida',
         'enviado_sunat','estado_gre','ticket_sunat','codigo_sunat','mensaje_sunat','cdr_url',
-        'hash','nombre_xml','serie','numero','peso','nro_bultos',
+        'hash','nombre_xml','xml_ruta','cdr_ruta',
+        'serie','numero','peso','nro_bultos',
         'estado','id_empresa','sucursal',
     ];
 

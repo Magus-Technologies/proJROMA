@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Empresa;
 use App\Models\GuiaRemision;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Envío de Guías de Remisión electrónicas (GRE) a SUNAT a través del
@@ -23,16 +24,24 @@ class GuiaSunatService
     }
 
     /** Genera el XML y lo envía a SUNAT. Guarda el ticket en la guía. */
-    public function enviar(GuiaRemision $guia): array
+    /**
+     * Genera y firma el XML de la guía y lo guarda en el storage local.
+     * NO envía a SUNAT y NO requiere las credenciales GRE: el endpoint de
+     * generación solo necesita el certificado del RUC.
+     */
+    public function generarXml(GuiaRemision $guia): array
     {
         $guia->loadMissing(['empresa', 'venta.cliente', 'detalles']);
         $empresa = $guia->empresa ?? Empresa::find($guia->id_empresa);
 
-        if (blank($empresa->gre_client_id) || blank($empresa->gre_client_secret)) {
-            return ['ok' => false, 'msg' => 'Faltan las credenciales GRE (client_id/secret) en la configuración de la empresa.'];
+        if (! $empresa) {
+            return ['ok' => false, 'msg' => 'No se encontró la empresa de la guía.'];
         }
 
-        // ── 1) Generar el XML firmado ──────────────────────────────────────
+        if ($guia->detalles->isEmpty()) {
+            return ['ok' => false, 'msg' => 'La guía no tiene productos para trasladar.'];
+        }
+
         try {
             $gen = Http::timeout(30)->post("{$this->apiUrl}/api/v1/generar/guia/remision", $this->payloadGenerar($guia, $empresa));
             $genData = $gen->json();
@@ -44,19 +53,65 @@ class GuiaSunatService
             return ['ok' => false, 'msg' => $genData['mensaje'] ?? 'Error al generar el XML de la guía.'];
         }
 
-        $nombreXml = $genData['data']['nombre_archivo'];
-        $xml       = $genData['data']['contenido_xml'];
-        $hash      = $genData['data']['hash'] ?? null;
+        $nombre = $genData['data']['nombre_archivo'];
+        $xml    = $genData['data']['contenido_xml'];
+        $hash   = $genData['data']['hash'] ?? null;
 
-        // ── 2) Enviar a SUNAT (devuelve ticket) ────────────────────────────
+        $xmlRuta = "sunat/xml/{$empresa->credencialesSunat()['ruc']}/{$nombre}.xml";
+        Storage::disk('local')->put($xmlRuta, $xml);
+
+        $yaAceptada = $guia->estado_gre === 'aceptado';
+
+        $guia->update([
+            'nombre_xml'    => $nombre,
+            'hash'          => $hash,
+            'xml_ruta'      => $xmlRuta,
+            'estado_gre'    => $yaAceptada ? 'aceptado' : 'pendiente',
+            'mensaje_sunat' => $yaAceptada ? $guia->mensaje_sunat : 'XML generado, pendiente de envío.',
+        ]);
+
+        return ['ok' => true, 'msg' => "XML generado y guardado ({$nombre}.xml).", 'nombre' => $nombre, 'xml' => $xml];
+    }
+
+    /** Envía a SUNAT el XML ya generado (lo genera si aún no existe). Devuelve un ticket. */
+    public function enviar(GuiaRemision $guia): array
+    {
+        $guia->loadMissing(['empresa', 'venta.cliente', 'detalles']);
+        $empresa = $guia->empresa ?? Empresa::find($guia->id_empresa);
+
+        if (blank($empresa->gre_client_id) || blank($empresa->gre_client_secret)) {
+            return ['ok' => false, 'msg' => 'Faltan las credenciales GRE (client_id/secret) en la configuración de la empresa.'];
+        }
+
+        if ($guia->estado === '0') {
+            return ['ok' => false, 'msg' => 'No se puede enviar una guía anulada.'];
+        }
+
+        // Usar el XML ya generado (el que revisó el usuario); si no existe, generarlo.
+        if (blank($guia->xml_ruta) || ! Storage::disk('local')->exists($guia->xml_ruta)) {
+            $gen = $this->generarXml($guia);
+            if (! $gen['ok']) {
+                return $gen;
+            }
+            $nombreXml = $gen['nombre'];
+            $xml       = $gen['xml'];
+        } else {
+            $nombreXml = pathinfo($guia->xml_ruta, PATHINFO_FILENAME);
+            $xml       = Storage::disk('local')->get($guia->xml_ruta);
+        }
+
         try {
+            $cred = $empresa->credencialesSunat();
+
             $env = Http::timeout(40)->post("{$this->apiUrl}/api/v1/enviar/guia/remision", [
-                'ruc'                 => $empresa->ruc,
-                'usuario'             => $empresa->user_sol ?? '',
-                'clave'               => $empresa->clave_sol ?? '',
+                'ruc'                 => $cred['ruc'],
+                'usuario'             => $cred['usuario'],
+                'clave'               => $cred['clave'],
+                // Las credenciales GRE (OAuth2) son siempre las reales de la
+                // empresa: SUNAT no ofrece unas de prueba.
                 'client_id'           => $empresa->gre_client_id,
                 'secret_client'       => $empresa->gre_client_secret,
-                'endpoint'            => ($empresa->modo ?? '') === 'produccion' ? 'produccion' : 'beta',
+                'endpoint'            => $cred['endpoint'],
                 'nombre_documento'    => $nombreXml,
                 'contenido_documento' => $xml,
             ]);
@@ -72,8 +127,6 @@ class GuiaSunatService
         }
 
         $guia->update([
-            'nombre_xml'    => $nombreXml,
-            'hash'          => $hash,
             'ticket_sunat'  => $envData['ticker'] ?? null,
             'estado_gre'    => 'enviado',
             'enviado_sunat' => '1',
@@ -87,6 +140,7 @@ class GuiaSunatService
     public function consultarTicket(GuiaRemision $guia): array
     {
         $empresa = $guia->empresa ?? Empresa::find($guia->id_empresa);
+        $cred    = $empresa->credencialesSunat();
 
         if (blank($guia->ticket_sunat)) {
             return ['ok' => false, 'msg' => 'La guía no tiene un ticket para consultar. Enviala primero a SUNAT.'];
@@ -94,12 +148,12 @@ class GuiaSunatService
 
         try {
             $res = Http::timeout(40)->post("{$this->apiUrl}/api/v1/consulta/documento/ticker/{$guia->ticket_sunat}", [
-                'ruc'           => $empresa->ruc,
-                'usuario'       => $empresa->user_sol ?? '',
-                'clave'         => $empresa->clave_sol ?? '',
+                'ruc'           => $cred['ruc'],
+                'usuario'       => $cred['usuario'],
+                'clave'         => $cred['clave'],
                 'client_id'     => $empresa->gre_client_id,
                 'secret_client' => $empresa->gre_client_secret,
-                'endpoint'      => ($empresa->modo ?? '') === 'produccion' ? 'produccion' : 'beta',
+                'endpoint'      => $cred['endpoint'],
             ]);
             $data = $res->json();
         } catch (\Throwable $e) {
@@ -107,11 +161,20 @@ class GuiaSunatService
         }
 
         if ($data['estado'] ?? false) {
+            // Guardar el CDR (respuesta oficial de SUNAT) en el storage local.
+            $cdrRuta = null;
+            if (! empty($data['cdr'])) {
+                $nombre  = $guia->nombre_xml ?: ($guia->serie . '-' . $guia->numero);
+                $cdrRuta = "sunat/cdr/{$cred['ruc']}/R-{$nombre}.zip";
+                Storage::disk('local')->put($cdrRuta, base64_decode($data['cdr'], true) ?: '');
+            }
+
             $guia->update([
                 'estado_gre'    => 'aceptado',
                 'codigo_sunat'  => '0',
                 'mensaje_sunat' => $data['mensaje'] ?? 'Aceptado por SUNAT.',
                 'cdr_url'       => $data['url_ref_sunat'] ?? null,
+                'cdr_ruta'      => $cdrRuta,
             ]);
 
             return ['ok' => true, 'msg' => $data['mensaje'] ?? 'Guía aceptada por SUNAT.'];
@@ -136,11 +199,15 @@ class GuiaSunatService
         // SUNAT: mod_traslado 01=Público, 02=Privado  (¡invertido!)
         $modTraslado = ((string) $guia->tipo_transporte === '2') ? '01' : '02';
 
+        // Mismo criterio que ventas y notas: en beta se firma con el RUC de
+        // prueba (que sí tiene certificado); en producción, con el real.
+        $cred = $empresa->credencialesSunat();
+
         $payload = [
             'empresa' => [
-                'ruc'          => $empresa->ruc,
-                'usuario'      => $empresa->user_sol ?? '',
-                'clave'        => $empresa->clave_sol ?? '',
+                'ruc'          => $cred['ruc'],
+                'usuario'      => $cred['usuario'],
+                'clave'        => $cred['clave'],
                 'razon_social' => $empresa->razon_social,
                 'direccion'    => $empresa->direccion ?? '',
                 'ubigeo'       => $empresa->ubigeo ?? '',
@@ -152,7 +219,7 @@ class GuiaSunatService
                 'direccion'  => $cliente?->direccion ?? '',
             ],
             'documento'     => 'remitente',
-            'endpoint'      => ($empresa->modo ?? '') === 'produccion' ? 'produccion' : 'beta',
+            'endpoint'      => $cred['endpoint'],
             'serie'         => $guia->serie ?: 'T001',
             'numero'        => (string) $guia->numero,
             'fecha_emision' => ($guia->fecha_emision ?? now())->format('Y-m-d'),

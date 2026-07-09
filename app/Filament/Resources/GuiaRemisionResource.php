@@ -134,6 +134,40 @@ class GuiaRemisionResource extends Resource
                         route('guia.pdf', $record->id_guia_remision))
                     ->openUrlInNewTab(),
 
+                Action::make('ver_xml')
+                    ->label('Ver XML')
+                    ->icon('heroicon-m-code-bracket')
+                    ->color('gray')
+                    ->visible(fn (GuiaRemision $record): bool => filled($record->xml_ruta))
+                    ->url(fn (GuiaRemision $record): string => route('facturacion.xml', [
+                        'ruc'     => explode('/', $record->xml_ruta)[2] ?? '',
+                        'archivo' => basename($record->xml_ruta),
+                    ]))
+                    ->openUrlInNewTab(),
+
+                Action::make('regenerar_xml')
+                    ->label('Regenerar XML')
+                    ->icon('heroicon-m-arrow-path')
+                    ->color('warning')
+                    ->visible(fn (GuiaRemision $record): bool =>
+                        $record->estado === '1' && $record->estado_gre !== 'aceptado')
+                    ->requiresConfirmation()
+                    ->modalHeading('¿Regenerar el XML de la guía?')
+                    ->modalDescription('Vuelve a generar el XML con los datos actuales.')
+                    ->action(function (GuiaRemision $record): void {
+                        $res = app(\App\Services\GuiaSunatService::class)->generarXml($record);
+                        $n = Notification::make()->title($res['msg']);
+                        $res['ok'] ? $n->success()->send() : $n->danger()->persistent()->send();
+                    }),
+
+                Action::make('descargar_cdr')
+                    ->label('Descargar CDR')
+                    ->icon('heroicon-m-document-check')
+                    ->color('gray')
+                    ->visible(fn (GuiaRemision $record): bool => filled($record->cdr_ruta))
+                    ->action(fn (GuiaRemision $record) =>
+                        response()->download(storage_path('app/private/' . $record->cdr_ruta))),
+
                 Action::make('enviar_sunat')
                     ->label('Enviar a SUNAT')
                     ->icon('heroicon-o-paper-airplane')

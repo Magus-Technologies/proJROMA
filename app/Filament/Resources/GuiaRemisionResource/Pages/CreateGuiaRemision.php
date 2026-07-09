@@ -449,6 +449,27 @@ class CreateGuiaRemision extends CreateRecord
         });
     }
 
+    protected function afterCreate(): void
+    {
+        // Generar el XML al crear (sin enviar), para poder revisarlo antes.
+        // Best-effort: si el servicio falla, la guía queda creada y se puede
+        // regenerar desde la lista con "Regenerar XML".
+        try {
+            $res = app(\App\Services\GuiaSunatService::class)->generarXml($this->getRecord());
+            if (! $res['ok']) {
+                Notification::make()->warning()
+                    ->title('Guía creada, pero el XML no se generó')
+                    ->body($res['msg'] . ' Podés regenerarlo desde la lista.')
+                    ->send();
+            }
+        } catch (\Throwable $e) {
+            Notification::make()->warning()
+                ->title('Guía creada, pero el XML no se generó')
+                ->body('Podés regenerarlo desde la lista con "Regenerar XML".')
+                ->send();
+        }
+    }
+
     protected function getRedirectUrl(): string
     {
         return GuiaRemisionResource::getUrl('index');

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\GuiaRemisionResource\Pages;
 
 use App\Filament\Resources\GuiaRemisionResource;
+use App\Models\Empresa;
 use App\Models\GuiaDetalle;
 use App\Models\GuiaRemision;
 use App\Models\ProductoVenta;
@@ -66,6 +67,14 @@ class CreateGuiaRemision extends CreateRecord
                 ])
                 ->toArray(),
         ]));
+    }
+
+    /** Empresa de la sesión, cacheada por request (la usan los defaults del form). */
+    protected static function empresaActual(): ?Empresa
+    {
+        static $empresa = null;
+
+        return $empresa ??= Empresa::find((int) session('id_empresa'));
     }
 
     protected static function proximoNumero(): string
@@ -188,19 +197,21 @@ class CreateGuiaRemision extends CreateRecord
                             ]),
                         Section::make('Punto de partida')
                             ->compact()
-                            ->description('Desde dónde sale la mercadería. Si lo dejás vacío, se usa la dirección de la empresa.')
+                            ->description('Viene de la dirección de la empresa. Cambialo si la mercadería sale de otro local.')
                             ->columns(3)
                             ->schema([
                                 TextInput::make('dir_partida')
                                     ->label('Dirección de partida')
-                                    ->placeholder('Dirección de la empresa')
+                                    ->default(fn (): ?string => static::empresaActual()?->direccion)
+                                    ->required()
                                     ->maxLength(220)
                                     ->columnSpan(2),
 
                                 TextInput::make('ubigeo_partida')
                                     ->label('Ubigeo')
-                                    ->placeholder('150128')
+                                    ->default(fn (): ?string => static::empresaActual()?->ubigeo)
                                     ->helperText('6 dígitos')
+                                    ->required()
                                     ->maxLength(6),
                             ]),
 

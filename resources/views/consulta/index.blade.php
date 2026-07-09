@@ -9,6 +9,8 @@
 
 <style>
 :root{
+    color-scheme:light;
+
     --primary:#3b82f6;
     --primary-600:#2563eb;
     --primary-700:#1d4ed8;
@@ -20,6 +22,8 @@
     --text-3:#9ca3af;
     --border:#e5e7eb;
     --input-bg:#ffffff;
+    /* Fondo OPACO: las <option> las dibuja el SO y no soportan transparencia. */
+    --select-bg:#ffffff;
 
     --success-bg:#dcfce7; --success-fg:#166534;
     --danger-bg:#fee2e2;  --danger-fg:#991b1b;
@@ -27,6 +31,8 @@
 }
 @media (prefers-color-scheme:dark){
     :root{
+        color-scheme:dark;
+
         --bg:#0f172a;
         --card:#1f2937;
         --text:#f9fafb;
@@ -34,6 +40,7 @@
         --text-3:#6b7280;
         --border:rgba(255,255,255,.1);
         --input-bg:rgba(255,255,255,.05);
+        --select-bg:#1f2937;
 
         --success-bg:rgba(34,197,94,.15); --success-fg:#4ade80;
         --danger-bg:rgba(239,68,68,.15);  --danger-fg:#f87171;
@@ -88,6 +95,9 @@ input:focus,select:focus{
     outline:none;border-color:var(--primary);
     box-shadow:0 0 0 3px rgba(59,130,246,.2);
 }
+/* El desplegable nativo no acepta fondos translúcidos: usar color opaco. */
+select{background:var(--select-bg);cursor:pointer}
+select option{background:var(--select-bg);color:var(--text)}
 .campo{margin-bottom:12px}
 .par{display:grid;grid-template-columns:1fr 1.2fr;gap:10px}
 

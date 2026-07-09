@@ -57,6 +57,33 @@ Route::middleware('auth')->group(function () {
     Route::get('/escanear/codigobarra/{empresa}/{sucursal}', [ProductosController::class, 'escanearBarra'])->name('scanner.barra');
 });
 
+// ── Compatibilidad: rutas nombradas del layout Blade viejo ────────────────────
+// Estos módulos se migraron a Filament, pero `layouts/app.blade.php` todavía
+// los enlaza por nombre. Sin estas rutas, cualquier página Blade tira error 500.
+Route::middleware('auth')->group(function () {
+    $aPanel = [
+        'ventas.index'          => '/panel/ventas',
+        'cotizaciones.index'    => '/panel/cotizacions',
+        'guias.index'           => '/panel/guia-remisions',
+        'nota.electronica.lista' => '/panel/notas-electronicas',
+        'cobranzas.index'       => '/panel/cuenta-por-cobrars',
+        'cobranzas.deudas'      => '/panel/reporte-deudas',
+        'cobranzas.miscobros'   => '/panel/mis-cobros',
+        'pagos.index'           => '/panel/cuentas-por-pagar',
+        'pago.instrumentos'     => '/panel/metodos-de-pago',
+        'caja.gestion'          => '/panel/gestion-cajas',
+        'caja.movimientos'      => '/panel/movimientos-cajas',
+        'caja.rendiciones'      => '/panel/cierres-cajas',
+        'caja.arqueo'           => '/panel/arqueo-diarios',
+        'caja.micaja'           => '/panel/mi-caja',
+    ];
+
+    foreach ($aPanel as $nombre => $destino) {
+        // url() respeta la subcarpeta del despliegue (ej. /molitalia).
+        Route::get('/ir/' . str_replace('.', '-', $nombre), fn () => redirect(url($destino)))->name($nombre);
+    }
+});
+
 // ── Blade aún activo (POS enlazados desde Filament + módulo TMS) ───────────────
 Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function () {
 

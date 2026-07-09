@@ -143,6 +143,32 @@ class NotaSunatService
         $tipoDocAfectado = $esBoleta ? '03' : '01';
         $tipoDocNota     = $nota->tipo === 'credito' ? '07' : '08';
 
+        // La nota DEBE espejar la afectación IGV del comprobante que corrige.
+        $tipoIgv = $venta->tipo_igv ?: 'gravado';
+
+        // Si la nota cubre el total del comprobante, se detallan sus líneas.
+        // Si es parcial (descuento, disminución de valor), se emite una sola
+        // línea por el monto de la nota — así los importes cuadran con SUNAT.
+        $esTotal = abs((float) $nota->total - (float) $venta->total) < 0.01;
+
+        $detalles = $esTotal
+            ? ($venta->productosVenta ?? collect())->map(fn ($p): array => [
+                'descripcion' => $p->descripcion ?: ($p->producto?->descripcion ?? 'Producto'),
+                'cantidad'    => (float) $p->cantidad,
+                'unidad'      => $p->medida ?: 'NIU',
+                'precio'      => (float) $p->precio,
+                'codsunat'    => $p->producto?->codsunat ?? 'ZZ',
+                'tipo_igv'    => $tipoIgv,
+            ])->values()->toArray()
+            : [[
+                'descripcion' => $nota->motivo_desc ?: 'Ajuste',
+                'cantidad'    => 1,
+                'unidad'      => 'NIU',
+                'precio'      => (float) $nota->total,
+                'codsunat'    => 'ZZ',
+                'tipo_igv'    => $tipoIgv,
+            ]];
+
         return [
             'endpoint'              => $cred['endpoint'],
             'documento'             => $nota->tipo,
@@ -168,15 +194,9 @@ class NotaSunatService
             'doc_afectado'          => $docAfectado,
             'tipo_doc_afectado'     => $tipoDocAfectado,
             'total'                 => (float) $nota->total,
-            'mtoImpVenta'           => (float) $nota->total,
-            'detalles'              => ($venta->productosVenta ?? collect())->map(fn ($p): array => [
-                'descripcion'      => $p->descripcion ?: ($p->producto?->descripcion ?? 'Producto'),
-                'cantidad'         => (float) $p->cantidad,
-                'unidad'           => $p->medida ?: 'NIU',
-                'precio'           => (float) $p->precio,
-                'mtoValorUnitario' => round((float) $p->precio / 1.18, 6),
-                'codsunat'         => $p->producto?->codsunat ?? 'ZZ',
-            ])->values()->toArray(),
+            // No forzamos mtoImpVenta ni mtoValorUnitario: la API los calcula
+            // desde los detalles según el tipo_igv, y así los importes cuadran.
+            'detalles'              => $detalles,
         ];
     }
 }

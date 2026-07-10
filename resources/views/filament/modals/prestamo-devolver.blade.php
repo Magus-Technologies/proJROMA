@@ -77,7 +77,9 @@
                                 <span x-text="cantidad" style="font-weight:600"></span>
                             </template>
                             <template x-if="editando">
-                                <input type="number" x-model="cantidad" min="1"
+                                <input type="text" inputmode="numeric" x-model="cantidad"
+                                    x-on:input="cantidad = cantidad.toString().replace(/[^0-9]/g, '')"
+                                    x-on:keydown.enter.prevent
                                     style="width:70px;text-align:center;border:1px solid #3b82f6;border-radius:6px;padding:4px 6px;font-size:.8rem">
                             </template>
                         </td>
@@ -99,7 +101,7 @@
                             </template>
                             <template x-if="editando">
                                 <button type="button"
-                                    x-on:click="openConfirm('Guardar cambio', '¿Guardar cambio a ' + cantidad + ' unidades?', () => { $wire.editarDevolucion({{ $d->id_devolucion }}, {{ $d->id_prestamo }}, cantidad); editando = false })"
+                                    x-on:click="if (! parseInt(cantidad)) return; openConfirm('Guardar cambio', '¿Guardar cambio a ' + cantidad + ' unidades?', () => { $wire.editarDevolucion({{ $d->id_devolucion }}, {{ $d->id_prestamo }}, parseInt(cantidad)); editando = false })"
                                     style="background:#16a34a;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.8rem;margin-right:4px">
                                     Guardar
                                 </button>
@@ -150,8 +152,8 @@
                                 @if ($l->pendiente > 0)
                                     <button type="button"
                                         x-on:click="
-                                            $wire.$set('mountedActionsData.0.nueva_cantidad', {{ $l->pendiente }})
-                                            $wire.$set('mountedActionsData.0.nuevo_id_producto', {{ $l->id_producto }})
+                                            $wire.$set('mountedActions.0.data.nuevo_id_producto', {{ $l->id_producto }}, false)
+                                            $wire.$set('mountedActions.0.data.nueva_cantidad', {{ $l->pendiente }})
                                         "
                                         style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:.8rem">
                                         Devolver

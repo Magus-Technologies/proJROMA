@@ -137,6 +137,15 @@ class PrestamoResource extends Resource
                         \Filament\Forms\Components\Hidden::make('nuevo_id_producto'),
                     ])
                     ->action(function (Prestamo $record, array $data): void {
+                        if (blank($data['nuevo_id_producto'] ?? null)) {
+                            Notification::make()->warning()
+                                ->title('Seleccioná el producto')
+                                ->body('Hacé clic en "Devolver" junto al producto antes de registrar la devolución.')
+                                ->send();
+
+                            return;
+                        }
+
                         try {
                             $detalles = [[
                                 'id_producto' => $data['nuevo_id_producto'],

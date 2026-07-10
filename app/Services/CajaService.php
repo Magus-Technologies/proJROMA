@@ -27,6 +27,11 @@ class CajaService
                 $saldoPosterior = $saldoAnterior + $monto;
             } else {
                 $saldoPosterior = $saldoAnterior - $monto;
+                if ($monto > 0 && $saldoPosterior < 0) {
+                    throw new \RuntimeException(
+                        "Saldo insuficiente. Disponible: S/ " . number_format($saldoAnterior, 2)
+                    );
+                }
             }
 
             // 2. Insertar movimiento

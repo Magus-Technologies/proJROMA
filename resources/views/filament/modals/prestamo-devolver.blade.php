@@ -6,7 +6,18 @@
     $tipoColor = $record->tipo === 'P' ? '#ef4444' : '#22c55e';
 @endphp
 
-<div class="space-y-4" style="font-size:.875rem">
+<div class="space-y-4" style="font-size:.875rem"
+    x-data="{
+        confirmMessage: '',
+        confirmHandler: null,
+        confirmTitle: '',
+        openConfirm(title, message, handler) {
+            this.confirmTitle = title;
+            this.confirmMessage = message;
+            this.confirmHandler = handler;
+            this.$dispatch('open-modal', { id: 'confirmar-devolucion' });
+        }
+    }">
     {{-- Cards informativos --}}
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
         <div style="border-radius:12px;border:1px solid #e5e7eb;background:#fff;padding:16px">
@@ -88,13 +99,13 @@
                             </template>
                             <template x-if="editando">
                                 <button type="button"
-                                    x-on:click="if (confirm('¿Guardar cambio a ' + cantidad + ' unidades?')) { $wire.editarDevolucion({{ $d->id_devolucion }}, {{ $d->id_prestamo }}, cantidad); editando = false }"
+                                    x-on:click="openConfirm('Guardar cambio', '¿Guardar cambio a ' + cantidad + ' unidades?', () => { $wire.editarDevolucion({{ $d->id_devolucion }}, {{ $d->id_prestamo }}, cantidad); editando = false })"
                                     style="background:#16a34a;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.8rem;margin-right:4px">
                                     Guardar
                                 </button>
                             </template>
                             <button type="button"
-                                x-on:click="if (confirm('¿Anular devolución #{{ $d->id_devolucion }}? Se revertirá el movimiento de stock.')) { $wire.anularDevolucion({{ $d->id_devolucion }}, {{ $d->id_prestamo }}) }"
+                                x-on:click="openConfirm('Anular devolución', '¿Anular devolución #{{ $d->id_devolucion }}? Se revertirá el movimiento de stock.', () => { $wire.anularDevolucion({{ $d->id_devolucion }}, {{ $d->id_prestamo }}) })"
                                 style="background:none;border:1px solid #ef4444;color:#ef4444;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.8rem">
                                 Anular
                             </button>
@@ -158,4 +169,40 @@
             💡 Hacé clic en <strong>"Devolver"</strong> junto al producto, luego completá la cantidad abajo.
         </p>
     @endif
+
+    {{-- Modal de confirmación: componente nativo de Filament, teleportado al body
+         para que el position:fixed no quede atrapado dentro del modal padre --}}
+    <x-filament::modal
+        id="confirmar-devolucion"
+        teleport="body"
+        width="md"
+        alignment="center"
+        footer-actions-alignment="center"
+        icon="heroicon-o-exclamation-triangle"
+        icon-color="warning"
+    >
+        <x-slot name="heading">
+            <span x-text="confirmTitle"></span>
+        </x-slot>
+
+        <x-slot name="description">
+            <span x-text="confirmMessage"></span>
+        </x-slot>
+
+        <x-slot name="footerActions">
+            <x-filament::button
+                color="gray"
+                x-on:click="$dispatch('close-modal', { id: 'confirmar-devolucion' })"
+            >
+                Cancelar
+            </x-filament::button>
+
+            <x-filament::button
+                color="warning"
+                x-on:click="$dispatch('close-modal', { id: 'confirmar-devolucion' }); if (confirmHandler) confirmHandler()"
+            >
+                Confirmar
+            </x-filament::button>
+        </x-slot>
+    </x-filament::modal>
 </div>

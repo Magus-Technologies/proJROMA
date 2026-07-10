@@ -50,9 +50,10 @@ class ReportesController extends Controller
         ])->findOrFail($venta);
 
         $empresa = $this->getEmpresa() ?? Empresa::find($v->id_empresa);
+        $qr      = \App\Support\QrSunat::deVenta($v);
 
         return PdfService::a4()
-            ->generar('pdf.comprobante', compact('v', 'empresa'), "comprobante-{$v->documento_completo}.pdf");
+            ->generar('pdf.comprobante', compact('v', 'empresa', 'qr'), "comprobante-{$v->documento_completo}.pdf");
     }
 
     public function comprobanteVentaMa4(int $venta): \Illuminate\Http\Response
@@ -109,9 +110,10 @@ class ReportesController extends Controller
         $logoBase64 = $this->getLogoBase64($empresa);
 
         $serie = $guia->serie . '-' . str_pad($guia->numero, 8, '0', STR_PAD_LEFT);
+        $qr    = \App\Support\QrSunat::deGuia($guia);
 
         return PdfService::a4()
-            ->generar('pdf.guia-remision', compact('guia', 'empresa', 'logoBase64'), "guia-{$serie}.pdf");
+            ->generar('pdf.guia-remision', compact('guia', 'empresa', 'logoBase64', 'qr'), "guia-{$serie}.pdf");
     }
     public function notaElectronicaPdf(int $nota): \Illuminate\Http\Response
     {

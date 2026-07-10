@@ -645,6 +645,8 @@ class ReportesController extends Controller
             ->where('id_tido', 6)->value('serie') ?? 'NV';
 
         return PdfService::a4()
+            // Horizontal: los dos tickets (original + copia) van lado a lado
+            ->setPaper(595.28, 841.89, 'landscape')
             ->generar('pdf.despacho-guias', [
                 'despacho'   => $despacho,
                 'empresa'    => $empresa,

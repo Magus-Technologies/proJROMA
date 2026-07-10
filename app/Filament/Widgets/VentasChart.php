@@ -4,15 +4,19 @@ namespace App\Filament\Widgets;
 
 use App\Models\Venta;
 use Carbon\Carbon;
-use Filament\Widgets\LineChartWidget;
+use Filament\Widgets\ChartWidget;
 
-class VentasChart extends LineChartWidget
+class VentasChart extends ChartWidget
 {
     protected static ?int $sort = 2;
     protected int|string|array $columnSpan = 2;
     protected ?string $heading = 'Ventas — Últimos 30 días';
     protected ?string $maxHeight = '260px';
-    protected string $color = 'info';
+
+    protected function getType(): string
+    {
+        return 'line';
+    }
 
     protected function getData(): array
     {

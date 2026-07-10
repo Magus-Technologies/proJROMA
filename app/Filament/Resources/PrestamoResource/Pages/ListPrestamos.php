@@ -11,6 +11,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Support\Facades\DB;
 
 class ListPrestamos extends ListRecords
 {
@@ -89,5 +90,15 @@ class ListPrestamos extends ListRecords
                     }
                 }),
         ];
+    }
+
+    public function anularDevolucion(int $idDevolucion, int $idPrestamo): void
+    {
+        try {
+            PrestamoResource::anularDevolucion($idDevolucion, $idPrestamo);
+            Notification::make()->success()->title('Devolución anulada')->send();
+        } catch (\Throwable $e) {
+            Notification::make()->danger()->title('Error al anular')->body($e->getMessage())->send();
+        }
     }
 }

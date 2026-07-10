@@ -132,11 +132,14 @@ class PrestamoResource extends Resource
                     ->color('warning')
                     ->visible(fn (Prestamo $record): bool => $record->estado !== 'D')
                     ->modalHeading(fn (Prestamo $record): string => "Devolución — Préstamo #{$record->id_prestamo}")
+                    ->modalWidth('lg')
                     ->fillForm(fn (Prestamo $record): array => [
                         'detalles' => static::lineasPendientes($record)
                             ->map(fn ($l) => [
                                 'id_producto' => $l->id_producto,
-                                'producto'    => "{$l->producto} (pendiente: {$l->pendiente})",
+                                'producto'    => $l->producto,
+                                'prestado'    => $l->prestado,
+                                'devuelto'    => $l->prestado - $l->pendiente,
                                 'pendiente'   => $l->pendiente,
                                 'cantidad'    => $l->pendiente,
                             ])
@@ -145,26 +148,58 @@ class PrestamoResource extends Resource
                     ])
                     ->form([
                         Repeater::make('detalles')
-                            ->label('Líneas a devolver')
+                            ->label('')
+                            ->addable(false)
+                            ->deletable(false)
+                            ->reorderable(false)
+                            ->table([
+                                \Filament\Forms\Components\Repeater\TableColumn::make('producto')
+                                    ->label('Producto')
+                                    ->width('200px'),
+                                \Filament\Forms\Components\Repeater\TableColumn::make('prestado')
+                                    ->label('Prestado')
+                                    ->width('80px')
+                                    ->align('center'),
+                                \Filament\Forms\Components\Repeater\TableColumn::make('devuelto')
+                                    ->label('Devuelto')
+                                    ->width('80px')
+                                    ->align('center'),
+                                \Filament\Forms\Components\Repeater\TableColumn::make('pendiente')
+                                    ->label('Pendiente')
+                                    ->width('80px')
+                                    ->align('center'),
+                                \Filament\Forms\Components\Repeater\TableColumn::make('cantidad')
+                                    ->label('A devolver')
+                                    ->width('100px'),
+                            ])
                             ->schema([
                                 Hidden::make('id_producto'),
+                                Hidden::make('prestado'),
+                                Hidden::make('devuelto'),
                                 Hidden::make('pendiente'),
                                 TextInput::make('producto')
-                                    ->label('Producto')
+                                    ->hiddenLabel()
                                     ->disabled()
-                                    ->dehydrated(false)
-                                    ->columnSpan(2),
+                                    ->dehydrated(false),
+                                TextInput::make('prestado')
+                                    ->hiddenLabel()
+                                    ->disabled()
+                                    ->dehydrated(false),
+                                TextInput::make('devuelto')
+                                    ->hiddenLabel()
+                                    ->disabled()
+                                    ->dehydrated(false),
+                                TextInput::make('pendiente')
+                                    ->hiddenLabel()
+                                    ->disabled()
+                                    ->dehydrated(false),
                                 TextInput::make('cantidad')
-                                    ->label('Cantidad a devolver')
+                                    ->hiddenLabel()
                                     ->numeric()
                                     ->integer()
                                     ->minValue(0)
                                     ->required(),
-                            ])
-                            ->columns(3)
-                            ->addable(false)
-                            ->deletable(false)
-                            ->reorderable(false),
+                            ]),
                     ])
                     ->action(function (Prestamo $record, array $data): void {
                         try {
@@ -177,7 +212,28 @@ class PrestamoResource extends Resource
                             Notification::make()->danger()->title('Error en devolución')->body($e->getMessage())->send();
                         }
                     }),
+
+                Action::make('ver_devoluciones')
+                    ->label('Devoluciones')
+                    ->icon('heroicon-o-clock')
+                    ->color('gray')
+                    ->visible(fn (Prestamo $record): bool =>
+                        DB::table('prestamo_devoluciones')->where('id_prestamo', $record->id_prestamo)->exists())
+                    ->modalHeading(fn (Prestamo $record): string => "Historial de devoluciones — Préstamo #{$record->id_prestamo}")
+                    ->modalWidth('lg')
+                    ->modalContent(fn (Prestamo $record) => view('filament.modals.prestamo-devoluciones', [
+                        'devoluciones' => DB::table('prestamo_devoluciones as d')
+                            ->join('productos as p', 'p.id_producto', '=', 'd.id_producto')
+                            ->where('d.id_prestamo', $record->id_prestamo)
+                            ->orderByDesc('d.id_devolucion')
+                            ->select('d.*', 'p.descripcion as producto')
+                            ->get(),
+                        'record' => $record,
+                    ]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Cerrar'),
             ])
+            ->bulkActions([]);
             ->defaultSort('id_prestamo', 'desc');
     }
 
@@ -197,7 +253,7 @@ class PrestamoResource extends Resource
             $r->pendiente = (int) $r->prestado - $devuelto;
 
             return $r;
-        })->filter(fn ($r) => $r->pendiente > 0);
+        });
     }
 
     protected static function mover(int $emp, string $tipoMov, int $idProducto, int $cant, string $motivo, string $obs, int $uid, string $almacen): void
@@ -354,6 +410,103 @@ class PrestamoResource extends Resource
             $pr->update(['estado' => $estado, 'fecha_devolucion' => $estado === 'D' ? now() : null]);
 
             return $estado;
+        });
+    }
+
+    public static function anularDevolucion(int $idDevolucion, int $idPrestamo): void
+    {
+        $emp = (int) session('id_empresa');
+
+        DB::transaction(function () use ($idDevolucion, $idPrestamo, $emp): void {
+            $dev = DB::table('prestamo_devoluciones')
+                ->where('id_devolucion', $idDevolucion)
+                ->where('id_prestamo', $idPrestamo)
+                ->first();
+
+            if (! $dev) {
+                throw new \RuntimeException('Devolución no encontrada.');
+            }
+
+            $pr = DB::table('prestamos')
+                ->where('id_empresa', $emp)
+                ->where('id_prestamo', $idPrestamo)
+                ->first();
+
+            if (! $pr) {
+                throw new \RuntimeException('Préstamo no encontrado.');
+            }
+
+            $uid = (int) auth()->user()->usuario_id;
+            $cant = (int) $dev->cantidad;
+
+            // Revertir el movimiento: si la devolucion era INGRESO → ahora SALIDA y viceversa
+            $tipoReverso = ($pr->tipo === 'P') ? 'S' : 'I';
+            $motivo = ($pr->tipo === 'P') ? 'Préstamo entregado' : 'Préstamo recibido';
+            $obs = "Anulación devolución #{$idDevolucion} ({$pr->tercero})";
+
+            // Buscar el producto en el almacén correcto
+            $source = Producto::where('id_empresa', $emp)->where('id_producto', $dev->id_producto)->first();
+            $codigo = $source?->codigo;
+            if (blank($codigo)) {
+                $codigo = 'PREST-' . $dev->id_producto . '-' . $pr->almacen;
+            }
+
+            $dest = Producto::where('id_empresa', $emp)
+                ->where('almacen', $pr->almacen)
+                ->where('codigo', $codigo)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $dest) {
+                throw new \RuntimeException('Producto no encontrado en el almacén.');
+            }
+
+            $ant = (int) $dest->cantidad;
+            if ($tipoReverso === 'S' && $cant > $ant) {
+                throw new \RuntimeException("Stock insuficiente para anular (disponible: {$ant}).");
+            }
+            $nuevo = $tipoReverso === 'I' ? $ant + $cant : $ant - $cant;
+            $dest->update(['cantidad' => $nuevo]);
+
+            $idMotivo = MotivoMovimiento::where('id_empresa', $emp)
+                ->where('tipo', $tipoReverso)
+                ->where('nombre', $motivo)
+                ->value('id_motivo');
+
+            InventarioMovimiento::create([
+                'id_empresa'     => $emp,
+                'almacen'        => $pr->almacen,
+                'id_producto'    => $dest->id_producto,
+                'tipo'           => $tipoReverso,
+                'id_motivo'      => $idMotivo,
+                'cantidad'       => $cant,
+                'stock_anterior' => $ant,
+                'stock_nuevo'    => $nuevo,
+                'costo'          => $dest->costo,
+                'observacion'    => $obs,
+                'id_usuario'     => $uid,
+                'fecha'          => now(),
+            ]);
+
+            // Eliminar la devolución
+            DB::table('prestamo_devoluciones')
+                ->where('id_devolucion', $idDevolucion)
+                ->delete();
+
+            // Recalcular estado del préstamo
+            $totalPrestado = (int) DB::table('prestamo_detalle')
+                ->where('id_prestamo', $idPrestamo)
+                ->sum('cantidad');
+            $totalDevuelto = (int) DB::table('prestamo_devoluciones')
+                ->where('id_prestamo', $idPrestamo)
+                ->sum('cantidad');
+            $estado = $totalDevuelto >= $totalPrestado ? 'D' : ($totalDevuelto > 0 ? 'X' : 'P');
+            DB::table('prestamos')
+                ->where('id_prestamo', $idPrestamo)
+                ->update([
+                    'estado' => $estado,
+                    'fecha_devolucion' => $estado === 'D' ? now() : null,
+                ]);
         });
     }
 

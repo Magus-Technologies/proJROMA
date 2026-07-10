@@ -19,7 +19,7 @@ class ReporteDeudaResource extends Resource
 {
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
-    public const PERMISO_ACCESO = 'cobranzas.ver';
+    public const PERMISO_ACCESO = 'cobranzas_deudas.ver';
 
     protected static ?string $model = DiasVenta::class;
 
@@ -75,6 +75,21 @@ class ReporteDeudaResource extends Resource
                     ->money('PEN')
                     ->sortable()
                     ->summarize(Sum::make()->label('Total')->money('PEN')),
+
+                TextColumn::make('abonado')
+                    ->label('Abonado')
+                    ->money('PEN')
+                    ->getStateUsing(fn (DiasVenta $record): float =>
+                        round((float) $record->abonos()->where('estado', 'ACTIVO')->sum('monto'), 2))
+                    ->color(fn ($state): string => $state > 0 ? 'warning' : 'gray'),
+
+                TextColumn::make('saldo')
+                    ->label('Saldo deuda')
+                    ->money('PEN')
+                    ->getStateUsing(fn (DiasVenta $record): float =>
+                        max(0, round((float) $record->monto - (float) $record->abonos()->where('estado', 'ACTIVO')->sum('monto'), 2)))
+                    ->weight('bold')
+                    ->color('danger'),
 
                 TextColumn::make('venta.vendedor.nombre_completo')
                     ->label('Vendedor')

@@ -3,24 +3,30 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\MisCobroResource\Pages;
-use App\Models\DiasVenta;
+use App\Models\CxcAbono;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Filament\Forms\Components\DatePicker;
 use Illuminate\Database\Eloquent\Builder;
 
+/**
+ * Libro de cobros del usuario logueado: cada abono (parcial o total)
+ * que registró, con su método de pago y N° de operación.
+ */
 class MisCobroResource extends Resource
 {
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
-    public const PERMISO_ACCESO = 'cobranzas.ver';
+    public const PERMISO_ACCESO = 'cobranzas_miscobros.ver';
 
-    protected static ?string $model = DiasVenta::class;
+    protected static ?string $model = CxcAbono::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-wallet';
     protected static ?string $navigationLabel = 'Mis Cobros';
@@ -39,16 +45,14 @@ class MisCobroResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('fecha_cobro')
+                TextColumn::make('fecha')
                     ->label('Fecha Cobro')
-                    ->getStateUsing(fn (DiasVenta $record): string =>
-                        ($record->fecha_pago_real ?? $record->fecha)?->format('d/m/Y') ?? '—')
-                    ->sortable(query: fn (Builder $query, string $direction): Builder =>
-                        $query->orderByRaw("IFNULL(dias_ventas.fecha_pago_real, dias_ventas.fecha) {$direction}")),
+                    ->date('d/m/Y')
+                    ->sortable(),
 
                 TextColumn::make('documento')
                     ->label('Documento')
-                    ->getStateUsing(fn (DiasVenta $record): string =>
+                    ->getStateUsing(fn (CxcAbono $record): string =>
                         $record->venta
                             ? "{$record->venta->serie}-" . str_pad($record->venta->numero, 8, '0', STR_PAD_LEFT)
                             : '—'),
@@ -60,31 +64,52 @@ class MisCobroResource extends Resource
                     ->wrap()
                     ->limit(40),
 
-                TextColumn::make('tipo_pago')
-                    ->label('Tipo Pago')
+                TextColumn::make('metodo_pago')
+                    ->label('Método')
                     ->formatStateUsing(fn (?string $state): string =>
-                        \App\Services\CajaService::etiquetaMetodoPago($state)),
+                        \App\Services\CajaService::etiquetaMetodoPago($state))
+                    ->wrap(),
+
+                TextColumn::make('referencia')
+                    ->label('N° operación')
+                    ->placeholder('—')
+                    ->toggleable(),
 
                 TextColumn::make('monto')
                     ->label('Monto')
                     ->money('PEN')
                     ->sortable()
                     ->summarize(Sum::make()->label('Total cobrado')->money('PEN')),
+
+                TextColumn::make('estado')
+                    ->label('Estado')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => $state === 'ACTIVO' ? 'Activo' : 'Anulado')
+                    ->color(fn (string $state): string => $state === 'ACTIVO' ? 'success' : 'danger'),
             ])
             ->filters([
-                SelectFilter::make('tipo_pago')
-                    ->label('Tipo Pago')
+                SelectFilter::make('metodo_pago')
+                    ->label('Método')
                     ->options(fn (): array => \App\Services\CajaService::opcionesMetodoPago()),
+
+                Filter::make('fecha')
+                    ->form([
+                        DatePicker::make('desde')->label('Desde'),
+                        DatePicker::make('hasta')->label('Hasta'),
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => $query
+                        ->when($data['desde'], fn (Builder $q) => $q->whereDate('fecha', '>=', $data['desde']))
+                        ->when($data['hasta'], fn (Builder $q) => $q->whereDate('fecha', '<=', $data['hasta']))),
             ])
             ->actions([
                 Action::make('ver_venta')
                     ->label('Ver venta')
                     ->icon('heroicon-o-eye')
                     ->color('info')
-                    ->url(fn (DiasVenta $record): string =>
+                    ->url(fn (CxcAbono $record): string =>
                         VentaResource::getUrl('view', ['record' => $record->id_venta])),
             ])
-            ->defaultSort('dias_venta_id', 'desc');
+            ->defaultSort('id', 'desc');
     }
 
     public static function getEloquentQuery(): Builder
@@ -92,18 +117,11 @@ class MisCobroResource extends Resource
         $usuarioId = (int) auth()->user()->usuario_id;
 
         return parent::getEloquentQuery()
-            ->where('dias_ventas.estado', '1')
+            ->where('cxc_abonos.id_usuario', $usuarioId)
             ->whereHas('venta', fn (Builder $q) => $q
                 ->where('id_empresa', (int) session('id_empresa'))
                 ->where('sucursal', (int) session('sucursal'))
                 ->where('estado', '!=', '0'))
-            // The collector is dv.id_usuario, falling back to the sale's vendedor
-            // (same rule as the arqueo diario aggregation).
-            ->where(fn (Builder $q) => $q
-                ->where('dias_ventas.id_usuario', $usuarioId)
-                ->orWhere(fn (Builder $q2) => $q2
-                    ->whereNull('dias_ventas.id_usuario')
-                    ->whereHas('venta', fn (Builder $v) => $v->where('id_vendedor', $usuarioId))))
             ->with(['venta.cliente']);
     }
 

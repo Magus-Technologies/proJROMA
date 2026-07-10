@@ -757,7 +757,7 @@ class CreateVenta extends CreateRecord
                 ]);
 
                 if (($pago['pagado'] ?? false)) {
-                    app(CajaService::class)->registrarCobro(
+                    $idMovimiento = app(CajaService::class)->registrarCobro(
                         idUsuario:   $usuario,
                         monto:       (float) $pago['monto'],
                         tipoPago:    $pago['tipo_pago'] ?? 'EFECTIVO',
@@ -767,6 +767,19 @@ class CreateVenta extends CreateRecord
                         categoria:   'VENTA',
                         referencia:  $pago['referencia'] ?? null,
                     );
+
+                    // Registrar el cobro en el libro de abonos (Mis Cobros / historial)
+                    \App\Models\CxcAbono::create([
+                        'id_dias_venta'      => $dv->dias_venta_id,
+                        'id_venta'           => $venta->id_venta,
+                        'fecha'              => now()->toDateString(),
+                        'monto'              => (float) $pago['monto'],
+                        'metodo_pago'        => $pago['tipo_pago'] ?? 'EFECTIVO',
+                        'referencia'         => $pago['referencia'] ?? null,
+                        'id_movimiento_caja' => $idMovimiento,
+                        'id_usuario'         => $usuario,
+                        'estado'             => 'ACTIVO',
+                    ]);
                 }
             }
 

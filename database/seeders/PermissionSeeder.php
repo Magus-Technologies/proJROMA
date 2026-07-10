@@ -84,9 +84,17 @@ class PermissionSeeder extends Seeder
                 'caja.apertura_ver'    => 'Ver detalle de la apertura',
                 'caja.apertura_editar' => 'Editar la apertura del día',
             ],
-            'Cobranzas' => [
-                'cobranzas.ver'      => 'Ver cobranzas',
-                'cobranzas.registrar'=> 'Registrar cobros',
+            'Cuentas por Cobrar' => [
+                'cobranzas.ver'       => 'Ver cuentas por cobrar',
+                'cobranzas.registrar' => 'Registrar abonos / cobros',
+                'cobranzas.editar'    => 'Editar abonos',
+                'cobranzas.anular'    => 'Anular abonos',
+            ],
+            'Reporte Deudas' => [
+                'cobranzas_deudas.ver' => 'Ver reporte de deudas',
+            ],
+            'Mis Cobros' => [
+                'cobranzas_miscobros.ver' => 'Ver mis cobros',
             ],
             'Pagos' => [
                 'pagos.ver'      => 'Ver pagos',

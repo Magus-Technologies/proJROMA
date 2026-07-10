@@ -69,14 +69,16 @@ class CajaService
 
             $caja = DB::table('cajas')->where('id', $mov->id_caja)->lockForUpdate()->first();
 
-            // Restaurar saldo anterior
+            // Revertir solo el DELTA de este movimiento sobre el saldo actual.
+            // (Restaurar saldo_anterior pisaría los movimientos posteriores.)
+            $delta = $mov->tipo === 'INGRESO' ? -(float) $mov->monto : +(float) $mov->monto;
+
             DB::table('cajas')->where('id', $mov->id_caja)->update([
-                'saldo_actual' => $mov->saldo_anterior,
+                'saldo_actual' => round((float) $caja->saldo_actual + $delta, 2),
             ]);
 
             DB::table('caja_movimientos')->where('id', $idMovimiento)->update([
                 'estado' => 'ANULADO',
-                'saldo_posterior' => $mov->saldo_anterior,
             ]);
         });
     }

@@ -45,7 +45,7 @@ class RoleResource extends Resource
     private const MODULOS = [
         'Facturación'      => ['icono' => 'heroicon-o-document-text',           'grupos' => ['Ventas', 'Notas Electrónicas', 'Guías Remisión']],
         'Cotizaciones'     => ['icono' => 'heroicon-o-clipboard-document-list', 'grupos' => ['Cotizaciones']],
-        'Cobranzas'        => ['icono' => 'heroicon-o-banknotes',               'grupos' => ['Cobranzas']],
+        'Cobranzas'        => ['icono' => 'heroicon-o-banknotes',               'grupos' => ['Cuentas por Cobrar', 'Reporte Deudas', 'Mis Cobros']],
         'Pagos'            => ['icono' => 'heroicon-o-credit-card',             'grupos' => ['Pagos']],
         'Caja'             => ['icono' => 'heroicon-o-calculator',              'grupos' => ['Caja']],
         'Inventario'       => ['icono' => 'heroicon-o-cube',                    'grupos' => ['Productos', 'Compras', 'Recepción', 'Existencias', 'Ajustes / Cuadres', 'Traslados', 'Préstamos']],

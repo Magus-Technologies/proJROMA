@@ -18,4 +18,5 @@ class DiasVenta extends Model
 
     public function venta()   { return $this->belongsTo(Venta::class,'id_venta','id_venta'); }
     public function usuario() { return $this->belongsTo(User::class,'id_usuario','usuario_id'); }
+    public function abonos()  { return $this->hasMany(CxcAbono::class,'id_dias_venta','dias_venta_id'); }
 }

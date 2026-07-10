@@ -701,6 +701,11 @@ class CreateGuiaRemision extends CreateRecord
                 ]);
             }
 
+            // El XML se genera dentro de la transacción: si SUNAT rechaza los
+            // datos, la guía no llega a existir. Una guía guardada sin XML deja
+            // el correlativo quemado y obliga a corregirla a mano.
+            $this->generarXmlOAbortar($guia);
+
             Notification::make()->success()
                 ->title('Guía T001-' . str_pad((string) $numero, 8, '0', STR_PAD_LEFT) . ' registrada')
                 ->send();
@@ -709,25 +714,36 @@ class CreateGuiaRemision extends CreateRecord
         });
     }
 
-    protected function afterCreate(): void
+    /**
+     * Genera el XML y decide qué hacer si falla:
+     *   - datos inválidos → revierte la transacción, la guía no se guarda.
+     *   - servicio caído  → deja la guía guardada y avisa; se regenera después.
+     */
+    protected function generarXmlOAbortar(GuiaRemision $guia): void
     {
-        // Generar el XML al crear (sin enviar), para poder revisarlo antes.
-        // Best-effort: si el servicio falla, la guía queda creada y se puede
-        // regenerar desde la lista con "Regenerar XML".
         try {
-            $res = app(\App\Services\GuiaSunatService::class)->generarXml($this->getRecord());
-            if (! $res['ok']) {
-                Notification::make()->warning()
-                    ->title('Guía creada, pero el XML no se generó')
-                    ->body($res['msg'] . ' Podés regenerarlo desde la lista.')
-                    ->send();
-            }
+            $res = app(\App\Services\GuiaSunatService::class)->generarXml($guia);
         } catch (\Throwable $e) {
             Notification::make()->warning()
-                ->title('Guía creada, pero el XML no se generó')
+                ->title('Guía guardada, pero el XML no se generó')
                 ->body('Podés regenerarlo desde la lista con "Regenerar XML".')
                 ->send();
+
+            return;
         }
+
+        if ($res['ok']) {
+            return;
+        }
+
+        if ($res['datos_invalidos'] ?? true) {
+            $this->fallo('No se guardó la guía: ' . $res['msg']);
+        }
+
+        Notification::make()->warning()
+            ->title('Guía guardada, pero el XML no se generó')
+            ->body($res['msg'] . ' Podés regenerarlo desde la lista.')
+            ->send();
     }
 
     protected function getRedirectUrl(): string

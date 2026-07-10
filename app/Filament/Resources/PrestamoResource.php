@@ -111,86 +111,38 @@ class PrestamoResource extends Resource
                     ]),
             ])
             ->actions([
-                Action::make('detalle')
-                    ->label('Detalle')
-                    ->icon('heroicon-o-eye')
+                Action::make('gestionar')
+                    ->label('Gestionar')
+                    ->icon('heroicon-o-arrows-right-left')
                     ->color('info')
-                    ->modalHeading(fn (Prestamo $record): string => "Préstamo #{$record->id_prestamo} — {$record->tercero}")
-                    ->modalContent(fn (Prestamo $record) => view('filament.modals.recepcion-detalle', [
-                        'lineas' => DB::table('prestamo_detalle as d')
+                    ->modalHeading(fn (Prestamo $record): string => "Devolución — Préstamo #{$record->id_prestamo} ({$record->tercero})")
+                    ->modalWidth('3xl')
+                    ->modalContent(fn (Prestamo $record) => view('filament.modals.prestamo-devolver', [
+                        'record'  => $record,
+                        'lineas'  => static::lineasPendientes($record),
+                        'devoluciones' => DB::table('prestamo_devoluciones as d')
                             ->join('productos as p', 'p.id_producto', '=', 'd.id_producto')
                             ->where('d.id_prestamo', $record->id_prestamo)
-                            ->select('p.codigo', 'p.descripcion as producto', 'p.medida as unidad', 'd.cantidad')
+                            ->orderByDesc('d.id_devolucion')
+                            ->select('d.*', 'p.descripcion as producto')
                             ->get(),
                     ]))
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Cerrar'),
-
-                Action::make('devolver')
-                    ->label('Devolver')
-                    ->icon('heroicon-o-arrow-uturn-left')
-                    ->color('warning')
-                    ->visible(fn (Prestamo $record): bool => $record->estado !== 'D')
-                    ->modalHeading(fn (Prestamo $record): string => "Devolución — Préstamo #{$record->id_prestamo}")
-                    ->modalWidth('lg')
-                    ->fillForm(fn (Prestamo $record): array => [
-                        'detalles' => static::lineasPendientes($record)
-                            ->map(fn ($l) => [
-                                'id_producto' => $l->id_producto,
-                                'producto'    => $l->producto,
-                                'prestado'    => $l->prestado,
-                                'devuelto'    => $l->prestado - $l->pendiente,
-                                'pendiente'   => $l->pendiente,
-                                'cantidad'    => $l->pendiente,
-                            ])
-                            ->values()
-                            ->toArray(),
-                    ])
                     ->form([
-                        Repeater::make('detalles')
-                            ->label('')
-                            ->addable(false)
-                            ->deletable(false)
-                            ->reorderable(false)
-                            ->table([
-                                \Filament\Forms\Components\Repeater\TableColumn::make('Producto')->width('200px'),
-                                \Filament\Forms\Components\Repeater\TableColumn::make('Prestado')->width('80px'),
-                                \Filament\Forms\Components\Repeater\TableColumn::make('Devuelto')->width('80px'),
-                                \Filament\Forms\Components\Repeater\TableColumn::make('Pendiente')->width('80px'),
-                                \Filament\Forms\Components\Repeater\TableColumn::make('A devolver')->width('100px'),
-                            ])
-                            ->schema([
-                                Hidden::make('id_producto'),
-                                Hidden::make('prestado'),
-                                Hidden::make('devuelto'),
-                                Hidden::make('pendiente'),
-                                TextInput::make('producto')
-                                    ->hiddenLabel()
-                                    ->disabled()
-                                    ->dehydrated(false),
-                                TextInput::make('prestado')
-                                    ->hiddenLabel()
-                                    ->disabled()
-                                    ->dehydrated(false),
-                                TextInput::make('devuelto')
-                                    ->hiddenLabel()
-                                    ->disabled()
-                                    ->dehydrated(false),
-                                TextInput::make('pendiente')
-                                    ->hiddenLabel()
-                                    ->disabled()
-                                    ->dehydrated(false),
-                                TextInput::make('cantidad')
-                                    ->hiddenLabel()
-                                    ->numeric()
-                                    ->integer()
-                                    ->minValue(0)
-                                    ->required(),
-                            ]),
+                        \Filament\Forms\Components\TextInput::make('nueva_cantidad')
+                            ->label('Cantidad a devolver')
+                            ->numeric()
+                            ->integer()
+                            ->minValue(1)
+                            ->required(),
+                        \Filament\Forms\Components\Hidden::make('nuevo_id_producto'),
                     ])
                     ->action(function (Prestamo $record, array $data): void {
                         try {
-                            $estado = static::devolver($record, $data['detalles']);
+                            $detalles = [[
+                                'id_producto' => $data['nuevo_id_producto'],
+                                'cantidad'    => $data['nueva_cantidad'],
+                            ]];
+                            $estado = static::devolver($record, $detalles);
                             Notification::make()->success()
                                 ->title('Devolución registrada')
                                 ->body($estado === 'D' ? 'Préstamo totalmente devuelto.' : 'Devolución parcial registrada.')
@@ -198,27 +150,8 @@ class PrestamoResource extends Resource
                         } catch (\Throwable $e) {
                             Notification::make()->danger()->title('Error en devolución')->body($e->getMessage())->send();
                         }
-                    }),
-
-                Action::make('ver_devoluciones')
-                    ->label('Devoluciones')
-                    ->icon('heroicon-o-clock')
-                    ->color('gray')
-                    ->visible(fn (Prestamo $record): bool =>
-                        DB::table('prestamo_devoluciones')->where('id_prestamo', $record->id_prestamo)->exists())
-                    ->modalHeading(fn (Prestamo $record): string => "Historial de devoluciones — Préstamo #{$record->id_prestamo}")
-                    ->modalWidth('lg')
-                    ->modalContent(fn (Prestamo $record) => view('filament.modals.prestamo-devoluciones', [
-                        'devoluciones' => DB::table('prestamo_devoluciones as d')
-                            ->join('productos as p', 'p.id_producto', '=', 'd.id_producto')
-                            ->where('d.id_prestamo', $record->id_prestamo)
-                            ->orderByDesc('d.id_devolucion')
-                            ->select('d.*', 'p.descripcion as producto')
-                            ->get(),
-                        'record' => $record,
-                    ]))
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Cerrar'),
+                    })
+                    ->modalSubmitActionLabel('Registrar devolución'),
             ])
             ->bulkActions([])
             ->defaultSort('id_prestamo', 'desc');
@@ -481,6 +414,120 @@ class PrestamoResource extends Resource
                 ->delete();
 
             // Recalcular estado del préstamo
+            $totalPrestado = (int) DB::table('prestamo_detalle')
+                ->where('id_prestamo', $idPrestamo)
+                ->sum('cantidad');
+            $totalDevuelto = (int) DB::table('prestamo_devoluciones')
+                ->where('id_prestamo', $idPrestamo)
+                ->sum('cantidad');
+            $estado = $totalDevuelto >= $totalPrestado ? 'D' : ($totalDevuelto > 0 ? 'X' : 'P');
+            DB::table('prestamos')
+                ->where('id_prestamo', $idPrestamo)
+                ->update([
+                    'estado' => $estado,
+                    'fecha_devolucion' => $estado === 'D' ? now() : null,
+                ]);
+        });
+    }
+
+    public static function editarDevolucion(int $idDevolucion, int $idPrestamo, int $nuevaCantidad): void
+    {
+        $emp = (int) session('id_empresa');
+
+        DB::transaction(function () use ($idDevolucion, $idPrestamo, $nuevaCantidad, $emp): void {
+            $dev = DB::table('prestamo_devoluciones')
+                ->where('id_devolucion', $idDevolucion)
+                ->where('id_prestamo', $idPrestamo)
+                ->first();
+
+            if (! $dev) {
+                throw new \RuntimeException('Devolución no encontrada.');
+            }
+
+            if ($nuevaCantidad < 1) {
+                throw new \RuntimeException('La cantidad debe ser mayor a 0.');
+            }
+
+            $diferencia = $nuevaCantidad - (int) $dev->cantidad;
+            if ($diferencia === 0) {
+                return; // nada que cambiar
+            }
+
+            $pr = DB::table('prestamos')
+                ->where('id_empresa', $emp)
+                ->where('id_prestamo', $idPrestamo)
+                ->first();
+
+            if (! $pr) {
+                throw new \RuntimeException('Préstamo no encontrado.');
+            }
+
+            $uid = (int) auth()->user()->usuario_id;
+            $ajuste = abs($diferencia);
+
+            // Determinar dirección del ajuste
+            // Si la devolución original era INGRESO (tipo P: presté → me devuelven)
+            //   y ahora aumento cantidad → más ingreso
+            //   y ahora disminuyo cantidad → menos ingreso (salida parcial)
+            // Si la devolución original era SALIDA (tipo R: me prestaron → devuelvo)
+            //   y ahora aumento cantidad → más salida
+            //   y ahora disminuyo cantidad → menos salida (ingreso parcial)
+            $tipoOriginal = $pr->tipo === 'P' ? 'I' : 'S';
+            $tipoAjuste = $diferencia > 0 ? $tipoOriginal : ($tipoOriginal === 'I' ? 'S' : 'I');
+
+            $motivo = $pr->tipo === 'P' ? 'Préstamo recibido' : 'Préstamo entregado';
+            $obs = "Ajuste devolución #{$idDevolucion}: {$dev->cantidad} → {$nuevaCantidad} ({$pr->tercero})";
+
+            // Buscar el producto en el almacén correcto
+            $source = Producto::where('id_empresa', $emp)->where('id_producto', $dev->id_producto)->first();
+            $codigo = $source?->codigo;
+            if (blank($codigo)) {
+                $codigo = 'PREST-' . $dev->id_producto . '-' . $pr->almacen;
+            }
+
+            $dest = Producto::where('id_empresa', $emp)
+                ->where('almacen', $pr->almacen)
+                ->where('codigo', $codigo)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $dest) {
+                throw new \RuntimeException('Producto no encontrado en el almacén.');
+            }
+
+            $ant = (int) $dest->cantidad;
+            if ($tipoAjuste === 'S' && $ajuste > $ant) {
+                throw new \RuntimeException("Stock insuficiente para ajustar (disponible: {$ant}).");
+            }
+            $nuevo = $tipoAjuste === 'I' ? $ant + $ajuste : $ant - $ajuste;
+            $dest->update(['cantidad' => $nuevo]);
+
+            $idMotivo = MotivoMovimiento::where('id_empresa', $emp)
+                ->where('tipo', $tipoAjuste)
+                ->where('nombre', $motivo)
+                ->value('id_motivo');
+
+            InventarioMovimiento::create([
+                'id_empresa'     => $emp,
+                'almacen'        => $pr->almacen,
+                'id_producto'    => $dest->id_producto,
+                'tipo'           => $tipoAjuste,
+                'id_motivo'      => $idMotivo,
+                'cantidad'       => $ajuste,
+                'stock_anterior' => $ant,
+                'stock_nuevo'    => $nuevo,
+                'costo'          => $dest->costo,
+                'observacion'    => $obs,
+                'id_usuario'     => $uid,
+                'fecha'          => now(),
+            ]);
+
+            // Actualizar la devolución
+            DB::table('prestamo_devoluciones')
+                ->where('id_devolucion', $idDevolucion)
+                ->update(['cantidad' => $nuevaCantidad]);
+
+            // Recalcular estado
             $totalPrestado = (int) DB::table('prestamo_detalle')
                 ->where('id_prestamo', $idPrestamo)
                 ->sum('cantidad');

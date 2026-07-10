@@ -101,4 +101,14 @@ class ListPrestamos extends ListRecords
             Notification::make()->danger()->title('Error al anular')->body($e->getMessage())->send();
         }
     }
+
+    public function editarDevolucion(int $idDevolucion, int $idPrestamo, int $nuevaCantidad): void
+    {
+        try {
+            PrestamoResource::editarDevolucion($idDevolucion, $idPrestamo, $nuevaCantidad);
+            Notification::make()->success()->title('Devolución actualizada')->send();
+        } catch (\Throwable $e) {
+            Notification::make()->danger()->title('Error al editar')->body($e->getMessage())->send();
+        }
+    }
 }

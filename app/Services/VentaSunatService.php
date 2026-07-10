@@ -178,11 +178,42 @@ class VentaSunatService
             'detalles'      => $venta->productosVenta->map(fn ($p): array => [
                 'cod_producto' => (string) $p->id_producto,
                 'descripcion'  => $p->descripcion ?: 'Producto',
-                'unidad'       => $p->medida ?: 'NIU',
+                'unidad'       => $this->unidadSunat($p->medida),
                 'cantidad'     => (float) $p->cantidad,
                 'precio'       => (float) $p->precio,
                 'tipo_igv'     => $venta->tipo_igv ?: 'gravado', // afectación de todo el comprobante
             ])->values()->toArray(),
         ];
+    }
+
+    /**
+     * Traduce la medida del producto al código del catálogo 03 de SUNAT
+     * (UN/ECE). SUNAT rechaza con error 2936 cualquier valor fuera del
+     * catálogo, así que lo desconocido cae en NIU (unidad de bienes).
+     */
+    private function unidadSunat(?string $medida): string
+    {
+        return match (mb_strtoupper(trim((string) $medida))) {
+            '', 'UNIDAD', 'UNIDADES', 'UND', 'UN', 'NIU' => 'NIU',
+            'KILOS', 'KILO', 'KILOGRAMO', 'KG', 'KGM'    => 'KGM',
+            'CAJA', 'CJ', 'BX'                           => 'BX',
+            'BOLSA', 'BS', 'BG'                          => 'BG',
+            'SACO', 'SC', 'SA'                           => 'SA',
+            'PAQUETE', 'PQTE', 'PQ', 'PK'                => 'PK',
+            'DISPLAY', 'DS'                              => 'PK',
+            'LITRO', 'LITROS', 'LT', 'LTR'               => 'LTR',
+            'GALON', 'GALÓN', 'GLL'                      => 'GLL',
+            'GRAMO', 'GRAMOS', 'GRM'                     => 'GRM',
+            'TONELADA', 'TNE'                            => 'TNE',
+            'DOCENA', 'DZN'                              => 'DZN',
+            'CIENTO', 'CEN'                              => 'CEN',
+            'MILLAR', 'MIL'                              => 'MIL',
+            'PAR', 'PR'                                  => 'PR',
+            'METRO', 'MTR'                               => 'MTR',
+            'BOTELLA', 'BO'                              => 'BO',
+            'LATA', 'CA'                                 => 'CA',
+            'SERVICIO', 'SERVICIOS', 'ZZ'                => 'ZZ',
+            default                                      => 'NIU',
+        };
     }
 }

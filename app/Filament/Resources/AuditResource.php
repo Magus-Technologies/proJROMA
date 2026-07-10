@@ -74,32 +74,37 @@ class AuditResource extends Resource
             ->actions([
                 ViewAction::make()
                     ->modalHeading('Detalle de auditoría')
-                    ->mutateRecordDataUsing(function (Audit $record): array {
-                        $data = $record->toArray();
-                        $out = [
-                            'Fecha'     => $record->created_at->format('d/m/Y H:i:s'),
-                            'Usuario'   => "{$record->user_name} (ID: {$record->user_id})",
-                            'Rol'       => $record->user_rol,
-                            'Evento'    => $record->event,
-                            'Modelo'    => class_basename($record->model_type),
-                            'ID'        => $record->model_id,
-                            'Empresa'   => $record->empresa_id,
-                            'IP'        => $record->ip_address,
-                            'URL'       => $record->url,
-                            'Método'    => $record->method,
-                        ];
-
-                        if ($record->old_values) {
-                            $out['Valores anteriores'] = json_encode($record->old_values, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-                        }
-                        if ($record->new_values) {
-                            $out['Valores nuevos'] = json_encode($record->new_values, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-                        }
-
-                        return $out;
-                    })
-                    ->modalContent(fn (array $data) => view('filament.audit-detail', ['data' => $data])),
+                    ->modalContent(fn (Audit $record) => view('filament.audit-detail', [
+                        'data' => static::detalleDe($record),
+                    ]))
+                    ->modalCancelActionLabel('Cerrar'),
             ]);
+    }
+
+    /** Pares etiqueta => valor que muestra el modal de detalle. */
+    protected static function detalleDe(Audit $record): array
+    {
+        $out = [
+            'Fecha'   => $record->created_at?->format('d/m/Y H:i:s'),
+            'Usuario' => "{$record->user_name} (ID: {$record->user_id})",
+            'Rol'     => $record->user_rol,
+            'Evento'  => $record->event,
+            'Modelo'  => class_basename($record->model_type),
+            'ID'      => $record->model_id,
+            'Empresa' => $record->empresa_id,
+            'IP'      => $record->ip_address,
+            'URL'     => $record->url,
+            'Método'  => $record->method,
+        ];
+
+        if ($record->old_values) {
+            $out['Valores anteriores'] = json_encode($record->old_values, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        }
+        if ($record->new_values) {
+            $out['Valores nuevos'] = json_encode($record->new_values, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        }
+
+        return $out;
     }
 
     public static function getRelations(): array { return []; }

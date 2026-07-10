@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Http;
 
 class ClienteResource extends Resource
 {
+    use \App\Filament\Concerns\HasClienteBuscador;
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'clientes.ver';
@@ -39,7 +40,7 @@ class ClienteResource extends Resource
     {
         // Mismo formulario que usa el botón "+" del buscador de cliente
         // (venta / cotización) — fuente única en el trait HasClienteBuscador.
-        return $schema->components(\App\Filament\Concerns\HasClienteBuscador::clienteFormFields());
+        return $schema->components(static::clienteFormFields());
     }
 
     public static function table(Table $table): Table

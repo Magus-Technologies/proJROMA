@@ -196,7 +196,9 @@ class UsuarioResource extends Resource
             ])
             ->actions([
                 ActionGroup::make([
-                    EditAction::make(),
+                    EditAction::make()
+                        ->modalWidth('3xl')
+                        ->modalHeading(fn (User $record): string => 'Editar usuario — ' . $record->nombre_completo),
                     DeleteAction::make(),
                 ])->tooltip('Acciones'),
             ])
@@ -213,9 +215,9 @@ class UsuarioResource extends Resource
 
     public static function getPages(): array
     {
+        // Crear y editar se hacen en modales sobre el listado.
         return [
             'index' => Pages\ListUsuarios::route('/'),
-            'edit'  => Pages\EditUsuario::route('/{record}/edit'),
         ];
     }
 }

@@ -179,7 +179,7 @@ class CompraResource extends Resource
                                     TextInput::make('producto')->label('Producto')->disabled()->columnSpan(2),
                                     TextInput::make('pedido')->label('Pedido')->disabled(),
                                     TextInput::make('recibido')->label('Recibido')->disabled(),
-                                    TextInput::make('pendiente')->label('Pendiente')->disabled(),
+                                    TextInput::make('pendiente')->label('Pendiente')->disabled()->dehydrated(true),
                                     TextInput::make('recibir')->label('Recibir')->numeric()->minValue(0),
                                     Hidden::make('id_producto'),
                                 ]),
@@ -205,6 +205,15 @@ class CompraResource extends Resource
                                     ->where('nombre', 'Compra')
                                     ->value('id_motivo');
 
+                                if (! $motivo) {
+                                    DB::rollBack();
+                                    Notification::make()->danger()
+                                        ->title('Error al recepcionar')
+                                        ->body('No se encontró el motivo de movimiento "Compra" en la empresa. Configurá el catálogo de motivos.')
+                                        ->send();
+                                    return;
+                                }
+
                                 $idRecepcion = DB::table('recepciones')->insertGetId([
                                     'id_empresa' => $emp,
                                     'id_compra'  => $record->id_compra,
@@ -221,14 +230,16 @@ class CompraResource extends Resource
                                         ->where('id_producto', $linea['id_producto'])
                                         ->firstOrFail();
 
-                                    $dest = null;
-                                    if (!empty($source->codigo)) {
-                                        $dest = Producto::where('id_empresa', $emp)
-                                            ->where('almacen', $almacen)
-                                            ->where('codigo', $source->codigo)
-                                            ->lockForUpdate()
-                                            ->first();
+                                    $codigo = $source->codigo;
+                                    if (blank($codigo)) {
+                                        $codigo = 'RCP-' . $idRecepcion . '-' . $source->id_producto;
                                     }
+
+                                    $dest = Producto::where('id_empresa', $emp)
+                                        ->where('almacen', $almacen)
+                                        ->where('codigo', $codigo)
+                                        ->lockForUpdate()
+                                        ->first();
 
                                     $costo = DB::table('productos_compras')
                                         ->where('id_compra', $record->id_compra)
@@ -240,6 +251,7 @@ class CompraResource extends Resource
                                         $dest->update(['cantidad' => $ant + $cant, 'costo' => $costo ?: $dest->costo]);
                                     } else {
                                         $dest = $source->replicate();
+                                        $dest->codigo   = $codigo;
                                         $dest->almacen  = $almacen;
                                         $dest->cantidad = $cant;
                                         if ($costo) $dest->costo = $costo;
@@ -286,7 +298,11 @@ class CompraResource extends Resource
                             } catch (\Throwable $e) {
                                 DB::rollBack();
                                 Log::error('Error recepción Filament: ' . $e->getMessage());
-                                Notification::make()->danger()->title('Error al recepcionar.')->send();
+                                Notification::make()->danger()
+                                    ->title('Error al recepcionar')
+                                    ->body($e->getMessage())
+                                    ->persistent()
+                                    ->send();
                             }
                         }),
 

@@ -233,7 +233,7 @@ class PrestamoResource extends Resource
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Cerrar'),
             ])
-            ->bulkActions([]);
+            ->bulkActions([])
             ->defaultSort('id_prestamo', 'desc');
     }
 

@@ -153,24 +153,11 @@ class PrestamoResource extends Resource
                             ->deletable(false)
                             ->reorderable(false)
                             ->table([
-                                \Filament\Forms\Components\Repeater\TableColumn::make('producto')
-                                    ->label('Producto')
-                                    ->width('200px'),
-                                \Filament\Forms\Components\Repeater\TableColumn::make('prestado')
-                                    ->label('Prestado')
-                                    ->width('80px')
-                                    ->align('center'),
-                                \Filament\Forms\Components\Repeater\TableColumn::make('devuelto')
-                                    ->label('Devuelto')
-                                    ->width('80px')
-                                    ->align('center'),
-                                \Filament\Forms\Components\Repeater\TableColumn::make('pendiente')
-                                    ->label('Pendiente')
-                                    ->width('80px')
-                                    ->align('center'),
-                                \Filament\Forms\Components\Repeater\TableColumn::make('cantidad')
-                                    ->label('A devolver')
-                                    ->width('100px'),
+                                \Filament\Forms\Components\Repeater\TableColumn::make('Producto')->width('200px'),
+                                \Filament\Forms\Components\Repeater\TableColumn::make('Prestado')->width('80px'),
+                                \Filament\Forms\Components\Repeater\TableColumn::make('Devuelto')->width('80px'),
+                                \Filament\Forms\Components\Repeater\TableColumn::make('Pendiente')->width('80px'),
+                                \Filament\Forms\Components\Repeater\TableColumn::make('A devolver')->width('100px'),
                             ])
                             ->schema([
                                 Hidden::make('id_producto'),

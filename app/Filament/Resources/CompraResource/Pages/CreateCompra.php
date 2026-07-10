@@ -5,6 +5,7 @@ namespace App\Filament\Resources\CompraResource\Pages;
 use App\Filament\Resources\CompraResource;
 use App\Models\Compra;
 use App\Models\Producto;
+use App\Services\CajaService;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
@@ -400,9 +401,48 @@ class CreateCompra extends CreateRecord
 
             $this->guardarLineas($compra->id_compra, $lineas);
 
+            // ── Registrar egreso en caja si es contado + efectivo ────────
+            $esContado  = (int) ($data['id_tipo_pago'] ?? 1) === 1;
+            $esEfectivo = ($data['instrumento_tipo'] ?? null) === 'EFECTIVO';
+
+            if ($esContado && $esEfectivo) {
+                $caja = DB::table('cajas')
+                    ->where('id_empresa', (int) session('id_empresa'))
+                    ->where('id_usuario_responsable', auth()->id())
+                    ->where('estado', 'ACTIVA')
+                    ->orderByRaw('CASE WHEN id_caja_padre IS NOT NULL THEN 0 ELSE 1 END')
+                    ->first();
+
+                if ($caja) {
+                    $documento = trim(($data['serie'] ?? '') . '-' . ($data['numero'] ?? ''), '-');
+
+                    app(CajaService::class)->registrarMovimiento([
+                        'id_caja'          => $caja->id,
+                        'fecha'            => $data['fecha'],
+                        'tipo'             => 'EGRESO',
+                        'categoria'        => 'COMPRA',
+                        'descripcion'      => $documento
+                            ? "Pago compra {$documento}"
+                            : "Pago compra #{$compra->id_compra}",
+                        'monto'            => $total,
+                        'instrumento_tipo' => 'EFECTIVO',
+                        'instrumento_id'   => null,
+                        'referencia'       => "Compra #{$compra->id_compra}",
+                        'origen_tipo'      => 'Compra',
+                        'origen_id'        => $compra->id_compra,
+                        'id_usuario'       => auth()->id(),
+                    ]);
+                }
+            }
+
+            $mensajeCaja = '';
+            if (isset($caja) && $caja) {
+                $mensajeCaja = ' Se descontaron S/ ' . number_format($total, 2) . ' de tu caja.';
+            }
+
             Notification::make()->success()
                 ->title('Compra registrada')
-                ->body('Total: S/ ' . number_format($total, 2) . '. El stock ingresa al procesarla en Recepción.')
+                ->body('Total: S/ ' . number_format($total, 2) . '. El stock ingresa al procesarla en Recepción.' . $mensajeCaja)
                 ->send();
 
             return $compra;

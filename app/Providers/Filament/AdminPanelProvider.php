@@ -96,8 +96,7 @@ class AdminPanelProvider extends PanelProvider
                 // (CotizacionResource handles this group)
 
                 // ── Cobranzas ────────────────────────────────────────────
-                // (CuentaPorCobrarResource, ReporteDeudaResource and
-                //  MisCobroResource handle this group)
+                // (CuentaPorCobrarResource and MisCobroResource handle this group)
 
                 // ── Pagos ────────────────────────────────────────────────
                 // (CuentaPorPagarResource handles this group)

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\PrestamoResource\Pages;
 
 use App\Filament\Resources\PrestamoResource;
+use App\Filament\Resources\PrestamoResource\Widgets\PrestamoStats;
 use App\Models\Almacen;
 use App\Models\Producto;
 use Filament\Actions\Action;
@@ -16,6 +17,13 @@ use Illuminate\Support\Facades\DB;
 class ListPrestamos extends ListRecords
 {
     protected static string $resource = PrestamoResource::class;
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            PrestamoStats::class,
+        ];
+    }
 
     protected function getHeaderActions(): array
     {

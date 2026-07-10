@@ -3,12 +3,20 @@
 namespace App\Filament\Resources\CompraResource\Pages;
 
 use App\Filament\Resources\CompraResource;
+use App\Filament\Resources\CompraResource\Widgets\CompraStats;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\ListRecords;
 
 class ListCompras extends ListRecords
 {
     protected static string $resource = CompraResource::class;
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            CompraStats::class,
+        ];
+    }
 
     protected function getHeaderActions(): array
     {

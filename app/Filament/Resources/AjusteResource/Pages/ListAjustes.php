@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\AjusteResource\Pages;
 
 use App\Filament\Resources\AjusteResource;
+use App\Filament\Resources\AjusteResource\Widgets\AjusteStats;
 use App\Models\Almacen;
 use App\Models\InventarioMovimiento;
 use App\Models\MotivoMovimiento;
@@ -18,6 +19,13 @@ use Illuminate\Support\Facades\DB;
 class ListAjustes extends ListRecords
 {
     protected static string $resource = AjusteResource::class;
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            AjusteStats::class,
+        ];
+    }
 
     protected function getHeaderActions(): array
     {

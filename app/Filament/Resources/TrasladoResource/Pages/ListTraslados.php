@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\TrasladoResource\Pages;
 
 use App\Filament\Resources\TrasladoResource;
+use App\Filament\Resources\TrasladoResource\Widgets\TrasladoStats;
 use App\Models\Almacen;
 use App\Models\InventarioMovimiento;
 use App\Models\MotivoMovimiento;
@@ -22,6 +23,13 @@ use Illuminate\Support\Facades\DB;
 class ListTraslados extends ListRecords
 {
     protected static string $resource = TrasladoResource::class;
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            TrasladoStats::class,
+        ];
+    }
 
     protected function getHeaderActions(): array
     {

@@ -8,10 +8,13 @@ use App\Models\Producto;
 use App\Models\Recepcion;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Forms\Components\DatePicker;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -43,19 +46,28 @@ class RecepcionResource extends Resource
             ->columns([
                 TextColumn::make('id_recepcion')
                     ->label('N°')
-                    ->sortable(),
+                    ->sortable()
+                    ->searchable(),
 
                 TextColumn::make('fecha')
                     ->label('Fecha')
                     ->date('d/m/Y')
-                    ->sortable(),
+                    ->sortable()
+                    ->searchable(),
 
                 TextColumn::make('compra_doc')
                     ->label('Compra')
                     ->getStateUsing(fn (Recepcion $record): string =>
                         $record->compra
                             ? (trim("{$record->compra->serie}-{$record->compra->numero}", '-') ?: "#{$record->id_compra}")
-                            : "#{$record->id_compra}"),
+                            : "#{$record->id_compra}")
+                    ->searchable(query: fn (Builder $q, string $search) => $q->whereHas(
+                        'compra',
+                        fn (Builder $sub) => $sub
+                            ->where('serie', 'like', "%{$search}%")
+                            ->orWhere('numero', 'like', "%{$search}%")
+                            ->orWhere('id_compra', 'like', "%{$search}%"),
+                    )),
 
                 TextColumn::make('proveedor')
                     ->label('Proveedor')
@@ -63,13 +75,20 @@ class RecepcionResource extends Resource
                         $record->compra?->proveedor?->razon_social
                         ?? $record->compra?->proveedor?->nombre_comercial
                         ?? '—')
+                    ->searchable(query: fn (Builder $q, string $search) => $q->whereHas(
+                        'compra.proveedor',
+                        fn (Builder $sub) => $sub
+                            ->where('razon_social', 'like', "%{$search}%")
+                            ->orWhere('nombre_comercial', 'like', "%{$search}%"),
+                    ))
                     ->wrap()
                     ->limit(40),
 
                 TextColumn::make('almacen')
                     ->label('Almacén')
                     ->formatStateUsing(fn (?string $state): string =>
-                        KardexResource::almacenes()[$state] ?? ($state ?: '—')),
+                        KardexResource::almacenes()[$state] ?? ($state ?: '—'))
+                    ->searchable(),
 
                 TextColumn::make('items')
                     ->label('Ítems')
@@ -80,6 +99,7 @@ class RecepcionResource extends Resource
                 TextColumn::make('usuario.nombres')
                     ->label('Usuario')
                     ->placeholder('—')
+                    ->searchable()
                     ->toggleable(),
 
                 TextColumn::make('observacion')
@@ -87,7 +107,24 @@ class RecepcionResource extends Resource
                     ->wrap()
                     ->limit(40)
                     ->placeholder('—')
+                    ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->filters([
+                Filter::make('fecha_rango')
+                    ->label('Rango de fechas')
+                    ->form([
+                        DatePicker::make('fecha_desde')->label('Desde'),
+                        DatePicker::make('fecha_hasta')->label('Hasta'),
+                    ])
+                    ->query(fn (Builder $q, array $data) => $q
+                        ->when($data['fecha_desde'], fn ($q, $v) => $q->whereDate('fecha', '>=', $v))
+                        ->when($data['fecha_hasta'], fn ($q, $v) => $q->whereDate('fecha', '<=', $v))
+                    ),
+
+                SelectFilter::make('almacen')
+                    ->label('Almacén')
+                    ->options(fn () => KardexResource::almacenes()),
             ])
             ->actions([
                 Action::make('detalle')

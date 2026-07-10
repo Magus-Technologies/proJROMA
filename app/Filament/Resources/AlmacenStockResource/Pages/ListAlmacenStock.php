@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\AlmacenStockResource\Pages;
 
 use App\Filament\Resources\AlmacenStockResource;
+use App\Filament\Resources\AlmacenStockResource\Widgets\AlmacenStockStats;
 use App\Models\Almacen;
 use App\Models\InventarioMovimiento;
 use App\Models\MotivoMovimiento;
@@ -21,6 +22,13 @@ use Illuminate\Support\Facades\DB;
 class ListAlmacenStock extends ListRecords
 {
     protected static string $resource = AlmacenStockResource::class;
+
+    protected function getFooterWidgets(): array
+    {
+        return [
+            AlmacenStockStats::class,
+        ];
+    }
 
     protected function almacenes()
     {

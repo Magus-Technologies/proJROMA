@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Audit extends Model
 {
-    protected $connection = 'pgsql_audit';
+    // La auditoría vive en la misma base MySQL del sistema.
     protected $table = 'audits';
 
     protected $fillable = [

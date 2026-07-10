@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             TmsVehiculoSeeder::class,
             TmsRutaSeeder::class,
             TmsDespachoSeeder::class,
+            CatalogoMolitaliaSeeder::class,
         ]);
     }
 }

@@ -134,7 +134,7 @@ class TrasladoResource extends Resource
                         ->color('info')
                         ->modalHeading(fn (Traslado $record): string =>
                             'Traslado ' . static::numeroDocumento((int) $record->id_traslado))
-                        ->modalWidth('5xl')
+                        ->modalWidth('7xl')
                         ->modalContent(fn (Traslado $record) => view('filament.modals.traslado-detalle', [
                             'traslado'  => $record,
                             'almacenes' => KardexResource::almacenes(),
@@ -196,7 +196,7 @@ class TrasladoResource extends Resource
      * Revierte $cant unidades de una línea: salen del destino y regresan al origen,
      * registrando ambos movimientos con el motivo de sistema "Anulación traslado".
      */
-    protected static function revertirStockLinea(Traslado $t, TrasladoDetalle $d, int $cant, int $uid): void
+    protected static function revertirStockLinea(Traslado $t, TrasladoDetalle $d, int $cant, int $uid, string $etiqueta = 'Anulación'): void
     {
         $emp     = (int) $t->id_empresa;
         $alm     = KardexResource::almacenes();
@@ -239,7 +239,7 @@ class TrasladoResource extends Resource
             'id_empresa' => $emp, 'almacen' => $t->almacen_destino, 'id_producto' => $dest->id_producto,
             'tipo' => 'S', 'id_motivo' => static::motivoAnulacion($emp, 'S'), 'cantidad' => $cant,
             'stock_anterior' => $antD, 'stock_nuevo' => $nuevoD, 'costo' => $d->costo ?: $dest->costo,
-            'observacion' => "Anulación {$numero}: \"{$origen->descripcion}\" devuelve a {$nomOrig}", 'id_usuario' => $uid, 'fecha' => now(),
+            'observacion' => "{$etiqueta} {$numero}: \"{$origen->descripcion}\" devuelve a {$nomOrig}", 'id_usuario' => $uid, 'fecha' => now(),
         ]);
 
         // Reingreso al origen (revierte la salida)
@@ -250,7 +250,7 @@ class TrasladoResource extends Resource
             'id_empresa' => $emp, 'almacen' => $t->almacen_origen, 'id_producto' => $origen->id_producto,
             'tipo' => 'I', 'id_motivo' => static::motivoAnulacion($emp, 'I'), 'cantidad' => $cant,
             'stock_anterior' => $antO, 'stock_nuevo' => $nuevoO, 'costo' => $d->costo ?: $origen->costo,
-            'observacion' => "Anulación {$numero}: \"{$origen->descripcion}\" regresa desde {$nomDest}", 'id_usuario' => $uid, 'fecha' => now(),
+            'observacion' => "{$etiqueta} {$numero}: \"{$origen->descripcion}\" regresa desde {$nomDest}", 'id_usuario' => $uid, 'fecha' => now(),
         ]);
     }
 
@@ -308,7 +308,7 @@ class TrasladoResource extends Resource
 
             if ($diff < 0) {
                 // Reduce: revierte parcialmente (motivo de sistema "Anulación traslado")
-                static::revertirStockLinea($t, $d, abs($diff), $uid);
+                static::revertirStockLinea($t, $d, abs($diff), $uid, 'Ajuste');
             } else {
                 // Aumenta: transfiere la diferencia adicional del origen al destino
                 $alm     = KardexResource::almacenes();

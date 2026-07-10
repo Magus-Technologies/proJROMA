@@ -5,7 +5,7 @@
     $totalCant  = $lineas->where('estado', '1')->sum('cantidad');
 @endphp
 
-<div class="space-y-4" style="font-size:.875rem"
+<div class="space-y-4" style="font-size:.875rem;overflow-x:auto"
     x-data="{
         confirmMessage: '',
         confirmHandler: null,
@@ -42,7 +42,7 @@
     </div>
 
     {{-- Detalle de productos --}}
-    <div style="overflow-x:auto;border-radius:8px;border:1px solid #e5e7eb">
+    <div style="overflow-x:auto;border-radius:8px;border:1px solid #e5e7eb;min-width:fit-content">
         <table style="width:100%;border-collapse:collapse">
             <thead>
                 <tr style="background:#f9fafb;text-align:left">

@@ -23,7 +23,7 @@ class ListAlmacenStock extends ListRecords
 {
     protected static string $resource = AlmacenStockResource::class;
 
-    protected function getFooterWidgets(): array
+    protected function getHeaderWidgets(): array
     {
         return [
             AlmacenStockStats::class,

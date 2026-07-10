@@ -348,13 +348,14 @@ class CajaService
      * Busca la caja activa del usuario que cobró; si no tiene, omite.
      */
     public function registrarCobro(
-        int    $idUsuario,
-        float  $monto,
-        string $tipoPago,
-        int    $idVenta,
-        string $documento,
-        ?int   $idDiasVenta = null,
-        string $categoria = 'VENTA'
+        int     $idUsuario,
+        float   $monto,
+        string  $tipoPago,
+        int     $idVenta,
+        string  $documento,
+        ?int    $idDiasVenta = null,
+        string  $categoria = 'VENTA',
+        ?string $referencia = null
     ): ?int
     {
         $caja = DB::table('cajas')
@@ -379,8 +380,9 @@ class CajaService
             'monto'            => $monto,
             'instrumento_tipo' => $instrumentoTipo,
             'instrumento_id'   => $instrumentoId,
-            'origen_tipo'      => 'DiasVenta',
-            'origen_id'        => $idDiasVenta,
+            'referencia'       => $referencia,
+            'origen_tipo'      => $idDiasVenta ? 'DiasVenta' : 'Venta',
+            'origen_id'        => $idDiasVenta ?? $idVenta,
             'id_usuario'       => $idUsuario,
         ]);
     }

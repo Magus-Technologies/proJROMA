@@ -171,6 +171,7 @@ class CuentaPorCobrarResource extends Resource
                             documento:    $documento,
                             idDiasVenta:  $record->dias_venta_id,
                             categoria:    'COBRO',
+                            referencia:   $data['referencia'] ?? null,
                         );
 
                         Notification::make()->success()->title('Cobro registrado')->send();

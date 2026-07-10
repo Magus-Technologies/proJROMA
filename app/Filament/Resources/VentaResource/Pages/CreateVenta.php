@@ -723,6 +723,21 @@ class CreateVenta extends CreateRecord
                 ]);
             }
 
+            // Contado: la venta se cobra al momento, así que el ingreso entra
+            // de inmediato a la caja del vendedor con su instrumento y N° de
+            // operación (billetera, transferencia o efectivo).
+            if ($esContado) {
+                app(CajaService::class)->registrarCobro(
+                    idUsuario:  $usuario,
+                    monto:      (float) $total,
+                    tipoPago:   $data['metodo_pago'] ?? 'EFECTIVO',
+                    idVenta:    $venta->id_venta,
+                    documento:  $doc,
+                    categoria:  'VENTA',
+                    referencia: $data['pago_referencia'] ?? null,
+                );
+            }
+
             // Las cuotas solo aplican a crédito; ignorar ítems vacíos del repeater.
             $cuotas = ((int) $data['id_tipo_pago'] === 2) ? ($data['lista_pagos'] ?? []) : [];
             foreach ($cuotas as $pago) {
@@ -750,6 +765,7 @@ class CreateVenta extends CreateRecord
                         documento:   $doc,
                         idDiasVenta: $dv->dias_venta_id,
                         categoria:   'VENTA',
+                        referencia:  $pago['referencia'] ?? null,
                     );
                 }
             }

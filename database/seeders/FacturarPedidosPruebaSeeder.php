@@ -23,6 +23,9 @@ class FacturarPedidosPruebaSeeder extends Seeder
     private const SUCURSAL = 1;
     private const ID_TIDO  = 1; // Boleta
 
+    /** Enviar cada boleta a SUNAT tras crearla (usa las credenciales de la empresa). */
+    private const ENVIAR_SUNAT = true;
+
     public function run(): void
     {
         $cotis = DB::table('cotizaciones')
@@ -39,12 +42,14 @@ class FacturarPedidosPruebaSeeder extends Seeder
             return;
         }
 
+        $ventasCreadas = [];
+
         $victorId = (int) DB::table('usuarios')
             ->where('id_empresa', self::EMPRESA)
             ->where('usuario', 'VICTOR')
             ->value('usuario_id');
 
-        DB::transaction(function () use ($cotis, $victorId): void {
+        DB::transaction(function () use ($cotis, $victorId, &$ventasCreadas): void {
             $tido = DB::table('documentos_empresas')
                 ->where('id_empresa', self::EMPRESA)
                 ->where('sucursal', self::SUCURSAL)
@@ -101,6 +106,7 @@ class FacturarPedidosPruebaSeeder extends Seeder
                 DB::table('cotizaciones')->where('cotizacion_id', $coti->cotizacion_id)
                     ->update(['estado' => '3', 'id_venta' => $idVenta]);
 
+                $ventasCreadas[] = $idVenta;
                 $this->command?->info("Pedido {$coti->numero} → {$tido->serie}-" . str_pad((string) $numero, 8, '0', STR_PAD_LEFT));
             }
 
@@ -112,5 +118,37 @@ class FacturarPedidosPruebaSeeder extends Seeder
         });
 
         $this->command?->info($cotis->count() . ' pedidos facturados. Ya aparecen en "Armar Despacho" (RUTA TEST DESPACHO).');
+
+        // ── Envío a SUNAT (fuera de la transacción; tolerante a fallos) ──
+        if (! self::ENVIAR_SUNAT) {
+            return;
+        }
+
+        $svc = app(\App\Services\VentaSunatService::class);
+        $ok = 0;
+        $fallo = 0;
+
+        foreach ($ventasCreadas as $idVenta) {
+            $venta = \App\Models\Venta::find($idVenta);
+            if (! $venta) {
+                continue;
+            }
+
+            try {
+                $res = $svc->enviar($venta);
+                if ($res['ok'] ?? false) {
+                    $ok++;
+                    $this->command?->info("SUNAT ✓ {$venta->serie}-{$venta->numero}: " . ($res['msg'] ?? 'aceptado'));
+                } else {
+                    $fallo++;
+                    $this->command?->warn("SUNAT ✗ {$venta->serie}-{$venta->numero}: " . ($res['msg'] ?? 'error'));
+                }
+            } catch (\Throwable $e) {
+                $fallo++;
+                $this->command?->warn("SUNAT ✗ {$venta->serie}-{$venta->numero}: " . $e->getMessage());
+            }
+        }
+
+        $this->command?->info("Envío a SUNAT: {$ok} aceptadas · {$fallo} con error (se pueden reenviar desde el panel de Ventas).");
     }
 }

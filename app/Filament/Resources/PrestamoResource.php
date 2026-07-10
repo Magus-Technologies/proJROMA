@@ -202,19 +202,48 @@ class PrestamoResource extends Resource
 
     protected static function mover(int $emp, string $tipoMov, int $idProducto, int $cant, string $motivo, string $obs, int $uid, string $almacen): void
     {
-        $p = Producto::where('id_empresa', $emp)->where('id_producto', $idProducto)->lockForUpdate()->firstOrFail();
-        $ant = (int) $p->cantidad;
+        $source = Producto::where('id_empresa', $emp)->where('id_producto', $idProducto)->lockForUpdate()->firstOrFail();
 
-        if ($tipoMov === 'S' && $cant > $ant) {
-            throw new \RuntimeException("Stock insuficiente de \"{$p->descripcion}\" (disponible: {$ant}).");
+        if ($tipoMov === 'S') {
+            // ── Presté: descuenta del almacén original ────────────────
+            $p = $source;
+            $ant = (int) $p->cantidad;
+            if ($cant > $ant) {
+                throw new \RuntimeException("Stock insuficiente de \"{$p->descripcion}\" (disponible: {$ant}).");
+            }
+            $nuevo = $ant - $cant;
+            $p->update(['cantidad' => $nuevo]);
+        } else {
+            // ── Me prestaron: busca o crea el producto en el almacén destino ──
+            $codigo = $source->codigo;
+            if (blank($codigo)) {
+                $codigo = 'PREST-' . $source->id_producto . '-' . $almacen;
+            }
+
+            $p = Producto::where('id_empresa', $emp)
+                ->where('almacen', $almacen)
+                ->where('codigo', $codigo)
+                ->lockForUpdate()
+                ->first();
+
+            if ($p) {
+                $ant = (int) $p->cantidad;
+                $nuevo = $ant + $cant;
+                $p->update(['cantidad' => $nuevo]);
+            } else {
+                $ant = 0;
+                $nuevo = $cant;
+                $p = $source->replicate();
+                $p->codigo   = $codigo;
+                $p->almacen  = $almacen;
+                $p->cantidad = $cant;
+                $p->save();
+            }
         }
-
-        $nuevo = $tipoMov === 'I' ? $ant + $cant : $ant - $cant;
-        $p->update(['cantidad' => $nuevo]);
 
         $idMotivo = MotivoMovimiento::where('id_empresa', $emp)->where('tipo', $tipoMov)->where('nombre', $motivo)->value('id_motivo');
         InventarioMovimiento::create([
-            'id_empresa' => $emp, 'almacen' => $almacen, 'id_producto' => $idProducto, 'tipo' => $tipoMov,
+            'id_empresa' => $emp, 'almacen' => $almacen, 'id_producto' => $p->id_producto, 'tipo' => $tipoMov,
             'id_motivo' => $idMotivo, 'cantidad' => $cant, 'stock_anterior' => $ant, 'stock_nuevo' => $nuevo,
             'costo' => $p->costo, 'observacion' => $obs, 'id_usuario' => $uid, 'fecha' => now(),
         ]);
@@ -293,9 +322,21 @@ class PrestamoResource extends Resource
                 }
 
                 if ($pr->tipo === 'P') {
+                    // Devuelven lo que presté → ingresa al almacén original
                     static::mover($emp, 'I', (int) $linea['id_producto'], $cant, 'Préstamo recibido', "Devolución de {$pr->tercero}", $uid, $pr->almacen);
                 } else {
-                    static::mover($emp, 'S', (int) $linea['id_producto'], $cant, 'Préstamo entregado', "Devolución a {$pr->tercero}", $uid, $pr->almacen);
+                    // Devuelvo lo que me prestaron → sale del almacén destino
+                    $source = Producto::where('id_empresa', $emp)->where('id_producto', (int) $linea['id_producto'])->first();
+                    $codigo = $source?->codigo;
+                    if (blank($codigo)) {
+                        $codigo = 'PREST-' . $linea['id_producto'] . '-' . $pr->almacen;
+                    }
+                    $dest = Producto::where('id_empresa', $emp)
+                        ->where('almacen', $pr->almacen)
+                        ->where('codigo', $codigo)
+                        ->first();
+                    $idProducto = $dest?->id_producto ?? (int) $linea['id_producto'];
+                    static::mover($emp, 'S', $idProducto, $cant, 'Préstamo entregado', "Devolución a {$pr->tercero}", $uid, $pr->almacen);
                 }
 
                 DB::table('prestamo_devoluciones')->insert([

@@ -109,7 +109,7 @@ class MotivoMovimientoResource extends Resource
                         '0' => 'Inactivo',
                     ]),
             ])
-            ->defaultSort('id_motivo');
+            ->defaultSort('id_motivo', 'desc');
     }
 
     public static function getRelations(): array { return []; }

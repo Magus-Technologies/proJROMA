@@ -127,15 +127,29 @@ class PrestamoResource extends Resource
                             ->select('d.*', 'p.descripcion as producto')
                             ->get(),
                     ]))
-                    ->form([
-                        \Filament\Forms\Components\TextInput::make('nueva_cantidad')
-                            ->label('Cantidad a devolver')
-                            ->numeric()
-                            ->integer()
-                            ->minValue(1)
-                            ->required(),
-                        \Filament\Forms\Components\Hidden::make('nuevo_id_producto'),
-                    ])
+                    ->form(function (Prestamo $record): array {
+                        $pendientes = static::lineasPendientes($record)
+                            ->filter(fn ($l) => $l->pendiente > 0)
+                            ->values();
+
+                        return [
+                            \Filament\Forms\Components\Select::make('nuevo_id_producto')
+                                ->label('Producto')
+                                ->options($pendientes->mapWithKeys(fn ($l) => [
+                                    $l->id_producto => "{$l->producto} (pendiente: {$l->pendiente})",
+                                ])->toArray())
+                                ->default($pendientes->first()?->id_producto)
+                                ->selectablePlaceholder(false)
+                                ->required(),
+
+                            \Filament\Forms\Components\TextInput::make('nueva_cantidad')
+                                ->label('Cantidad a devolver')
+                                ->numeric()
+                                ->integer()
+                                ->minValue(1)
+                                ->required(),
+                        ];
+                    })
                     ->action(function (Prestamo $record, array $data): void {
                         if (blank($data['nuevo_id_producto'] ?? null)) {
                             Notification::make()->warning()

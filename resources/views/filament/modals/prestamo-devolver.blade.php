@@ -168,7 +168,7 @@
             </table>
         </div>
         <p style="font-size:.8rem;color:#6b7280;margin:8px 0 0">
-            💡 Hacé clic en <strong>"Devolver"</strong> junto al producto, luego completá la cantidad abajo.
+            💡 Escribí la cantidad abajo y registrá. El botón <strong>"Devolver"</strong> completa el pendiente automáticamente.
         </p>
     @endif
 

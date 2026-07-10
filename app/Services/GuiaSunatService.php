@@ -35,22 +35,27 @@ class GuiaSunatService
         $empresa = $guia->empresa ?? Empresa::find($guia->id_empresa);
 
         if (! $empresa) {
-            return ['ok' => false, 'msg' => 'No se encontró la empresa de la guía.'];
+            return ['ok' => false, 'datos_invalidos' => true, 'msg' => 'No se encontró la empresa de la guía.'];
         }
 
         if ($guia->detalles->isEmpty()) {
-            return ['ok' => false, 'msg' => 'La guía no tiene productos para trasladar.'];
+            return ['ok' => false, 'datos_invalidos' => true, 'msg' => 'La guía no tiene productos para trasladar.'];
         }
 
         try {
             $gen = Http::timeout(30)->post("{$this->apiUrl}/api/v1/generar/guia/remision", $this->payloadGenerar($guia, $empresa));
             $genData = $gen->json();
         } catch (\Throwable $e) {
-            return ['ok' => false, 'msg' => 'No se pudo conectar con el servicio SUNAT (generar).'];
+            // El servicio no respondió: no es culpa de los datos de la guía.
+            return ['ok' => false, 'datos_invalidos' => false, 'msg' => 'No se pudo conectar con el servicio SUNAT (generar).'];
         }
 
         if (! ($genData['estado'] ?? false)) {
-            return ['ok' => false, 'msg' => $genData['mensaje'] ?? 'Error al generar el XML de la guía.'];
+            return [
+                'ok'              => false,
+                'datos_invalidos' => true,
+                'msg'             => static::detalleDelError($genData, 'Error al generar el XML de la guía.'),
+            ];
         }
 
         $nombre = $genData['data']['nombre_archivo'];
@@ -121,9 +126,10 @@ class GuiaSunatService
         }
 
         if (! ($envData['estado'] ?? false)) {
-            $guia->update(['estado_gre' => 'rechazado', 'mensaje_sunat' => $envData['mensaje'] ?? 'Rechazado en el envío.']);
+            $msg = static::detalleDelError($envData, 'SUNAT rechazó el envío de la guía.');
+            $guia->update(['estado_gre' => 'rechazado', 'mensaje_sunat' => $msg]);
 
-            return ['ok' => false, 'msg' => $envData['mensaje'] ?? 'SUNAT rechazó el envío de la guía.'];
+            return ['ok' => false, 'msg' => $msg];
         }
 
         $guia->update([
@@ -188,6 +194,24 @@ class GuiaSunatService
         return ['ok' => false, 'msg' => $data['mensaje'] ?? 'SUNAT rechazó la guía.'];
     }
 
+    /**
+     * La API responde 422 con un mensaje genérico y el detalle campo por campo
+     * en `errores`. Sin ese detalle un rechazo es imposible de diagnosticar.
+     *
+     * @param  array<string, mixed>|null  $respuesta
+     */
+    private static function detalleDelError(?array $respuesta, string $porDefecto): string
+    {
+        $mensaje = $respuesta['mensaje'] ?? $porDefecto;
+
+        $detalle = collect($respuesta['errores'] ?? [])
+            ->map(fn ($mensajes, $campo): string => $campo . ': ' . implode(' ', (array) $mensajes))
+            ->take(4)
+            ->implode(' | ');
+
+        return trim($mensaje . ($detalle !== '' ? " ({$detalle})" : ''));
+    }
+
     /** Arma el JSON que espera api-sunat-laravel para generar el XML. */
     private function payloadGenerar(GuiaRemision $guia, Empresa $empresa): array
     {
@@ -229,10 +253,12 @@ class GuiaSunatService
                 'fecha_traslado'    => ($guia->fecha_traslado ?? $guia->fecha_emision ?? now())->format('Y-m-d'),
                 'peso_total'        => (float) ($guia->peso ?: 1),
                 'unidad_medida'     => $guia->und_peso_total ?: 'KGM',
-                'ubigeo_salida'     => $guia->ubigeo_partida ?: ($empresa->ubigeo ?? ''),
-                'direccion_salida'  => $guia->dir_partida ?: ($empresa->direccion ?? ''),
-                'ubigeo_llegada'    => $guia->ubigeo ?: '',
-                'direccion_llegada' => $guia->dir_llegada ?: '',
+                // Siempre como string: SUNAT valida el ubigeo como cadena de 6
+                // caracteres y un ubigeo sin cero inicial llega aquí como int.
+                'ubigeo_salida'     => (string) ($guia->ubigeo_partida ?: ($empresa->ubigeo ?? '')),
+                'direccion_salida'  => (string) ($guia->dir_partida ?: ($empresa->direccion ?? '')),
+                'ubigeo_llegada'    => (string) ($guia->ubigeo ?: ''),
+                'direccion_llegada' => (string) ($guia->dir_llegada ?: ''),
             ],
             'detalles' => $guia->detalles->map(fn ($d): array => [
                 'descripcion' => $d->detalles ?: 'Producto',

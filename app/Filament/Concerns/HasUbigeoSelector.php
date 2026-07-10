@@ -70,12 +70,18 @@ trait HasUbigeoSelector
                 ->afterStateUpdated(fn (callable $set) => $set($campo, null)),
 
             // Este es el campo real: su valor ES el ubigeo de 6 dígitos.
+            //
+            // PHP convierte a entero las claves numéricas de un array, así que
+            // "150128" llega como int 150128 mientras que "020504" conserva el
+            // cero inicial y sigue siendo string. Normalizamos siempre a string
+            // de 6 caracteres: SUNAT valida el ubigeo como cadena.
             Select::make($campo)
                 ->label($etiqueta)
                 ->options(fn (callable $get): array => static::distritos($get($depto), $get($prov)))
                 ->searchable()
                 ->live()
                 ->required($requerido)
+                ->dehydrateStateUsing(fn ($state): ?string => static::normalizaUbigeo($state))
                 ->disabled(fn (callable $get): bool => blank($get($prov)))
                 ->afterStateUpdated(function ($state, callable $set, callable $get) use ($alElegir): void {
                     if ($alElegir) {
@@ -84,6 +90,18 @@ trait HasUbigeoSelector
                 })
                 ->helperText(fn (callable $get): ?string => filled($get($campo)) ? "Ubigeo: {$get($campo)}" : null),
         ];
+    }
+
+    /** Devuelve el ubigeo como string de 6 dígitos, o null si no es válido. */
+    public static function normalizaUbigeo(mixed $ubigeo): ?string
+    {
+        if (blank($ubigeo)) {
+            return null;
+        }
+
+        $limpio = preg_replace('/\D/', '', (string) $ubigeo);
+
+        return strlen($limpio) <= 6 ? str_pad($limpio, 6, '0', STR_PAD_LEFT) : null;
     }
 
     /** Nombre del distrito a partir del ubigeo completo, para campos de texto derivados. */

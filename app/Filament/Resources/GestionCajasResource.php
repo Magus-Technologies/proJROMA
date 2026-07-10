@@ -58,6 +58,7 @@ class GestionCajasResource extends Resource
                 ])
                 ->live()
                 ->required()
+                ->default('PRINCIPAL')
                 ->formatStateUsing(fn ($state, ?Caja $record) => $state
                     ?? ($record?->id_caja_padre ? 'HIJA' : 'PRINCIPAL'))
                 ->helperText('La caja principal administra el dinero; cada trabajador (vendedor, cajero) reporta a su propia caja hija.'),
@@ -130,7 +131,7 @@ class GestionCajasResource extends Resource
             ->actions([
                 EditAction::make()
                     ->mutateDataUsing(function (array $data): array {
-                        if (($data['tipo_caja'] ?? null) !== 'HIJA') {
+                        if (empty($data['id_caja_padre'])) {
                             $data['id_caja_padre'] = null;
                         }
                         unset($data['tipo_caja']);

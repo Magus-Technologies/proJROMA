@@ -44,6 +44,29 @@ class ListAlmacenStock extends ListRecords
         return $tabs;
     }
 
+    /** Stock del producto en un almacén: la fila de su código en ese almacén. */
+    protected static function stockEnAlmacen(int $idProducto, string $almacen): int
+    {
+        $producto = Producto::where('id_empresa', (int) session('id_empresa'))
+            ->where('id_producto', $idProducto)
+            ->first();
+
+        if (! $producto) {
+            return 0;
+        }
+
+        if ((string) $producto->almacen === $almacen || blank($almacen)) {
+            return (int) $producto->cantidad;
+        }
+
+        return (int) (filled($producto->codigo)
+            ? Producto::where('id_empresa', (int) session('id_empresa'))
+                ->where('almacen', $almacen)
+                ->where('codigo', $producto->codigo)
+                ->value('cantidad')
+            : 0);
+    }
+
     protected function registrarMovimiento(array $data, string $tipo): void
     {
         DB::transaction(function () use ($data, $tipo): void {
@@ -52,11 +75,38 @@ class ListAlmacenStock extends ListRecords
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            // El stock vive por almacén (una fila de producto por almacén).
+            // Si el movimiento es para otro almacén, operar sobre la fila del
+            // producto EN ese almacén — misma lógica que Traslados: se ubica
+            // por código y, si es un ingreso y no existe, se clona.
+            if ((string) $producto->almacen !== (string) $data['almacen']) {
+                $enAlmacen = filled($producto->codigo)
+                    ? Producto::where('id_empresa', (int) session('id_empresa'))
+                        ->where('almacen', $data['almacen'])
+                        ->where('codigo', $producto->codigo)
+                        ->lockForUpdate()
+                        ->first()
+                    : null;
+
+                if (! $enAlmacen && $tipo === 'S') {
+                    throw new \RuntimeException('El producto no tiene stock en ese almacén.');
+                }
+
+                if (! $enAlmacen) {
+                    $enAlmacen = $producto->replicate();
+                    $enAlmacen->almacen  = $data['almacen'];
+                    $enAlmacen->cantidad = 0;
+                    $enAlmacen->save();
+                }
+
+                $producto = $enAlmacen;
+            }
+
             $anterior = (int) $producto->cantidad;
             $cant     = (int) $data['cantidad'];
 
             if ($tipo === 'S' && $cant > $anterior) {
-                throw new \RuntimeException("Stock insuficiente. Disponible: {$anterior}.");
+                throw new \RuntimeException("Stock insuficiente en ese almacén. Disponible: {$anterior}.");
             }
 
             $nuevo = $tipo === 'I' ? $anterior + $cant : $anterior - $cant;
@@ -70,7 +120,7 @@ class ListAlmacenStock extends ListRecords
             InventarioMovimiento::create([
                 'id_empresa'     => (int) session('id_empresa'),
                 'almacen'        => $data['almacen'],
-                'id_producto'    => $data['id_producto'],
+                'id_producto'    => $producto->id_producto,
                 'tipo'           => $tipo,
                 'id_motivo'      => $data['id_motivo'] ?? null,
                 'cantidad'       => $cant,
@@ -94,6 +144,10 @@ class ListAlmacenStock extends ListRecords
                     str_starts_with((string) $this->activeTab, 'alm-')
                         ? substr((string) $this->activeTab, 4)
                         : null)
+                ->live()
+                ->afterStateUpdated(function ($state, callable $get, callable $set): void {
+                    $set('stock_actual', (string) static::stockEnAlmacen((int) $get('id_producto'), (string) $state));
+                })
                 ->required(),
 
             Select::make('id_producto')
@@ -105,14 +159,13 @@ class ListAlmacenStock extends ListRecords
                     ->toArray())
                 ->searchable()
                 ->live()
-                ->afterStateUpdated(function ($state, callable $set): void {
-                    $stock = Producto::where('id_producto', $state)->value('cantidad');
-                    $set('stock_actual', (string) (int) $stock);
+                ->afterStateUpdated(function ($state, callable $get, callable $set): void {
+                    $set('stock_actual', (string) static::stockEnAlmacen((int) $state, (string) $get('almacen')));
                 })
                 ->required(),
 
             TextInput::make('stock_actual')
-                ->label('Stock actual')
+                ->label('Stock en ese almacén')
                 ->disabled()
                 ->dehydrated(false),
 

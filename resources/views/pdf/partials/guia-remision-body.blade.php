@@ -145,6 +145,21 @@
             </tr>
         </table>
 
+        {{-- QR de SUNAT: solo existe si el XML ya fue firmado (necesita el hash) --}}
+        @if (!empty($qr))
+            <table style="width:100%; border-collapse:collapse; margin-top:10px;">
+                <tr>
+                    <td style="width:110px; vertical-align:top;">
+                        <img src="{{ $qr }}" style="width:100px; height:100px;" alt="Código QR SUNAT">
+                    </td>
+                    <td style="vertical-align:middle; font-size:7.5pt; color:#555; padding-left:8px;">
+                        Representación impresa de la guía de remisión electrónica.<br>
+                        Escaneá el código para validar sus datos ante SUNAT.
+                    </td>
+                </tr>
+            </table>
+        @endif
+
         <!-- Footer -->
         <div class="footer">
             <p>{{ $empresa->razon_social ?? '' }} | RUC: {{ $empresa->ruc ?? '' }}</p>

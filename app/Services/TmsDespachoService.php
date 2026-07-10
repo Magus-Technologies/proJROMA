@@ -195,6 +195,80 @@ class TmsDespachoService
     }
 
     /**
+     * Agrega pedidos a un despacho existente (aumento de última hora).
+     * Mismas reglas que crear: solo facturados, no repetidos, y avisa
+     * si el peso supera la capacidad del vehículo.
+     *
+     * @return array{agregados:int, peso_total:float, advertencias:array}
+     */
+    public function agregarPedidos(int $idDespacho, array $pedidosIds, int $empresa): array
+    {
+        $despacho = DB::table('tms_despachos')->where('id', $idDespacho)->where('id_empresa', $empresa)->first();
+        if (! $despacho) throw new \RuntimeException('Despacho no encontrado.');
+
+        if (! in_array($despacho->estado, ['PLANIFICADO', 'CARGADO'], true)) {
+            throw new \RuntimeException("No se pueden agregar pedidos a un despacho {$despacho->estado}.");
+        }
+
+        $pedidosIds = array_values(array_unique(array_map('intval', $pedidosIds)));
+        if (! $pedidosIds) throw new \RuntimeException('Selecciona al menos un pedido.');
+
+        $choque = array_intersect($pedidosIds, $this->pedidosYaDespachados());
+        if ($choque) throw new \RuntimeException('Algunos pedidos ya están en este u otro despacho.');
+
+        $rows = DB::table('cotizaciones as c')
+            ->join('clientes as cl', 'cl.id_cliente', '=', 'c.id_cliente')
+            ->where('c.id_empresa', $empresa)
+            ->whereIn('c.cotizacion_id', $pedidosIds)
+            ->select('c.cotizacion_id', 'c.numero', 'c.estado', 'c.total', 'c.id_cliente', 'cl.mercado as id_mercado')
+            ->get();
+        if ($rows->isEmpty()) throw new \RuntimeException('No hay pedidos válidos.');
+
+        $sinFacturar = $rows->filter(fn ($row) => (string) $row->estado !== self::ESTADO_FACTURADO)->pluck('numero');
+        if ($sinFacturar->isNotEmpty()) {
+            throw new \RuntimeException(
+                'Pedidos sin facturar: ' . $sinFacturar->implode(', ') .
+                '. Solo se pueden despachar pedidos convertidos a boleta o factura.'
+            );
+        }
+
+        $pesos = $this->pesosPorPedido($rows->pluck('cotizacion_id')->all());
+        $pesoNuevo = 0.0;
+        foreach ($rows as $row) { $pesoNuevo += (float) ($pesos[$row->cotizacion_id] ?? 0); }
+        $pesoTotal = round((float) $despacho->peso_total + $pesoNuevo, 2);
+
+        $advertencias = [];
+        $veh = DB::table('tms_vehiculos')->where('id', $despacho->id_vehiculo)->first();
+        if ($veh && $pesoTotal > (float) $veh->capacidad_kg) {
+            $advertencias[] = 'Con el aumento, el peso (' . $pesoTotal . ' kg) supera la capacidad del vehículo (' . round((float) $veh->capacidad_kg, 2) . ' kg).';
+        }
+
+        DB::transaction(function () use ($idDespacho, $rows, $pesos, $pesoTotal) {
+            $orden = (int) DB::table('tms_despacho_pedidos')->where('id_despacho', $idDespacho)->max('orden');
+
+            $detalles = [];
+            foreach ($rows as $row) {
+                $detalles[] = [
+                    'id_despacho'    => $idDespacho,
+                    'id_cotizacion'  => $row->cotizacion_id,
+                    'id_cliente'     => $row->id_cliente,
+                    'id_mercado'     => $row->id_mercado ?: null,
+                    'peso'           => round((float) ($pesos[$row->cotizacion_id] ?? 0), 2),
+                    'monto'          => round((float) $row->total, 2),
+                    'orden'          => ++$orden,
+                    'estado_entrega' => 'PENDIENTE',
+                ];
+            }
+            DB::table('tms_despacho_pedidos')->insert($detalles);
+
+            DB::table('tms_despachos')->where('id', $idDespacho)
+                ->update(['peso_total' => $pesoTotal, 'updated_at' => now()]);
+        });
+
+        return ['agregados' => $rows->count(), 'peso_total' => $pesoTotal, 'advertencias' => $advertencias];
+    }
+
+    /**
      * Consolidados del reporte RES DESPACHO.
      *
      * @param array $mercadoIds  Filtra a pedidos de estos mercados (vacío = todos).

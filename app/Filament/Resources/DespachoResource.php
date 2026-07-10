@@ -200,6 +200,69 @@ class DespachoResource extends Resource
                         $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
                     }),
 
+                Action::make('agregar_pedidos')
+                    ->label('Agregar pedidos')
+                    ->iconButton()
+                    ->tooltip('Agregar pedidos de última hora')
+                    ->icon('heroicon-o-plus-circle')
+                    ->color('primary')
+                    ->visible(fn (TmsDespacho $r) => in_array($r->estado, ['PLANIFICADO', 'CARGADO'], true) && $r->id_ruta)
+                    ->modalHeading(fn (TmsDespacho $record): string => 'Agregar pedidos — ' . $record->codigo)
+                    ->modalDescription('Pedidos facturados de la ruta que aún no están en ningún despacho. El peso del despacho se recalcula.')
+                    ->modalWidth('3xl')
+                    ->form([
+                        \Filament\Forms\Components\DatePicker::make('fecha_desde')
+                            ->label('Pedidos desde')
+                            ->default(now()->subDays(7))
+                            ->live(),
+                        \Filament\Forms\Components\DatePicker::make('fecha_hasta')
+                            ->label('Hasta')
+                            ->default(now())
+                            ->live(),
+                        CheckboxList::make('pedidos')
+                            ->label('Pedidos disponibles')
+                            ->options(function (callable $get, TmsDespacho $record): array {
+                                $desde = $get('fecha_desde');
+                                $hasta = $get('fecha_hasta');
+                                if (! $desde || ! $hasta) {
+                                    return [];
+                                }
+
+                                return app(TmsDespachoService::class)
+                                    ->pedidosPendientes((int) $record->id_ruta, (string) $desde, (string) $hasta, (int) session('id_empresa'))
+                                    ->mapWithKeys(fn ($p) => [
+                                        $p->cotizacion_id => "{$p->cliente} · {$p->mercado} · " .
+                                            number_format((float) $p->peso, 1) . ' kg · S/ ' . number_format((float) $p->total, 2),
+                                    ])->toArray();
+                            })
+                            ->live()
+                            ->bulkToggleable()
+                            ->helperText(fn (TmsDespacho $record): string => 'Peso actual del despacho: ' . number_format((float) $record->peso_total, 2)
+                                . ' kg · Capacidad del vehículo: ' . number_format((float) ($record->vehiculo?->capacidad_kg ?? 0), 0) . ' kg')
+                            ->required()
+                            ->columnSpanFull(),
+                    ])
+                    ->action(function (array $data, TmsDespacho $record): void {
+                        try {
+                            $res = app(TmsDespachoService::class)->agregarPedidos(
+                                $record->id,
+                                $data['pedidos'] ?? [],
+                                (int) session('id_empresa'),
+                            );
+
+                            Notification::make()->success()
+                                ->title($res['agregados'] . ' pedido(s) agregados a ' . $record->codigo)
+                                ->body('Nuevo peso total: ' . number_format($res['peso_total'], 2) . ' kg')
+                                ->send();
+
+                            foreach ($res['advertencias'] as $adv) {
+                                Notification::make()->warning()->title('Advertencia')->body($adv)->persistent()->send();
+                            }
+                        } catch (\RuntimeException $e) {
+                            Notification::make()->danger()->title('No se pudo agregar')->body($e->getMessage())->send();
+                        }
+                    }),
+
                 ActionGroup::make([
                     Action::make('cargar')->label('Cargar')->icon('heroicon-o-inbox-arrow-down')->color('warning')
                         ->visible(fn (TmsDespacho $r) => $r->estado === 'PLANIFICADO')

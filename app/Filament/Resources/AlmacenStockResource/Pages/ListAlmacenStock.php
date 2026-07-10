@@ -15,7 +15,10 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Components\EmbeddedTable;
+use Filament\Schemas\Components\Livewire;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -23,11 +26,15 @@ class ListAlmacenStock extends ListRecords
 {
     protected static string $resource = AlmacenStockResource::class;
 
-    protected function getHeaderWidgets(): array
+    // Mismo orden visual que Productos: pestañas arriba, cards debajo, tabla al final
+    public function content(Schema $schema): Schema
     {
-        return [
-            AlmacenStockStats::class,
-        ];
+        return $schema
+            ->components([
+                $this->getTabsContentComponent(),
+                Livewire::make(AlmacenStockStats::class),
+                EmbeddedTable::make(),
+            ]);
     }
 
     protected function almacenes()

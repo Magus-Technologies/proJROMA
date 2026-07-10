@@ -164,6 +164,44 @@
             </tr>
         </table>
 
+        {{-- Cuotas del crédito: SUNAT exige detallarlas en el comprobante --}}
+        @if ((int) ($v->id_tipo_pago ?? 1) === 2 && ($v->pagos?->isNotEmpty() ?? false))
+            <table class="products-table" style="margin-bottom: 5px;">
+                <thead>
+                    <tr>
+                        <th colspan="4" style="text-align:left; padding:5px 8px;">
+                            FORMA DE PAGO: CRÉDITO — {{ $v->pagos->count() }} CUOTA{{ $v->pagos->count() > 1 ? 'S' : '' }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th style="width:12%;">CUOTA</th>
+                        <th style="width:28%;">VENCIMIENTO</th>
+                        <th style="width:30%;">MEDIO DE PAGO</th>
+                        <th style="width:30%;">IMPORTE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($v->pagos as $i => $cuota)
+                        <tr>
+                            <td style="text-align:center;">{{ str_pad($i + 1, 3, '0', STR_PAD_LEFT) }}</td>
+                            <td style="text-align:center;">{{ optional($cuota->fecha)->format('d/m/Y') ?? '—' }}</td>
+                            <td style="text-align:center;">
+                                {{ ucfirst(strtolower($cuota->tipo_pago ?? 'Efectivo')) }}
+                                @if ($cuota->estado === '1')
+                                    <span style="color:#065f46; font-weight:bold;">· PAGADA</span>
+                                @endif
+                            </td>
+                            <td style="text-align:right; padding-right:8px;">S/ {{ number_format((float) $cuota->monto, 2) }}</td>
+                        </tr>
+                    @endforeach
+                    <tr>
+                        <td colspan="3" style="text-align:right; font-weight:bold; padding-right:8px;">SALDO PENDIENTE</td>
+                        <td style="text-align:right; font-weight:bold; padding-right:8px;">S/ {{ number_format($saldo, 2) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        @endif
+
         <!-- Observaciones -->
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 5px; border: 2px solid #999; border-radius: 6px;">
             <tr>

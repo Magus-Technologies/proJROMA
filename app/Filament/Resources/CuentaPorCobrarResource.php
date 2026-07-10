@@ -8,6 +8,7 @@ use App\Models\DiasVenta;
 use App\Services\CajaService;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -137,6 +138,7 @@ class CuentaPorCobrarResource extends Resource
                     ->options(fn (): array => CajaService::opcionesMetodoPago()),
             ])
             ->actions([
+                ActionGroup::make([
                 Action::make('cobrar')
                     ->label('Abonar')
                     ->icon('heroicon-o-banknotes')
@@ -272,6 +274,7 @@ class CuentaPorCobrarResource extends Resource
                     ->color('info')
                     ->url(fn (DiasVenta $record): string =>
                         VentaResource::getUrl('view', ['record' => $record->id_venta])),
+                ])->tooltip('Acciones'),
             ])
             ->defaultSort('fecha', 'asc');
     }

@@ -24,7 +24,8 @@ class VentaSunatService
     /** Genera y firma el XML, lo guarda en el storage local. No envía a SUNAT. */
     public function generarXml(Venta $venta): array
     {
-        $venta->loadMissing(['cliente', 'productosVenta']);
+        // `pagos` = cuotas del crédito; SUNAT las exige en el XML.
+        $venta->loadMissing(['cliente', 'productosVenta', 'pagos']);
         $empresa = Empresa::find($venta->id_empresa);
 
         if (! $empresa) {
@@ -152,7 +153,22 @@ class VentaSunatService
         $docCli  = (string) ($cliente?->documento ?? '');
         $tipoDocCli = strlen($docCli) === 11 ? '6' : '1';
 
+        $esCredito = (int) $venta->id_tipo_pago === 2;
+
+        // SUNAT exige el detalle de las cuotas en todo comprobante a crédito.
+        $cuotasCredito = $esCredito
+            ? $venta->pagos
+                ->map(fn ($c): array => [
+                    'monto' => round((float) $c->monto, 2),
+                    'fecha' => optional($c->fecha)->format('Y-m-d'),
+                ])
+                ->filter(fn (array $c): bool => filled($c['fecha']) && $c['monto'] > 0)
+                ->values()
+                ->toArray()
+            : [];
+
         return [
+            ...($esCredito && $cuotasCredito !== [] ? ['cuotas_credito' => $cuotasCredito] : []),
             'documento'     => $documento,
             'endpoint'      => $cred['endpoint'],
             'empresa' => [

@@ -31,6 +31,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreateGuiaRemision extends CreateRecord
 {
+    use \App\Filament\Concerns\HasUbigeoSelector;
+
     protected static string $resource = GuiaRemisionResource::class;
 
     protected static ?string $title = 'Nueva Guía de Remisión';
@@ -38,6 +40,8 @@ class CreateGuiaRemision extends CreateRecord
     public function mount(): void
     {
         parent::mount();
+
+        $this->precargarPartida();
 
         // Pre-cargar desde una venta (link "Crear guía" de la lista de ventas)
         $idVenta = (int) request()->query('venta');
@@ -126,6 +130,30 @@ class CreateGuiaRemision extends CreateRecord
     protected static function esPrivado(callable $get): bool
     {
         return (int) $get('tipo_transporte') === 1;
+    }
+
+    /**
+     * El punto de partida arranca en el local de la empresa. Los selects de
+     * departamento y provincia no se guardan, pero sin ellos la cascada del
+     * ubigeo se ve vacía aunque el código ya esté cargado.
+     */
+    protected function precargarPartida(): void
+    {
+        $empresa = static::empresaActual();
+        $ubigeo  = $empresa?->ubigeo;
+
+        if (blank($ubigeo)) {
+            return;
+        }
+
+        $partes = static::partesDeUbigeo($ubigeo);
+
+        $this->form->fill(array_merge($this->data ?? [], array_filter([
+            'dir_partida'                 => $empresa?->direccion,
+            'ubigeo_partida_departamento' => $partes['departamento'],
+            'ubigeo_partida_provincia'    => $partes['provincia'],
+            'ubigeo_partida'              => $ubigeo,
+        ], fn ($valor): bool => filled($valor))));
     }
 
     /** Empresa de la sesión, cacheada por request (la usan los defaults del form). */
@@ -271,14 +299,9 @@ class CreateGuiaRemision extends CreateRecord
                                     ->default(fn (): ?string => static::empresaActual()?->direccion)
                                     ->required()
                                     ->maxLength(220)
-                                    ->columnSpan(2),
+                                    ->columnSpanFull(),
 
-                                TextInput::make('ubigeo_partida')
-                                    ->label('Ubigeo')
-                                    ->default(fn (): ?string => static::empresaActual()?->ubigeo)
-                                    ->helperText('6 dígitos')
-                                    ->required()
-                                    ->maxLength(6),
+                                ...static::ubigeoSelector('ubigeo_partida', 'Distrito de partida'),
                             ]),
 
                         // ── Destino: a quién y a dónde llega ─────────────────
@@ -318,14 +341,9 @@ class CreateGuiaRemision extends CreateRecord
                                     ->label('Dirección de llegada')
                                     ->required()
                                     ->maxLength(220)
-                                    ->columnSpan(2),
+                                    ->columnSpanFull(),
 
-                                TextInput::make('ubigeo')
-                                    ->label('Ubigeo')
-                                    ->placeholder('150128')
-                                    ->helperText('6 dígitos')
-                                    ->required()
-                                    ->maxLength(6),
+                                ...static::ubigeoSelector('ubigeo', 'Distrito de llegada'),
                             ]),
 
                     ])->columnSpan(['default' => 1, 'xl' => 2]),

@@ -104,9 +104,28 @@ class UsuarioResource extends Resource
 
             Section::make('Acceso')->columns(2)->schema([
                 TextInput::make('usuario')
-                    ->label('Usuario')->required()->maxLength(60),
+                    ->label('Usuario')->required()->maxLength(60)
+                    ->unique(table: 'usuarios', column: 'usuario', ignoreRecord: true)
+                    ->validationMessages([
+                        'unique' => 'Ya existe un usuario con ese nombre de acceso. Elige otro.',
+                    ]),
                 TextInput::make('email')
-                    ->label('Email')->email()->maxLength(120),
+                    ->label('Email')->email()->maxLength(120)
+                    // Único solo si es nuevo o cambió: los duplicados legacy
+                    // existentes pueden seguir editándose sin tocar su correo.
+                    ->rule(fn (?User $record) => function (string $attribute, $value, \Closure $fail) use ($record): void {
+                        if (blank($value) || ($record && $record->email === $value)) {
+                            return;
+                        }
+
+                        $existe = User::where('email', $value)
+                            ->when($record, fn ($q) => $q->where('usuario_id', '<>', $record->usuario_id))
+                            ->exists();
+
+                        if ($existe) {
+                            $fail('Ya existe un usuario con ese correo.');
+                        }
+                    }),
                 TextInput::make('clave')
                     ->label('Contraseña')
                     ->password()

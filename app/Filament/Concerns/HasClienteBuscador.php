@@ -5,6 +5,7 @@ namespace App\Filament\Concerns;
 use App\Models\Cliente;
 use App\Models\TmsMercado;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -20,6 +21,8 @@ use Illuminate\Support\Facades\Http;
  */
 trait HasClienteBuscador
 {
+    use HasUbigeoSelector;
+
     /**
      * Campos del formulario de cliente — fuente única compartida entre el
      * botón "+" del buscador y la vista de Clientes. Incluye consulta SUNAT/RENIEC.
@@ -84,7 +87,16 @@ trait HasClienteBuscador
 
             TextInput::make('datos')->label('Razón Social / Nombre')->required()->maxLength(200)->columnSpanFull(),
             TextInput::make('direccion')->label('Dirección')->maxLength(200)->columnSpanFull(),
-            TextInput::make('distrito')->label('Distrito')->maxLength(100),
+
+            // Ubicación opcional. Guardamos el ubigeo (6 dígitos) y, por compatibilidad
+            // con lo que ya existe, replicamos el nombre del distrito en su columna.
+            ...static::ubigeoSelector(
+                campo: 'ubigeo',
+                etiqueta: 'Distrito',
+                requerido: false,
+                alElegir: fn ($state, callable $set) => $set('distrito', static::nombreDeDistrito($state)),
+            ),
+            Hidden::make('distrito'),
 
             Select::make('mercado')
                 ->label('Mercado / Zona (TMS)')

@@ -692,3 +692,15 @@ html {
     0%, 100% { transform: translateY(0); }
     50%       { transform: translateY(-10px); }
 }
+
+/* ============================================================
+   ESPACIO AL PIE DE LOS FORMULARIOS
+   ============================================================
+   Los desplegables de los selects se abren hacia abajo. Si el campo
+   queda al final de la página no hay dónde desplazarse y la lista se
+   corta contra el borde de la ventana. Este colchón le da recorrido.
+   ============================================================ */
+.fi-resource-create-record-page,
+.fi-resource-edit-record-page {
+    padding-bottom: 20rem;
+}

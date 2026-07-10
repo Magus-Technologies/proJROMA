@@ -13,7 +13,7 @@ class Cliente extends Model
     public    $timestamps = false;
 
     protected $fillable = [
-        'documento','datos','direccion','distrito','telefono',
+        'documento','datos','direccion','distrito','ubigeo','telefono',
         'dias_visitas','email','id_empresa','ultima_venta',
         'total_venta','id_ruta','mercado',
     ];

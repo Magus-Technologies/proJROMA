@@ -2,6 +2,7 @@
 
 namespace App\Filament\Concerns;
 
+use Closure;
 use Filament\Forms\Components\Select;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -24,14 +25,22 @@ use Illuminate\Support\Facades\DB;
  */
 trait HasUbigeoSelector
 {
-    /** @return array<int, Select> */
-    public static function ubigeoSelector(string $campo, string $etiqueta = 'Distrito', bool $requerido = true): array
-    {
+    /**
+     * @param  ?Closure  $alElegir  Se ejecuta al elegir distrito, con ($state, $set, $get).
+     * @return array<int, Select>
+     */
+    public static function ubigeoSelector(
+        string $campo,
+        string $etiqueta = 'Distrito',
+        bool $requerido = true,
+        ?Closure $alElegir = null,
+    ): array {
         $depto = "{$campo}_departamento";
         $prov  = "{$campo}_provincia";
 
         return [
             // Departamento y provincia son solo ayudas de navegación: no se guardan.
+            // Al editar un registro se reconstruyen desde el ubigeo ya almacenado.
             Select::make($depto)
                 ->label('Departamento')
                 ->options(fn (): array => static::departamentos())
@@ -39,6 +48,9 @@ trait HasUbigeoSelector
                 ->live()
                 ->dehydrated(false)
                 ->required($requerido)
+                ->afterStateHydrated(fn (Select $componente, callable $get) => $componente->state(
+                    static::partesDeUbigeo($get($campo))['departamento']
+                ))
                 ->afterStateUpdated(function (callable $set) use ($prov, $campo): void {
                     $set($prov, null);
                     $set($campo, null);
@@ -52,6 +64,9 @@ trait HasUbigeoSelector
                 ->dehydrated(false)
                 ->required($requerido)
                 ->disabled(fn (callable $get): bool => blank($get($depto)))
+                ->afterStateHydrated(fn (Select $componente, callable $get) => $componente->state(
+                    static::partesDeUbigeo($get($campo))['provincia']
+                ))
                 ->afterStateUpdated(fn (callable $set) => $set($campo, null)),
 
             // Este es el campo real: su valor ES el ubigeo de 6 dígitos.
@@ -59,10 +74,28 @@ trait HasUbigeoSelector
                 ->label($etiqueta)
                 ->options(fn (callable $get): array => static::distritos($get($depto), $get($prov)))
                 ->searchable()
+                ->live()
                 ->required($requerido)
                 ->disabled(fn (callable $get): bool => blank($get($prov)))
+                ->afterStateUpdated(function ($state, callable $set, callable $get) use ($alElegir): void {
+                    if ($alElegir) {
+                        $alElegir($state, $set, $get);
+                    }
+                })
                 ->helperText(fn (callable $get): ?string => filled($get($campo)) ? "Ubigeo: {$get($campo)}" : null),
         ];
+    }
+
+    /** Nombre del distrito a partir del ubigeo completo, para campos de texto derivados. */
+    public static function nombreDeDistrito(?string $ubigeo): ?string
+    {
+        $partes = static::partesDeUbigeo($ubigeo);
+
+        if (blank($partes['departamento'])) {
+            return null;
+        }
+
+        return static::distritos($partes['departamento'], $partes['provincia'])[$ubigeo] ?? null;
     }
 
     /**

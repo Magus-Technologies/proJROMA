@@ -22,9 +22,11 @@ class MotivosMovimientoSeeder extends Seeder
             // ── Automáticos (no eliminables) ──
             ['Compra',              'I', 1],
             ['Traslado entrada',    'I', 1],
+            ['Anulación traslado',  'I', 1],
             ['Préstamo recibido',   'I', 1],
             ['Venta',               'S', 1],
             ['Traslado salida',     'S', 1],
+            ['Anulación traslado',  'S', 1],
             ['Préstamo entregado',  'S', 1],
             // ── Manuales / ajustes (editables) ──
             ['Carga inicial',        'I', 0],

@@ -610,6 +610,32 @@ class ReportesController extends Controller
             "compra-{$documentoCompleto}.pdf"
         );
     }
+
+    public function trasladoPdf(int $id): \Illuminate\Http\Response
+    {
+        $traslado = \App\Models\Traslado::with('usuario')->findOrFail($id);
+
+        $empresa    = $this->getEmpresa() ?? Empresa::find($traslado->id_empresa);
+        $logoBase64 = $this->getLogoBase64($empresa);
+
+        $lineas = \Illuminate\Support\Facades\DB::table('traslado_detalle as td')
+            ->leftJoin('productos as p', 'p.id_producto', '=', 'td.id_producto')
+            ->where('td.id_traslado', $traslado->id_traslado)
+            ->orderBy('td.id_detalle')
+            ->get(['td.*', 'p.codigo', 'p.descripcion', 'p.medida', 'p.costo as costo_actual']);
+
+        $almacenes = \Illuminate\Support\Facades\DB::table('almacenes')
+            ->where('id_empresa', $traslado->id_empresa)
+            ->pluck('nombre', 'codigo');
+
+        $numero = \App\Filament\Resources\TrasladoResource::numeroDocumento((int) $traslado->id_traslado);
+
+        return PdfService::a4()->generar(
+            'pdf.traslado',
+            compact('traslado', 'empresa', 'logoBase64', 'lineas', 'almacenes', 'numero'),
+            "traslado-{$numero}.pdf"
+        );
+    }
     public function ingresosEgresos(int $id): \Illuminate\View\View{ return view('reportes.ingresos-egresos',compact('id')); }
     /**
      * Guías de reparto del despacho: un ticket PEDIDO (original + copia)

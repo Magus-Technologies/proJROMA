@@ -151,6 +151,71 @@ class VentaResource extends Resource
                         '0' => 'Anulada',
                     ]),
 
+                SelectFilter::make('id_tido')
+                    ->label('Tipo')
+                    ->options(fn (): array => DB::table('documentos_sunat')
+                        ->orderBy('id_tido')
+                        ->pluck('nombre', 'id_tido')
+                        ->toArray()),
+
+                SelectFilter::make('id_cliente')
+                    ->label('Cliente')
+                    ->relationship(
+                        'cliente',
+                        'datos',
+                        fn (Builder $query): Builder => $query->where('id_empresa', (int) session('id_empresa')),
+                    )
+                    ->searchable()
+                    ->optionsLimit(50),
+
+                SelectFilter::make('id_vendedor')
+                    ->label('Vendedor')
+                    ->options(fn (): array => \App\Models\User::where('id_empresa', (int) session('id_empresa'))
+                        ->where('estado', '1')
+                        ->orderBy('nombres')
+                        ->get()
+                        ->mapWithKeys(fn (\App\Models\User $u) => [$u->usuario_id => $u->nombre_completo])
+                        ->toArray())
+                    ->searchable(),
+
+                SelectFilter::make('sunat_estado')
+                    ->label('SUNAT')
+                    ->options([
+                        'aceptado'  => 'Aceptado',
+                        'rechazado' => 'Rechazado',
+                        'pendiente' => 'Pendiente',
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => $query
+                        ->when($data['value'] ?? null, fn (Builder $q, string $v): Builder => $v === 'pendiente'
+                            ? $q->where(fn (Builder $qq) => $qq
+                                ->whereNull('sunat_estado')
+                                ->orWhereNotIn('sunat_estado', ['aceptado', 'rechazado']))
+                            : $q->where('sunat_estado', $v))),
+
+                SelectFilter::make('despacho')
+                    ->label('Despacho')
+                    ->options([
+                        'CON' => 'Despachado',
+                        'SIN' => 'Sin despachar',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $vinculo = function ($sub): void {
+                            $sub->from('tms_despachos as d')
+                                ->join('tms_despacho_pedidos as dp', 'dp.id_despacho', '=', 'd.id')
+                                ->join('cotizaciones as c', 'c.cotizacion_id', '=', 'dp.id_cotizacion')
+                                ->where('d.estado', '<>', 'ANULADO')
+                                ->where(fn ($w) => $w
+                                    ->whereColumn('c.id_venta', 'ventas.id_venta')
+                                    ->orWhereColumn('c.cotizacion_id', 'ventas.id_coti'));
+                        };
+
+                        return match ($data['value'] ?? null) {
+                            'CON'   => $query->whereExists($vinculo),
+                            'SIN'   => $query->whereNotExists($vinculo),
+                            default => $query,
+                        };
+                    }),
+
                 Filter::make('fecha_emision')
                     ->form([
                         DatePicker::make('desde')->label('Desde'),

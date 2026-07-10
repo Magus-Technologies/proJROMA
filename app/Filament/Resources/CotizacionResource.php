@@ -65,6 +65,24 @@ class CotizacionResource extends Resource
                 SelectFilter::make('estado')
                     ->label('Estado')
                     ->options(['1' => 'Activa', '0' => 'Anulada', '3' => 'Facturado']),
+                SelectFilter::make('id_cliente')
+                    ->label('Cliente')
+                    ->relationship(
+                        'cliente',
+                        'datos',
+                        fn (Builder $query): Builder => $query->where('id_empresa', (int) session('id_empresa')),
+                    )
+                    ->searchable()
+                    ->optionsLimit(50),
+                SelectFilter::make('id_usuario')
+                    ->label('Vendedor')
+                    ->options(fn (): array => \App\Models\User::where('id_empresa', (int) session('id_empresa'))
+                        ->where('estado', '1')
+                        ->orderBy('nombres')
+                        ->get()
+                        ->mapWithKeys(fn (\App\Models\User $u) => [$u->usuario_id => $u->nombre_completo])
+                        ->toArray())
+                    ->searchable(),
                 Filter::make('fecha_rango')
                     ->label('Rango de fechas')
                     ->form([

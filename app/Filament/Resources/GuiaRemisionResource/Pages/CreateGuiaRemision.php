@@ -69,7 +69,46 @@ class CreateGuiaRemision extends CreateRecord
                     'precio'      => (float) $p->precio,
                 ])
                 ->toArray(),
-        ]));
+        ], static::transporteDesdeDespacho($venta)));
+    }
+
+    /**
+     * Si la venta pertenece a un despacho TMS activo, pre-carga el
+     * transporte: modalidad privada, placa del vehículo y datos del
+     * conductor asignados en el despacho.
+     */
+    protected static function transporteDesdeDespacho(Venta $venta): array
+    {
+        $despacho = DB::table('tms_despachos as d')
+            ->join('tms_despacho_pedidos as dp', 'dp.id_despacho', '=', 'd.id')
+            ->join('cotizaciones as c', 'c.cotizacion_id', '=', 'dp.id_cotizacion')
+            ->leftJoin('tms_vehiculos as v', 'v.id', '=', 'd.id_vehiculo')
+            ->leftJoin('tms_conductores as co', 'co.id', '=', 'd.id_conductor')
+            ->where('d.estado', '<>', 'ANULADO')
+            ->where(fn ($q) => $q
+                ->where('c.id_venta', $venta->id_venta)
+                ->orWhere('c.cotizacion_id', $venta->id_coti ?? 0))
+            ->orderByDesc('d.id')
+            ->first(['v.placa', 'co.documento', 'co.licencia', 'co.nombres']);
+
+        if (! $despacho || blank($despacho->placa)) {
+            return [];
+        }
+
+        // tms_conductores guarda el nombre completo en un solo campo:
+        // las 2 últimas palabras se toman como apellidos (editable luego).
+        $palabras  = preg_split('/\s+/', trim((string) $despacho->nombres)) ?: [];
+        $apellidos = count($palabras) >= 3 ? implode(' ', array_splice($palabras, -2)) : (count($palabras) === 2 ? array_pop($palabras) : null);
+        $nombres   = $palabras ? implode(' ', $palabras) : null;
+
+        return array_filter([
+            'tipo_transporte'     => '1', // Privado: vehículo propio del despacho
+            'vehiculo'            => $despacho->placa,
+            'conductor_documento' => preg_match('/^\d{8}$/', (string) $despacho->documento) ? $despacho->documento : null,
+            'conductor_licencia'  => $despacho->licencia,
+            'conductor_nombres'   => $nombres,
+            'conductor_apellidos' => $apellidos,
+        ], fn ($v) => filled($v));
     }
 
     /**
@@ -166,6 +205,13 @@ class CreateGuiaRemision extends CreateRecord
 
                                         if ($venta?->cliente?->direccion) {
                                             $set('dir_llegada', $venta->cliente->direccion);
+                                        }
+
+                                        // Transporte según el despacho de la venta
+                                        if ($venta) {
+                                            foreach (static::transporteDesdeDespacho($venta) as $campo => $valor) {
+                                                $set($campo, $valor);
+                                            }
                                         }
                                     })
                                     ->required(),

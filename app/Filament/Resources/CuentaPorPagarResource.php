@@ -14,6 +14,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Support\Exceptions\Halt;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -223,18 +224,28 @@ class CuentaPorPagarResource extends Resource
                                 $idCaja = $caja->id;
                                 $doc = trim("{$record->serie}-{$record->numero}", '-');
 
-                                app(CajaService::class)->registrarMovimiento([
-                                    'id_caja'          => $caja->id,
-                                    'tipo'             => 'EGRESO',
-                                    'categoria'        => 'COMPRA',
-                                    'descripcion'      => 'Pago compra ' . ($doc ?: "#{$record->id_compra}"),
-                                    'monto'            => (float) $data['monto'],
-                                    'fecha'            => $data['fecha'],
-                                    'instrumento_tipo' => $instrumentoTipo,
-                                    'instrumento_id'   => $instrumentoId,
-                                    'referencia'       => $data['referencia'] ?? null,
-                                    'id_usuario'       => (int) auth()->user()->usuario_id,
-                                ]);
+                                try {
+                                    app(CajaService::class)->registrarMovimiento([
+                                        'id_caja'          => $caja->id,
+                                        'tipo'             => 'EGRESO',
+                                        'categoria'        => 'COMPRA',
+                                        'descripcion'      => 'Pago compra ' . ($doc ?: "#{$record->id_compra}"),
+                                        'monto'            => (float) $data['monto'],
+                                        'fecha'            => $data['fecha'],
+                                        'instrumento_tipo' => $instrumentoTipo,
+                                        'instrumento_id'   => $instrumentoId,
+                                        'referencia'       => $data['referencia'] ?? null,
+                                        'id_usuario'       => (int) auth()->user()->usuario_id,
+                                    ]);
+                                } catch (\RuntimeException $e) {
+                                    Notification::make()->danger()
+                                        ->title('Saldo insuficiente')
+                                        ->body($e->getMessage())
+                                        ->persistent()
+                                        ->send();
+
+                                    throw new Halt();
+                                }
                             }
 
                             DiasCompra::create([

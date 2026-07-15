@@ -5,13 +5,14 @@ namespace App\Filament\Widgets;
 use App\Models\Venta;
 use Carbon\Carbon;
 use Filament\Widgets\ChartWidget;
+use Illuminate\Support\Facades\DB;
 
 class VentasChart extends ChartWidget
 {
     protected static ?int $sort = 2;
     protected int|string|array $columnSpan = 2;
     protected ?string $heading = 'Ventas — Últimos 30 días';
-    protected ?string $maxHeight = '260px';
+    protected ?string $maxHeight = '280px';
 
     protected function getType(): string
     {
@@ -26,7 +27,7 @@ class VentasChart extends ChartWidget
         $rows = Venta::deEmpresa($empresa)->deSucursal($sucursal)->activas()
             ->where('fecha_emision', '>=', now()->subDays(29))
             ->selectRaw('DATE(fecha_emision) as fecha, SUM(total) as total')
-            ->groupBy('fecha')->orderBy('fecha')
+            ->groupBy(DB::raw('DATE(fecha_emision)'))->orderBy('fecha')
             ->get();
 
         $labels = $rows->map(fn ($r) => Carbon::parse($r->fecha)->format('d/m'))->toArray();

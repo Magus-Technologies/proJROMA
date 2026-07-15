@@ -8,6 +8,7 @@ use App\Models\Cotizacion;
 use App\Models\Venta;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\DB;
 
 class StatsOverview extends StatsOverviewWidget
 {
@@ -39,7 +40,7 @@ class StatsOverview extends StatsOverviewWidget
         $ventasTrend = Venta::deEmpresa($empresa)->deSucursal($sucursal)->activas()
             ->where('fecha_emision', '>=', now()->subDays(6))
             ->selectRaw('DATE(fecha_emision) as d, SUM(total) as t')
-            ->groupBy('d')->orderBy('d')
+            ->groupBy(DB::raw('DATE(fecha_emision)'))->orderBy('d')
             ->pluck('t')->toArray();
 
         return [

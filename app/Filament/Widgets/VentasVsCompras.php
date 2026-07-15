@@ -12,7 +12,7 @@ class VentasVsCompras extends ChartWidget
     protected static ?int $sort = 4;
     protected int|string|array $columnSpan = 2;
     protected ?string $heading = 'Ventas vs Compras (Últimos 6 meses)';
-    protected ?string $maxHeight = '260px';
+    protected ?string $maxHeight = '280px';
 
     protected function getType(): string
     {

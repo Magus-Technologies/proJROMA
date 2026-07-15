@@ -14,7 +14,6 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
-use Filament\Support\Exceptions\Halt;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -214,6 +213,20 @@ class CuentaPorPagarResource extends Resource
                             return;
                         }
 
+                        $caja = static::cajaDelUsuario();
+                        if ($caja) {
+                            $saldoCaja = (float) $caja->saldo_actual;
+                            if ((float) $data['monto'] > $saldoCaja) {
+                                Notification::make()->danger()
+                                    ->title('Saldo insuficiente en caja')
+                                    ->body('El saldo disponible es S/ ' . number_format($saldoCaja, 2) . '.')
+                                    ->persistent()
+                                    ->send();
+
+                                return;
+                            }
+                        }
+
                         DB::transaction(function () use ($record, $data): void {
                             [$instrumentoTipo, $instrumentoId] = CajaService::mapInstrumento($data['metodo_pago'] ?? 'EFECTIVO');
 
@@ -224,28 +237,18 @@ class CuentaPorPagarResource extends Resource
                                 $idCaja = $caja->id;
                                 $doc = trim("{$record->serie}-{$record->numero}", '-');
 
-                                try {
-                                    app(CajaService::class)->registrarMovimiento([
-                                        'id_caja'          => $caja->id,
-                                        'tipo'             => 'EGRESO',
-                                        'categoria'        => 'COMPRA',
-                                        'descripcion'      => 'Pago compra ' . ($doc ?: "#{$record->id_compra}"),
-                                        'monto'            => (float) $data['monto'],
-                                        'fecha'            => $data['fecha'],
-                                        'instrumento_tipo' => $instrumentoTipo,
-                                        'instrumento_id'   => $instrumentoId,
-                                        'referencia'       => $data['referencia'] ?? null,
-                                        'id_usuario'       => (int) auth()->user()->usuario_id,
-                                    ]);
-                                } catch (\RuntimeException $e) {
-                                    Notification::make()->danger()
-                                        ->title('Saldo insuficiente')
-                                        ->body($e->getMessage())
-                                        ->persistent()
-                                        ->send();
-
-                                    throw new Halt();
-                                }
+                                app(CajaService::class)->registrarMovimiento([
+                                    'id_caja'          => $caja->id,
+                                    'tipo'             => 'EGRESO',
+                                    'categoria'        => 'COMPRA',
+                                    'descripcion'      => 'Pago compra ' . ($doc ?: "#{$record->id_compra}"),
+                                    'monto'            => (float) $data['monto'],
+                                    'fecha'            => $data['fecha'],
+                                    'instrumento_tipo' => $instrumentoTipo,
+                                    'instrumento_id'   => $instrumentoId,
+                                    'referencia'       => $data['referencia'] ?? null,
+                                    'id_usuario'       => (int) auth()->user()->usuario_id,
+                                ]);
                             }
 
                             DiasCompra::create([

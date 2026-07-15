@@ -7,7 +7,7 @@ use Filament\Widgets\Widget;
 
 class BajoStockWidget extends Widget
 {
-    protected static ?int $sort = 8;
+    protected static ?int $sort = 10;
     protected int|string|array $columnSpan = 1;
     protected string $view = 'filament.widgets.bajo-stock';
 

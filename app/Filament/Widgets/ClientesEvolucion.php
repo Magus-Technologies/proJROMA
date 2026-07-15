@@ -8,7 +8,7 @@ use Filament\Widgets\ChartWidget;
 
 class ClientesEvolucion extends ChartWidget
 {
-    protected static ?int $sort = 7;
+    protected static ?int $sort = 9;
     protected int|string|array $columnSpan = 1;
     protected ?string $heading = 'Clientes Registrados (6 meses)';
     protected ?string $maxHeight = '280px';

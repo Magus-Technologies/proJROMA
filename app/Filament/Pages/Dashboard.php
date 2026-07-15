@@ -4,8 +4,10 @@ namespace App\Filament\Pages;
 
 use App\Filament\Widgets\BajoStockWidget;
 use App\Filament\Widgets\ClientesEvolucion;
+use App\Filament\Widgets\CxcAgingChart;
 use App\Filament\Widgets\StatsOverview;
 use App\Filament\Widgets\TopClientesWidget;
+use App\Filament\Widgets\TopDeudoresWidget;
 use App\Filament\Widgets\TopProductos;
 use App\Filament\Widgets\UltimasVentasWidget;
 use App\Filament\Widgets\VentasChart;
@@ -33,6 +35,8 @@ class Dashboard extends BaseDashboard
             TopProductos::class,
             VentasVsCompras::class,
             VentasPorCategoria::class,
+            CxcAgingChart::class,
+            TopDeudoresWidget::class,
             TopClientesWidget::class,
             ClientesEvolucion::class,
             BajoStockWidget::class,

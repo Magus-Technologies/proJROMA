@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 
 class TopClientesWidget extends Widget
 {
-    protected static ?int $sort = 6;
+    protected static ?int $sort = 8;
     protected int|string|array $columnSpan = 1;
     protected string $view = 'filament.widgets.top-clientes';
 

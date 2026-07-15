@@ -86,7 +86,6 @@
             <x-nav-group icon="ti ti-credit-card" label="Cobranzas"
                          :active="request()->routeIs('cobranzas.*')">
                 <x-nav-link href="{{ route('cobranzas.index') }}"  icon="ti ti-credit-card"  label="Cuentas por Cobrar" />
-                <x-nav-link href="{{ route('cobranzas.deudas') }}" icon="ti ti-report-money" label="Reporte Deudas" />
                 @if(in_array($rol,[3,4]))
                     <x-nav-link href="{{ route('cobranzas.miscobros') }}" icon="ti ti-wallet" label="Mis Cobros" />
                 @endif

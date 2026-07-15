@@ -417,6 +417,93 @@ class ReportesController extends Controller
         );
     }
 
+    /**
+     * Reporte de Cuentas por Cobrar (deudas). Un solo módulo: la lista es la
+     * operativa y este reporte da la vista analítica (antigüedad + saldos + total).
+     */
+    public function reporteCuentasPorCobrar(\Illuminate\Http\Request $request): mixed
+    {
+        $request->validate([
+            'alcance' => 'required|in:pendientes,vencidas,pagadas,todas',
+            'formato' => 'required|in:xlsx,pdf',
+        ]);
+
+        $empresa  = (int) session('id_empresa');
+        $sucursal = (int) session('sucursal');
+        $hoy      = now()->startOfDay();
+
+        $query = \App\Models\DiasVenta::query()
+            ->with(['venta.cliente', 'venta.vendedor'])
+            ->whereHas('venta', fn ($q) => $q
+                ->where('id_empresa', $empresa)
+                ->where('sucursal', $sucursal)
+                ->where('estado', '!=', '0'));
+
+        match ($request->alcance) {
+            'pendientes' => $query->where('dias_ventas.estado', '0'),
+            'vencidas'   => $query->where('dias_ventas.estado', '0')
+                ->whereDate('dias_ventas.fecha', '<', $hoy->toDateString()),
+            'pagadas'    => $query->where('dias_ventas.estado', '1'),
+            default      => $query,
+        };
+
+        $cuotas = $query->orderBy('fecha')->get();
+
+        $abonadoDe = fn (\App\Models\DiasVenta $c): float =>
+            round((float) $c->abonos()->where('estado', 'ACTIVO')->sum('monto'), 2);
+
+        $filas = $cuotas->map(function (\App\Models\DiasVenta $c) use ($abonadoDe, $hoy): array {
+            $abonado = $abonadoDe($c);
+            $atraso  = ($c->estado === '0' && $c->fecha && $c->fecha->lt($hoy))
+                ? (int) $c->fecha->diffInDays($hoy)
+                : 0;
+
+            return [
+                $c->venta?->cliente?->datos ?? '—',
+                $c->venta ? "{$c->venta->serie}-" . str_pad((string) $c->venta->numero, 8, '0', STR_PAD_LEFT) : '—',
+                $c->fecha ? $c->fecha->format('d/m/Y') : '—',
+                $atraso > 0 ? "{$atraso}" : '—',
+                (float) $c->monto,
+                $abonado,
+                max(0, round((float) $c->monto - $abonado, 2)),
+            ];
+        })->toArray();
+
+        $totalMonto   = $cuotas->sum(fn ($c) => (float) $c->monto);
+        $totalAbonado = $cuotas->sum(fn ($c) => $abonadoDe($c));
+        $filas[]      = ['TOTAL', '', '', '', $totalMonto, $totalAbonado, max(0, round($totalMonto - $totalAbonado, 2))];
+
+        $etiquetaAlcance = [
+            'pendientes' => 'Pendientes', 'vencidas' => 'Vencidas',
+            'pagadas' => 'Pagadas', 'todas' => 'Todas',
+        ][$request->alcance];
+
+        $titulo    = 'Cuentas por Cobrar';
+        $cabeceras = ['Cliente', 'Documento', 'Fecha Venc.', 'Días atraso', 'Monto (S/)', 'Abonado (S/)', 'Saldo (S/)'];
+        $moneda    = [4, 5, 6];
+        $slug      = 'cuentas-por-cobrar-' . $request->alcance . '-' . now()->format('Y-m-d');
+
+        if ($request->formato === 'pdf') {
+            $empresaModel = $this->getEmpresa();
+
+            return PdfService::a4()->generar('pdf.reporte-generico', [
+                'titulo'            => $titulo,
+                'periodo'           => $etiquetaAlcance,
+                'cabeceras'         => $cabeceras,
+                'filas'             => $filas,
+                'columnasMoneda'    => $moneda,
+                'ultimaFilaEsTotal' => true,
+                'empresa'           => $empresaModel,
+                'logoBase64'        => $this->getLogoBase64($empresaModel),
+            ], "{$slug}.pdf");
+        }
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\ReporteGenericoExport("{$titulo} — {$etiquetaAlcance}", $cabeceras, $filas, $moneda, true),
+            "{$slug}.xlsx",
+        );
+    }
+
     public function reporteCotizaciones(\Illuminate\Http\Request $request): mixed
     {
         $request->validate([

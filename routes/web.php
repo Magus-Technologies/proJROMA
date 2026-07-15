@@ -69,7 +69,7 @@ Route::middleware('auth')->group(function () {
         'guias.index'           => '/panel/guia-remisions',
         'nota.electronica.lista' => '/panel/notas-electronicas',
         'cobranzas.index'       => '/panel/cuenta-por-cobrars',
-        'cobranzas.deudas'      => '/panel/reporte-deudas',
+        'cobranzas.deudas'      => '/panel/cuenta-por-cobrars',
         'cobranzas.miscobros'   => '/panel/mis-cobros',
         'pagos.index'           => '/panel/cuentas-por-pagar',
         'pago.instrumentos'     => '/panel/metodos-de-pago',
@@ -144,6 +144,7 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/clientes/{id}',    [ReportesController::class, 'reporteCliente'])->whereNumber('id')->name('cliente');
         Route::get('/clientes/xls',     [ClientesController::class, 'exportarExcel'])->name('clientes.xls');
         Route::get('/cotizaciones',     [ReportesController::class, 'reporteCotizaciones'])->name('cotizaciones');
+        Route::get('/cuentas-por-cobrar', [ReportesController::class, 'reporteCuentasPorCobrar'])->name('cuentas.cobrar');
         Route::get('/proveedores/xls',  [ProveedoresController::class, 'exportarExcel'])->name('proveedores.xls');
         Route::get('/ingresos/egresos/{id}', [ReportesController::class, 'ingresosEgresos'])->name('ingresos.egresos');
     });

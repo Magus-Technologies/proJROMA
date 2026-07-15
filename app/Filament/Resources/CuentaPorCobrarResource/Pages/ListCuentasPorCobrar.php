@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\CuentaPorCobrarResource\Pages;
 
 use App\Filament\Resources\CuentaPorCobrarResource;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Radio;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
@@ -31,6 +33,45 @@ class ListCuentasPorCobrar extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [];
+        return [
+            Action::make('reporte')
+                ->label('Reporte')
+                ->icon('heroicon-o-chart-bar')
+                ->color('success')
+                ->modalHeading('Reporte de cuentas por cobrar')
+                ->modalDescription('Elegí qué cuotas incluir y en qué formato descargarlo.')
+                ->modalWidth('md')
+                ->modalSubmitActionLabel('Descargar')
+                ->form([
+                    Radio::make('alcance')
+                        ->label('¿Qué cuotas incluir?')
+                        ->options([
+                            'pendientes' => 'Pendientes — todo lo que se debe',
+                            'vencidas'   => 'Vencidas — solo lo atrasado',
+                            'pagadas'    => 'Pagadas — ya cobradas',
+                            'todas'      => 'Todas',
+                        ])
+                        ->default('pendientes')
+                        ->required(),
+
+                    Radio::make('formato')
+                        ->label('Formato')
+                        ->options([
+                            'xlsx' => 'Excel (.xlsx)',
+                            'pdf'  => 'PDF',
+                        ])
+                        ->default('xlsx')
+                        ->inline()
+                        ->required(),
+                ])
+                ->action(function (array $data): void {
+                    $url = route('reporte.cuentas.cobrar', [
+                        'alcance' => $data['alcance'],
+                        'formato' => $data['formato'],
+                    ]);
+
+                    $this->js('window.open(' . json_encode($url) . ", '_blank')");
+                }),
+        ];
     }
 }

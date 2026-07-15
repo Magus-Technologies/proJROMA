@@ -13,8 +13,10 @@ use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -90,10 +92,20 @@ class CuentaPorCobrarResource extends Resource
                     ->weight(fn (DiasVenta $record): ?string =>
                         $record->estado !== '1' && $record->fecha?->isPast() ? 'bold' : null),
 
+                TextColumn::make('dias_atraso')
+                    ->label('Atraso')
+                    ->getStateUsing(fn (DiasVenta $record): string =>
+                        $record->estado !== '1' && $record->fecha?->isPast()
+                            ? (int) $record->fecha->diffInDays(now()) . ' d'
+                            : '—')
+                    ->badge()
+                    ->color(fn (string $state): string => $state === '—' ? 'gray' : 'danger'),
+
                 TextColumn::make('monto')
                     ->label('Monto')
                     ->money('PEN')
-                    ->sortable(),
+                    ->sortable()
+                    ->summarize(Sum::make()->label('Total')->money('PEN')),
 
                 TextColumn::make('abonado')
                     ->label('Abonado')
@@ -102,6 +114,13 @@ class CuentaPorCobrarResource extends Resource
                     ->color(fn ($state, DiasVenta $record): string => $state > 0
                         ? ($state + 0.001 >= (float) $record->monto ? 'success' : 'warning')
                         : 'gray'),
+
+                TextColumn::make('saldo')
+                    ->label('Saldo')
+                    ->money('PEN')
+                    ->getStateUsing(fn (DiasVenta $record): float => static::saldoCuota($record))
+                    ->weight('bold')
+                    ->color(fn ($state): string => $state > 0 ? 'danger' : 'success'),
 
                 TextColumn::make('estado')
                     ->label('Estado')
@@ -131,6 +150,11 @@ class CuentaPorCobrarResource extends Resource
                 TextColumn::make('venta.vendedor.nombre_completo')
                     ->label('Vendedor')
                     ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->groups([
+                Group::make('venta.cliente.datos')
+                    ->label('Cliente')
+                    ->collapsible(),
             ])
             ->filters([
                 SelectFilter::make('tipo_pago')

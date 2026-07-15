@@ -51,6 +51,7 @@ class TopProductos extends ChartWidget
     protected function getOptions(): array
     {
         return [
+            'maintainAspectRatio' => false,
             'indexAxis' => 'y',
             'plugins' => [
                 'legend' => ['display' => false],

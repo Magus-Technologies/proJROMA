@@ -2,7 +2,7 @@
     <x-filament::section>
         <x-slot name="heading">Top Clientes del Mes</x-slot>
 
-        <div class="space-y-3">
+        <div class="space-y-3" style="max-height: 280px; overflow-y: auto;">
             @forelse($topClientes as $i => $c)
                 <div class="flex items-center gap-3">
                     <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold

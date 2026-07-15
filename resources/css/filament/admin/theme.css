@@ -681,6 +681,23 @@ html {
 }
 
 /* ============================================================
+   DASHBOARD — altura uniforme de widgets
+   ============================================================
+   Chart.js mantiene la proporción del gráfico (2:1 en líneas/barras,
+   1:1 en doughnut), por lo que cada tarjeta quedaba con un alto
+   distinto según su ancho de columna. Se fija la misma altura al
+   lienzo de todos los charts (junto con maintainAspectRatio: false
+   en cada widget) y se estiran las tarjetas al alto de su fila.
+   ============================================================ */
+.fi-wi-widget,
+.fi-wi-widget > .fi-section {
+    height: 100%;
+}
+.fi-wi-chart .fi-wi-chart-canvas-ctn-no-aspect-ratio {
+    height: 280px;
+}
+
+/* ============================================================
    ANIMACIONES
    ============================================================ */
 @keyframes fadeUp {

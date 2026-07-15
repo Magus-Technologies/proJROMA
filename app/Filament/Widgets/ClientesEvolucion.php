@@ -57,6 +57,7 @@ class ClientesEvolucion extends ChartWidget
     protected function getOptions(): array
     {
         return [
+            'maintainAspectRatio' => false,
             'plugins' => ['legend' => ['display' => false]],
             'scales' => [
                 'x' => ['grid' => ['display' => false]],

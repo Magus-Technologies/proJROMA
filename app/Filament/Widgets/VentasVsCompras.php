@@ -62,6 +62,7 @@ class VentasVsCompras extends ChartWidget
     protected function getOptions(): array
     {
         return [
+            'maintainAspectRatio' => false,
             'plugins' => [
                 'legend' => [
                     'position' => 'top',

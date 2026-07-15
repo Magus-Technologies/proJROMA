@@ -54,6 +54,7 @@ class VentasChart extends ChartWidget
     protected function getOptions(): array
     {
         return [
+            'maintainAspectRatio' => false,
             'plugins' => [
                 'legend' => ['display' => false],
             ],

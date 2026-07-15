@@ -7,7 +7,7 @@
             </span>
         </x-slot>
 
-        <div class="divide-y divide-gray-50 dark:divide-gray-700 -mx-4 -mb-4">
+        <div class="divide-y divide-gray-50 dark:divide-gray-700 -mx-4 -mb-4" style="max-height: 280px; overflow-y: auto;">
             @forelse($bajoStock as $p)
                 <div class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
                     <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg

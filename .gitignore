@@ -33,7 +33,6 @@ pnpm-debug.log*
 /coverage
 /public/vendor
 /public/mix-manifest.json
-/public/build
 /public/css
 /public/js
 /public/manifest.json

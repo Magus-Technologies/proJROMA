@@ -132,19 +132,6 @@
             </tbody>
         </table>
 
-        <!-- Firmas -->
-        <table style="width:100%; border-collapse:collapse; margin-top:30px;">
-            <tr>
-                <td style="width:45%; text-align:center; vertical-align:bottom;">
-                    <div style="border-top:1px solid #333; padding-top:6px; font-size:8pt; font-weight:bold;">FIRMA Y SELLO REMITENTE</div>
-                </td>
-                <td style="width:10%;"></td>
-                <td style="width:45%; text-align:center; vertical-align:bottom;">
-                    <div style="border-top:1px solid #333; padding-top:6px; font-size:8pt; font-weight:bold;">FIRMA Y SELLO DESTINATARIO</div>
-                </td>
-            </tr>
-        </table>
-
         {{-- QR de SUNAT: solo existe si el XML ya fue firmado (necesita el hash) --}}
         @if (!empty($qr))
             <table style="width:100%; border-collapse:collapse; margin-top:10px;">

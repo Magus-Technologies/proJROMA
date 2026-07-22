@@ -49,11 +49,12 @@ class ReportesController extends Controller
             'pagos',
         ])->findOrFail($venta);
 
-        $empresa = $this->getEmpresa() ?? Empresa::find($v->id_empresa);
-        $qr      = \App\Support\QrSunat::deVenta($v);
+        $empresa    = $this->getEmpresa() ?? Empresa::find($v->id_empresa);
+        $qr         = \App\Support\QrSunat::deVenta($v);
+        $logoBase64 = $this->getLogoBase64($empresa);
 
         return PdfService::a4()
-            ->generar('pdf.comprobante', compact('v', 'empresa', 'qr'), "comprobante-{$v->documento_completo}.pdf");
+            ->generar('pdf.comprobante', compact('v', 'empresa', 'qr', 'logoBase64'), "comprobante-{$v->documento_completo}.pdf");
     }
 
     public function comprobanteVentaMa4(int $venta): \Illuminate\Http\Response
@@ -71,11 +72,12 @@ class ReportesController extends Controller
             'pagos',
         ])->findOrFail($voucher);
 
-        $empresa = $this->getEmpresa() ?? Empresa::find($v->id_empresa);
+        $empresa    = $this->getEmpresa() ?? Empresa::find($v->id_empresa);
+        $logoBase64 = $this->getLogoBase64($empresa);
 
         return PdfService::ticket()
             ->setOption('defaultFont', 'monospace')
-            ->generar('pdf.voucher8cm', compact('v', 'empresa'), "voucher-{$v->documento_completo}.pdf");
+            ->generar('pdf.voucher8cm', compact('v', 'empresa', 'logoBase64'), "voucher-{$v->documento_completo}.pdf");
     }
 
     public function voucher56cm(int $voucher): \Illuminate\Http\Response
@@ -122,11 +124,12 @@ class ReportesController extends Controller
             'venta.productosVenta.producto',
         ])->findOrFail($nota);
 
-        $empresa = $this->getEmpresa() ?? Empresa::find($nota->id_empresa);
-        $serie   = $nota->serie . '-' . str_pad($nota->numero, 8, '0', STR_PAD_LEFT);
+        $empresa    = $this->getEmpresa() ?? Empresa::find($nota->id_empresa);
+        $serie      = $nota->serie . '-' . str_pad($nota->numero, 8, '0', STR_PAD_LEFT);
+        $logoBase64 = $this->getLogoBase64($empresa);
 
         return PdfService::a4()
-            ->generar('pdf.nota-electronica', compact('nota', 'empresa'), "nota-{$serie}.pdf");
+            ->generar('pdf.nota-electronica', compact('nota', 'empresa', 'logoBase64'), "nota-{$serie}.pdf");
     }
     public function comprobanteCotizacion(int $coti): \Illuminate\Http\Response
     {

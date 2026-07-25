@@ -3,6 +3,7 @@
 use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\ComprasController;
 use App\Http\Controllers\ConsultaComprobanteController;
+use App\Http\Controllers\ContabilidadController;
 use App\Http\Controllers\CotizacionesController;
 use App\Http\Controllers\ProductosController;
 use App\Http\Controllers\ProveedoresController;
@@ -129,6 +130,12 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/usuarios',             [UsuariosController::class, 'index'])->name('usuarios.index');
         Route::get('/sucursales',           [SucursalController::class, 'index'])->name('admin.sucursales');
         Route::get('/administrarempresas',  [UsuariosController::class, 'adminEmpresas'])->name('admin.empresas');
+    });
+
+    // ── Contabilidad ───────────────────────────────────────────────────────
+    Route::middleware('auth')->prefix('contabilidad')->name('contabilidad.')->group(function () {
+        Route::post('/asientos/guardar', [\App\Http\Controllers\ContabilidadController::class, 'storeAsiento'])->name('asientos.store');
+        Route::post('/asientos/anular/{id}', [\App\Http\Controllers\ContabilidadController::class, 'anularAsiento'])->name('asientos.anular');
     });
 
     // ── Reportes ──────────────────────────────────────────────────────────

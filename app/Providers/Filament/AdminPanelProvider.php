@@ -87,6 +87,7 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Transporte (TMS)')->icon('heroicon-o-truck')->collapsed(),
                 NavigationGroup::make('Maestros')->icon('heroicon-o-users')->collapsed(),
                 NavigationGroup::make('Finanzas')->icon('heroicon-o-presentation-chart-bar')->collapsed(),
+                NavigationGroup::make('Contabilidad')->icon('heroicon-o-book-open')->collapsed(),
                 NavigationGroup::make('Administración')->icon('heroicon-o-cog-6-tooth')->collapsed(),
             ])
             ->navigationItems([

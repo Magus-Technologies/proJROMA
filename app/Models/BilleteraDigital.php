@@ -9,7 +9,7 @@ class BilleteraDigital extends Model
     protected $table = 'billeteras_digitales';
     protected $primaryKey = 'id_billetera';
     public $timestamps = true;
-    protected $fillable = ['id_empresa', 'id_billetera_tipo', 'id_cuenta_bancaria', 'telefono', 'titular', 'estado'];
+    protected $fillable = ['id_empresa', 'id_billetera_tipo', 'id_cuenta_bancaria', 'telefono', 'titular', 'qr', 'estado'];
 
     public function billeteraTipo()
     {

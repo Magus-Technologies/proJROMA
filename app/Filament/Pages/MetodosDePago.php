@@ -9,12 +9,14 @@ use App\Models\CuentaBancaria;
 use App\Models\Tarjeta;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Actions\EditAction;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -223,6 +225,10 @@ class MetodosDePago extends Page implements HasTable
                 TextColumn::make('cuentaBancaria.numero_cuenta')->label('Cuenta vinculada')->placeholder('—'),
                 TextColumn::make('telefono')->label('Teléfono')->placeholder('—'),
                 TextColumn::make('titular')->label('Titular'),
+                ImageColumn::make('qr')
+                    ->label('QR')
+                    ->size(48)
+                    ->extraImgAttributes(['style' => 'object-fit:cover;border-radius:6px']),
                 TextColumn::make('estado')->label('Estado')
                     ->badge()
                     ->getStateUsing(fn (BilleteraDigital $record): string => $record->estado === '1' ? 'Activo' : 'Inactivo')
@@ -242,6 +248,13 @@ class MetodosDePago extends Page implements HasTable
                                 ->pluck('label', 'id_cuenta')),
                         TextInput::make('telefono')->label('Teléfono')->required()->maxLength(15),
                         TextInput::make('titular')->label('Titular')->required()->maxLength(200),
+                        FileUpload::make('qr')
+                            ->label('Código QR')
+                            ->image()
+                            ->directory('qrs')
+                            ->visibility('public')
+                            ->maxSize(1024)
+                            ->acceptedFileTypes(['image/png', 'image/jpeg', 'image/webp']),
                         Toggle::make('estado')->label('Activo')->default(true),
                     ])
                     ->fillForm(fn (BilleteraDigital $record): array => [
@@ -249,6 +262,7 @@ class MetodosDePago extends Page implements HasTable
                         'id_cuenta_bancaria' => $record->id_cuenta_bancaria,
                         'telefono' => $record->telefono,
                         'titular' => $record->titular,
+                        'qr' => $record->qr,
                         'estado' => $record->estado === '1',
                     ])
                     ->action(function (BilleteraDigital $record, array $data): void {
@@ -319,6 +333,13 @@ class MetodosDePago extends Page implements HasTable
                                 ->pluck('label', 'id_cuenta')),
                         TextInput::make('telefono')->label('Teléfono')->required()->maxLength(15),
                         TextInput::make('titular')->label('Titular')->required()->maxLength(200),
+                        FileUpload::make('qr')
+                            ->label('Código QR')
+                            ->image()
+                            ->directory('qrs')
+                            ->visibility('public')
+                            ->maxSize(1024)
+                            ->acceptedFileTypes(['image/png', 'image/jpeg', 'image/webp']),
                         Toggle::make('estado')->label('Activo')->default(true),
                     ],
                     default => [

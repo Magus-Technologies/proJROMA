@@ -143,9 +143,12 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/compras/pdf/{id}', [ReportesController::class, 'reporteCompra'])->name('compra.pdf');
         Route::get('/clientes/{id}',    [ReportesController::class, 'reporteCliente'])->whereNumber('id')->name('cliente');
         Route::get('/clientes/xls',     [ClientesController::class, 'exportarExcel'])->name('clientes.xls');
+        Route::get('/clientes/plantilla', [ClientesController::class, 'descargarPlantilla'])->name('clientes.plantilla');
         Route::get('/cotizaciones',     [ReportesController::class, 'reporteCotizaciones'])->name('cotizaciones');
         Route::get('/cuentas-por-cobrar', [ReportesController::class, 'reporteCuentasPorCobrar'])->name('cuentas.cobrar');
         Route::get('/proveedores/xls',  [ProveedoresController::class, 'exportarExcel'])->name('proveedores.xls');
         Route::get('/ingresos/egresos/{id}', [ReportesController::class, 'ingresosEgresos'])->name('ingresos.egresos');
+        Route::get('/utilidades/pdf',   [ReportesController::class, 'utilidadesPdf'])->name('utilidades.pdf');
+        Route::get('/utilidades/xls',   [ReportesController::class, 'utilidadesExcel'])->name('utilidades.xls');
     });
 });

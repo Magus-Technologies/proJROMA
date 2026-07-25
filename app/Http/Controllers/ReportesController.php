@@ -2,14 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\UtilidadesExport;
 use App\Models\Cotizacion;
+use App\Models\Empresa;
 use App\Models\GuiaRemision;
 use App\Models\NotaElectronica;
 use App\Models\Venta;
-use App\Models\Empresa;
 use App\Models\DocumentoEmpresa;
 use App\Services\PdfService;
 use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ReportesController extends Controller
 {
@@ -926,6 +928,131 @@ class ReportesController extends Controller
                 $fin->toDateString(),
             ),
             "ventas-{$fecha}.xlsx",
+        );
+    }
+
+    public function utilidadesPdf(): \Illuminate\Http\Response
+    {
+        $empresa = $this->getEmpresa() ?? Empresa::find(session('id_empresa'));
+        $desde = request('desde', now()->startOfMonth()->format('Y-m-d'));
+        $hasta = request('hasta', now()->format('Y-m-d'));
+
+        $data = app(\App\Filament\Pages\Utilidades::class)->getData();
+
+        $secciones = [];
+
+        $secciones[] = [
+            'titulo' => 'Por Productos',
+            'cabeceras' => ['Producto', 'Cant.', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen'],
+            'cols_moneda' => [2, 3, 4],
+            'cols_pct' => [5],
+            'total' => [
+                'TOTAL', $data['por_producto']->sum('cantidad'),
+                $data['por_producto']->sum('venta'), $data['por_producto']->sum('costo'),
+                $data['por_producto']->sum('utilidad'), $data['margen_general'],
+            ],
+            'filas' => $data['por_producto']->map(fn ($r) => [
+                'producto' => $r['descripcion'],
+                'cantidad' => $r['cantidad'],
+                'venta' => $r['venta'],
+                'costo' => $r['costo'],
+                'utilidad' => $r['utilidad'],
+                'margen' => $r['margen'],
+            ])->toArray(),
+        ];
+
+        $secciones[] = [
+            'titulo' => 'Por Ventas',
+            'cabeceras' => ['Documento', 'Fecha', 'Cliente', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen'],
+            'cols_moneda' => [3, 4, 5],
+            'cols_pct' => [6],
+            'total' => [
+                '', '', 'TOTAL (' . $data['por_venta']->count() . ' ventas)',
+                $data['por_venta']->sum('venta'), $data['por_venta']->sum('costo'),
+                $data['por_venta']->sum('utilidad'), $data['margen_general'],
+            ],
+            'filas' => $data['por_venta']->map(fn ($r) => [
+                'doc' => $r['documento'], 'fecha' => $r['fecha'], 'cliente' => $r['cliente'],
+                'venta' => $r['venta'], 'costo' => $r['costo'], 'utilidad' => $r['utilidad'], 'margen' => $r['margen'],
+            ])->toArray(),
+        ];
+
+        $secciones[] = [
+            'titulo' => 'Por Mercados',
+            'cabeceras' => ['Mercado', 'Cant.', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen'],
+            'cols_moneda' => [2, 3, 4],
+            'cols_pct' => [5],
+            'total' => [
+                'TOTAL', $data['por_mercado']->sum('cantidad'),
+                $data['por_mercado']->sum('venta'), $data['por_mercado']->sum('costo'),
+                $data['por_mercado']->sum('utilidad'), $data['margen_general'],
+            ],
+            'filas' => $data['por_mercado']->map(fn ($r) => [
+                'mercado' => $r['mercado'], 'cantidad' => $r['cantidad'],
+                'venta' => $r['venta'], 'costo' => $r['costo'], 'utilidad' => $r['utilidad'], 'margen' => $r['margen'],
+            ])->toArray(),
+        ];
+
+        $secciones[] = [
+            'titulo' => 'Por Rutas',
+            'cabeceras' => ['Ruta', 'Cant.', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen'],
+            'cols_moneda' => [2, 3, 4],
+            'cols_pct' => [5],
+            'total' => [
+                'TOTAL', $data['por_ruta']->sum('cantidad'),
+                $data['por_ruta']->sum('venta'), $data['por_ruta']->sum('costo'),
+                $data['por_ruta']->sum('utilidad'), $data['margen_general'],
+            ],
+            'filas' => $data['por_ruta']->map(fn ($r) => [
+                'ruta' => $r['ruta'], 'cantidad' => $r['cantidad'],
+                'venta' => $r['venta'], 'costo' => $r['costo'], 'utilidad' => $r['utilidad'], 'margen' => $r['margen'],
+            ])->toArray(),
+        ];
+
+        $secciones[] = [
+            'titulo' => 'Por Fechas',
+            'cabeceras' => ['Fecha', 'Cant.', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen'],
+            'cols_moneda' => [2, 3, 4],
+            'cols_pct' => [5],
+            'total' => [
+                'TOTAL', $data['por_fecha']->sum('cantidad'),
+                $data['por_fecha']->sum('venta'), $data['por_fecha']->sum('costo'),
+                $data['por_fecha']->sum('utilidad'), $data['margen_general'],
+            ],
+            'filas' => $data['por_fecha']->map(fn ($r) => [
+                'fecha' => \Carbon\Carbon::parse($r['fecha'])->format('d/m/Y'),
+                'cantidad' => $r['cantidad'],
+                'venta' => $r['venta'], 'costo' => $r['costo'], 'utilidad' => $r['utilidad'], 'margen' => $r['margen'],
+            ])->toArray(),
+        ];
+
+        $usuario = auth()->user()?->nombre_completo ?? '';
+
+        return PdfService::a4()
+            ->setMargins(12, 12, 10, 10)
+            ->descargar('pdf.utilidades', [
+                'empresa'  => $empresa,
+                'titulo'   => 'Reporte de Utilidades',
+                'periodo'  => $desde . ' al ' . $hasta,
+                'resumen'  => $data,
+                'secciones' => $secciones,
+                'usuario'  => $usuario,
+            ], "utilidades-{$desde}-{$hasta}.pdf");
+    }
+
+    public function utilidadesExcel(): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $desde = request('desde', now()->startOfMonth()->format('Y-m-d'));
+        $hasta = request('hasta', now()->format('Y-m-d'));
+
+        return Excel::download(
+            new UtilidadesExport(
+                (int) session('id_empresa'),
+                (int) session('sucursal'),
+                $desde,
+                $hasta,
+            ),
+            "utilidades-{$desde}-{$hasta}.xlsx",
         );
     }
 }

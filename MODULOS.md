@@ -74,6 +74,63 @@
 
 ---
 
+## Módulo Finanzas (En desarrollo)
+
+Grupo en sidebar: **Finanzas**
+
+### 1. Estado de Resultados (P&L) ✅
+Página implementada en `Finanzas > Estado de Resultados`.
+- Ventas Netas, Costo de Ventas, Utilidad Bruta, Gastos Operativos, Utilidad Neta
+- KPIs: Margen Bruto %, Margen Neto %
+- Filtros: Este Mes, Mes Anterior, 3M, 6M, Este Año
+- Gráfico evolución 6 meses (Ventas vs Costos vs Utilidad)
+- Tabla P&L estilo contable
+
+### 2. Análisis de Márgenes ✅
+Página implementada en `Finanzas > Análisis de Márgenes`.
+- Margen general del período
+- Top 15 productos por margen
+- Margen por vendedor
+- Alertas: productos con margen bajo (&lt; 10%) y margen negativo
+- Datos del mes actual con desglose venta/costo/margen
+
+### 3. Costeo y Rentabilidad de Productos (Pendiente)
+- Costo promedio ponderado / FIFO
+- Rentabilidad por SKU
+- Alertas de productos con margen bajo o negativo
+
+### 4. Presupuestos (Pendiente)
+- Presupuesto de ventas vs real
+- Presupuesto de gastos vs real
+- Proyecciones
+
+### 5. Flujo de Caja (Cash Flow) ✅
+Página implementada en `Finanzas > Flujo de Caja`.
+- Saldo actual en caja
+- Cuentas por Cobrar (por vencer / vencido)
+- Cuentas por Pagar (por vencer / vencido)
+- Proyección a 30, 60 y 90 días
+- Flujo neto proyectado
+
+### 6. Cuentas por Cobrar / Pagar (Pendiente)
+- Antigüedad de saldos (aging)
+- Clientes / proveedores con mayor exposición
+
+### 7. Indicadores Financieros (KPIs) ✅
+Página implementada en `Finanzas > Indicadores Financieros`.
+- Ventas del Mes, Utilidad Bruta, Utilidad Neta, EBITDA
+- Margen Bruto %, Margen Neto %, ROI %
+- Liquidez Corriente, Rotación de Inventario
+- Punto de Equilibrio, Costo de Inventario
+- Tabla resumen con interpretación automática (✅/⚠️/❌)
+
+### 8. Reportes Comparativos (Pendiente)
+- Año vs año, mes vs mes
+- Real vs presupuestado
+- Por sucursal / almacén
+
+---
+
 ## Módulo de Contabilidad Simple (Propuesto)
 
 No existe actualmente. Propuesta mínima:
@@ -95,29 +152,5 @@ Vista de todos los asientos contables ordenados por fecha.
 Sumas y saldos de todas las cuentas (deudor/acreedor).
 
 ### 5. Estados Financieros Básicos
-- **Balance General** — Activo, Pasivo y Patrimonio
-- **Estado de Resultados** — Ingresos, Gastos y Utilidad Neta
-
-### 6. Reporte de Rentabilidad
-- Margen bruto (Ventas - Costo de Ventas)
-- Margen neto (Utilidad Neta / Ventas)
-- Variación vs mes anterior
-
----
-
-## Dashboard Ejecutivo (Propuesto)
-
-Indicadores clave para saber "cómo va la empresa":
-
-| Indicador | Fuente |
-|-----------|--------|
-| Utilidad Bruta del Mes | Ventas - Costo de Ventas |
-| Utilidad Neta del Mes | Ingresos - Gastos |
-| Margen de Ganancia % | (Utilidad Bruta / Ventas) × 100 |
-| Ratio de Liquidez | Efectivo / Pasivo Corriente |
-| CxC Vencido % | (CxC vencido / Total CxC) × 100 |
-| Rotación de Inventario | Costo Ventas / Inventario Promedio |
-| Gastos Operativos | Suma de gastos del período |
-| Variación vs Mes Anterior | % de cambio en ventas/utilidad |
-| Proyección de Ventas | Tendencia basada en datos históricos |
-| EBITDA Estimado | Utilidad Operativa + Depreciación |
+- **Estado de Resultados** ✅ — Ya implementado en Finanzas
+- **Balance General** — Pendiente

@@ -126,10 +126,12 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
     Route::get('/proveedores',  [ProveedoresController::class, 'index'])->name('proveedores.index');
 
     // ── Admin ─────────────────────────────────────────────────────────────
+    // UsuariosController/SucursalController ya no existen (módulos migrados a
+    // Filament); se conservan los nombres de ruta para el layout Blade viejo.
     Route::middleware('auth')->group(function () {
-        Route::get('/usuarios',             [UsuariosController::class, 'index'])->name('usuarios.index');
-        Route::get('/sucursales',           [SucursalController::class, 'index'])->name('admin.sucursales');
-        Route::get('/administrarempresas',  [UsuariosController::class, 'adminEmpresas'])->name('admin.empresas');
+        Route::get('/usuarios',             fn () => redirect(url('/panel/usuarios')))->name('usuarios.index');
+        Route::get('/sucursales',           fn () => redirect(url('/panel/sucursales')))->name('admin.sucursales');
+        Route::get('/administrarempresas',  fn () => redirect(url('/panel/empresas')))->name('admin.empresas');
     });
 
     // ── Contabilidad ───────────────────────────────────────────────────────

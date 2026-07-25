@@ -1,3 +1,9 @@
+# PHP 8.3 en el hosting cPanel (mod_lsapi). El Apache local no carga
+# lsapi_module, así que este bloque se ignora en desarrollo.
+<IfModule lsapi_module>
+    AddHandler application/x-httpd-ea-php83 .php
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

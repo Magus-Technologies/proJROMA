@@ -30,6 +30,12 @@ class LibroMayor extends Page
         if ($cuentaId) {
             $cuenta = PlanCuenta::find($cuentaId);
 
+            // El saldo se muestra según la NATURALEZA de la cuenta: las
+            // deudoras (activo/costo/gasto) acumulan Debe − Haber y las
+            // acreedoras (pasivo/patrimonio/ingreso) Haber − Debe, para que
+            // una cuenta como Ventas no aparezca con saldo "negativo".
+            $deudora = $cuenta?->esNaturalezaDeudora() ?? true;
+
             $detalles = AsientoDetalle::where('plan_cuenta_id', $cuentaId)
                 ->whereHas('asiento', fn ($q) => $q->where('estado', '!=', 'anulado')
                     ->whereBetween('fecha', [$desde, $hasta]))
@@ -38,15 +44,16 @@ class LibroMayor extends Page
                 ->orderBy(AsientoContable::select('numero')->whereColumn('id', 'asientos_detalle.asiento_id'))
                 ->get();
 
-            $saldoAntes = AsientoDetalle::where('plan_cuenta_id', $cuentaId)
+            $netoAntes = AsientoDetalle::where('plan_cuenta_id', $cuentaId)
                 ->whereHas('asiento', fn ($q) => $q->where('estado', '!=', 'anulado')
                     ->where('fecha', '<', $desde))
                 ->selectRaw('COALESCE(SUM(debe),0) - COALESCE(SUM(haber),0) as saldo')
                 ->value('saldo') ?? 0;
+            $saldoAntes = $deudora ? (float) $netoAntes : -(float) $netoAntes;
 
             $saldoAcum = $saldoAntes;
-            $rows = $detalles->map(function ($d) use (&$saldoAcum) {
-                $saldoAcum += ($d->debe - $d->haber);
+            $rows = $detalles->map(function ($d) use (&$saldoAcum, $deudora) {
+                $saldoAcum += $deudora ? ($d->debe - $d->haber) : ($d->haber - $d->debe);
                 return [
                     'fecha' => $d->asiento?->fecha,
                     'numero' => $d->asiento?->numero,

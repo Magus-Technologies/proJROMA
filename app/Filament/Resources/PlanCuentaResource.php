@@ -91,6 +91,13 @@ class PlanCuentaResource extends Resource
                     ->formatStateUsing(fn ($record) => $record->padre?->codigo . ' - ' . $record->padre?->nombre)
                     ->badge()
                     ->color('gray'),
+                TextColumn::make('saldo_actual')
+                    ->label('Saldo actual')
+                    ->getStateUsing(fn (PlanCuenta $record): float => $record->saldoActual())
+                    ->money('PEN')
+                    ->alignRight()
+                    ->color(fn ($state): ?string => $state < 0 ? 'danger' : null)
+                    ->tooltip('Saldo según la naturaleza de la cuenta (asientos no anulados)'),
                 ToggleColumn::make('estado')
                     ->label('Activo'),
             ])

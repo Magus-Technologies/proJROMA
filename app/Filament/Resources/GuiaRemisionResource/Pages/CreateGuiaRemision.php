@@ -6,6 +6,7 @@ use App\Filament\Resources\GuiaRemisionResource;
 use App\Models\Empresa;
 use App\Models\GuiaDetalle;
 use App\Models\GuiaRemision;
+use App\Models\Producto;
 use App\Models\ProductoVenta;
 use App\Models\Venta;
 use Filament\Actions\Action;
@@ -59,20 +60,14 @@ class CreateGuiaRemision extends CreateRecord
             return;
         }
 
+        $productos = static::productosDeVenta($venta->id_venta);
+
         $this->form->fill(array_merge($this->data ?? [], [
             'id_venta'      => $venta->id_venta,
             'fecha_emision' => now()->toDateString(),
             'dir_llegada'   => $venta->cliente?->direccion,
-            'productos'     => ProductoVenta::where('id_venta', $venta->id_venta)
-                ->get()
-                ->map(fn (ProductoVenta $p): array => [
-                    'id_producto' => $p->id_producto,
-                    'detalles'    => $p->descripcion,
-                    'unidad'      => 'NIU',
-                    'cantidad'    => (float) $p->cantidad,
-                    'precio'      => (float) $p->precio,
-                ])
-                ->toArray(),
+            'productos'     => $productos,
+            'peso'          => static::pesoTotal($productos),
         ], static::transporteDesdeDespacho($venta)));
     }
 
@@ -156,6 +151,39 @@ class CreateGuiaRemision extends CreateRecord
         ], fn ($valor): bool => filled($valor))));
     }
 
+    /**
+     * Productos de una venta para el repetidor de la guía, con el peso unitario
+     * (peso_bruto del producto) para poder calcular el peso total del traslado.
+     *
+     * @return list<array<string, mixed>>
+     */
+    protected static function productosDeVenta(int $idVenta): array
+    {
+        $lineas = ProductoVenta::where('id_venta', $idVenta)->get();
+
+        $pesos = Producto::whereIn('id_producto', $lineas->pluck('id_producto'))
+            ->pluck('peso_bruto', 'id_producto');
+
+        return $lineas->map(fn (ProductoVenta $p): array => [
+            'id_producto'   => $p->id_producto,
+            'detalles'      => $p->descripcion,
+            'unidad'        => 'NIU',
+            'cantidad'      => (float) $p->cantidad,
+            'precio'        => (float) $p->precio,
+            'peso_unitario' => (float) ($pesos[$p->id_producto] ?? 0),
+        ])->toArray();
+    }
+
+    /** Peso total del traslado: suma de peso_bruto × cantidad. Nunca 0 (SUNAT exige > 0). */
+    protected static function pesoTotal(?array $productos): float
+    {
+        $total = collect($productos ?? [])->sum(
+            fn (array $l): float => (float) ($l['peso_unitario'] ?? 0) * (float) ($l['cantidad'] ?? 0)
+        );
+
+        return round($total, 3) ?: 1;
+    }
+
     /** Empresa de la sesión, cacheada por request (la usan los defaults del form). */
     protected static function empresaActual(): ?Empresa
     {
@@ -220,16 +248,9 @@ class CreateGuiaRemision extends CreateRecord
 
                                         $venta = Venta::with('cliente')->find($state);
 
-                                        $set('productos', ProductoVenta::where('id_venta', $state)
-                                            ->get()
-                                            ->map(fn (ProductoVenta $p): array => [
-                                                'id_producto' => $p->id_producto,
-                                                'detalles'    => $p->descripcion,
-                                                'unidad'      => 'NIU',
-                                                'cantidad'    => (float) $p->cantidad,
-                                                'precio'      => (float) $p->precio,
-                                            ])
-                                            ->toArray());
+                                        $productos = static::productosDeVenta((int) $state);
+                                        $set('productos', $productos);
+                                        $set('peso', static::pesoTotal($productos));
 
                                         if ($venta?->cliente?->direccion) {
                                             $set('dir_llegada', $venta->cliente->direccion);
@@ -264,6 +285,11 @@ class CreateGuiaRemision extends CreateRecord
                                     ->defaultItems(0)
                                     ->addable(false)
                                     ->reorderable(false)
+                                    ->live()
+                                    ->afterStateUpdated(function (?array $state, callable $set): void {
+                                        // Recalcular el peso total al cambiar cantidades o quitar líneas.
+                                        $set('peso', static::pesoTotal($state));
+                                    })
                                     ->table([
                                         TableColumn::make('Producto'),
                                         TableColumn::make('Unidad')->width('100px'),
@@ -272,6 +298,8 @@ class CreateGuiaRemision extends CreateRecord
                                     ->schema([
                                         Hidden::make('id_producto'),
                                         Hidden::make('precio'),
+                                        // Peso bruto del producto (kg por unidad), para el peso total.
+                                        Hidden::make('peso_unitario'),
 
                                         TextInput::make('detalles')
                                             ->hiddenLabel()
@@ -286,6 +314,7 @@ class CreateGuiaRemision extends CreateRecord
                                             ->hiddenLabel()
                                             ->numeric()
                                             ->minValue(0.001)
+                                            ->live(onBlur: true)
                                             ->required(),
                                     ]),
                             ]),
@@ -395,6 +424,7 @@ class CreateGuiaRemision extends CreateRecord
 
                                 TextInput::make('peso')
                                     ->label('Peso total (kg)')
+                                    ->helperText('Se calcula del peso de los productos. Podés ajustarlo.')
                                     ->numeric()
                                     ->minValue(0.001)
                                     ->default(1)

@@ -84,8 +84,10 @@ class PdfService
 
     public static function ticket(float $width = 226.77, float $height = 900): static
     {
+        // Márgenes laterales de ~1 cm (28.35 pt) para que el contenido no quede
+        // pegado a los bordes del papel; arriba/abajo chicos.
         return (new static())
             ->setPaper($width, $height)
-            ->setMargins(5, 5, 5, 5);
+            ->setMargins(6, 6, 28, 28);
     }
 }

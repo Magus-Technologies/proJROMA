@@ -8,6 +8,12 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // La tabla ya existe en las bases heredadas; solo la creamos en un
+        // entorno limpio (ej. una instalación nueva o los tests).
+        if (Schema::hasTable('dias_ventas')) {
+            return;
+        }
+
         Schema::create('dias_ventas', function (Blueprint $table) {
             $table->integer('dias_venta_id', true)->primary();
             $table->integer('id_venta')->nullable()->index();

@@ -41,9 +41,13 @@ class EstadoResultados extends Page
             ->whereBetween(DB::raw('STR_TO_DATE(fecha_emision, "%Y-%m-%d")'), [$desde, $hasta])
             ->sum(DB::raw('CAST(total AS DECIMAL(12,2))'));
 
+        // Solo gastos operativos: la compra de mercadería ya está en el costo
+        // de ventas (restarla aquí duplicaría el costo) y los movimientos
+        // internos de caja no son gasto.
         $gastos = CajaMovimiento::where('tipo', 'EGRESO')
             ->where('estado', 'CONFIRMADO')
             ->whereHas('caja', fn ($q) => $q->where('id_empresa', $empresa))
+            ->whereNotIn('categoria', Utilidades::CATEGORIAS_NO_GASTO)
             ->whereBetween('fecha', [$desde, $hasta])
             ->sum('monto');
 

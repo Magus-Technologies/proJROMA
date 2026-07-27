@@ -42,9 +42,12 @@ class IndicadoresFinancieros extends Page
             ->selectRaw('SUM(productos_ventas.costo * productos_ventas.cantidad) as total')
             ->value('total') ?? 0);
 
+        // Solo gastos operativos: la compra de mercadería ya está en el costo
+        // de ventas y los movimientos internos de caja no son gasto.
         $gastosMes = (float) CajaMovimiento::where('tipo', 'EGRESO')
             ->where('estado', 'CONFIRMADO')
             ->whereHas('caja', fn ($q) => $q->where('id_empresa', $empresa))
+            ->whereNotIn('categoria', Utilidades::CATEGORIAS_NO_GASTO)
             ->whereMonth('fecha', now()->month)
             ->whereYear('fecha', now()->year)
             ->sum('monto');
@@ -245,7 +248,7 @@ class IndicadoresFinancieros extends Page
                 'items' => [
                     ['label' => 'Ventas del Mes', 'valor' => $soles($d['ventas_mes']), 'formula' => 'Suma de ventas activas del mes', 'nota' => $notaVentas, 'estado' => $estVentas],
                     ['label' => 'Costo de Ventas', 'valor' => $soles($d['costo_mes']), 'formula' => 'Costo × cantidad de cada producto vendido', 'nota' => 'Lo que costó la mercadería vendida en el mes.', 'estado' => 'info'],
-                    ['label' => 'Gastos del Mes', 'valor' => $soles($d['gastos_mes']), 'formula' => 'Egresos de caja confirmados del mes', 'nota' => 'Incluye todos los egresos operativos registrados en caja.', 'estado' => 'info'],
+                    ['label' => 'Gastos del Mes', 'valor' => $soles($d['gastos_mes']), 'formula' => 'Egresos operativos de caja del mes', 'nota' => 'Excluye la compra de mercadería (ya está en el costo de ventas) y los movimientos internos de caja.', 'estado' => 'info'],
                     ['label' => 'Utilidad Bruta', 'valor' => $soles($d['utilidad_bruta']), 'formula' => 'Ventas − Costo de ventas', 'nota' => $notaUtilBruta, 'estado' => $estUtilBruta],
                     ['label' => 'Margen Bruto', 'valor' => $d['margen_bruto'] . '%', 'formula' => 'Utilidad bruta ÷ Ventas × 100', 'nota' => $notaMargenBruto, 'estado' => $estMargenBruto],
                     ['label' => 'Utilidad Neta', 'valor' => $soles($d['utilidad_neta']), 'formula' => 'Utilidad bruta − Gastos', 'nota' => $notaUtilNeta, 'estado' => $estUtilNeta],

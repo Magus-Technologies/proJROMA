@@ -59,9 +59,9 @@
     <table class="kpis">
         <tr>
             <td class="label">Ventas</td>
-            <td class="label">Costo Total</td>
-            <td class="label">Utilidad</td>
-            <td class="label">Margen General</td>
+            <td class="label">Costo de Ventas</td>
+            <td class="label">Utilidad Bruta</td>
+            <td class="label">Margen Bruto</td>
         </tr>
         <tr>
             <td class="value" style="color:#2563eb;">S/ {{ number_format($resumen['total_venta'], 2) }}</td>
@@ -73,7 +73,29 @@
                 {{ $resumen['margen_general'] }}%
             </td>
         </tr>
+        <tr>
+            <td class="label">(−) Gastos Operativos</td>
+            <td class="label">= Utilidad Operativa</td>
+            <td class="label">= Utilidad Neta (est.)</td>
+            <td class="label">Margen Neto</td>
+        </tr>
+        <tr>
+            <td class="value" style="color:#ca8a04;">S/ {{ number_format($resumen['gastos_operativos'] ?? 0, 2) }}</td>
+            <td class="value" style="color:{{ ($resumen['utilidad_operativa'] ?? 0) >= 0 ? '#16a34a' : '#dc2626' }};">
+                S/ {{ number_format($resumen['utilidad_operativa'] ?? 0, 2) }}
+            </td>
+            <td class="value" style="color:{{ ($resumen['utilidad_neta'] ?? 0) >= 0 ? '#16a34a' : '#dc2626' }};">
+                S/ {{ number_format($resumen['utilidad_neta'] ?? 0, 2) }}
+            </td>
+            <td class="value" style="color:{{ ($resumen['margen_neto'] ?? 0) >= 10 ? '#16a34a' : (($resumen['margen_neto'] ?? 0) >= 0 ? '#ca8a04' : '#dc2626') }};">
+                {{ $resumen['margen_neto'] ?? 0 }}%
+            </td>
+        </tr>
     </table>
+    <div style="font-size:6.5pt;color:#999;font-style:italic;margin:-6px 0 10px 0;">
+        Las tablas siguientes muestran utilidad bruta (Venta − Costo): los gastos operativos no son atribuibles por producto/mercado/ruta.
+        Gastos financieros e impuestos aún no se registran en el sistema. Montos incluyen IGV.
+    </div>
 
     @foreach($secciones as $sec)
         <div class="section-title">{{ $sec['titulo'] }}</div>

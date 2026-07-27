@@ -48,19 +48,67 @@
                 <p class="mt-1 text-xl font-bold text-yellow-700 dark:text-yellow-300">S/ {{ number_format($data['total_costo'], 2) }}</p>
             </div>
             <div class="rounded-xl border-l-4 border-{{ $data['total_utilidad'] >= 0 ? 'green' : 'red' }}-500 bg-white dark:bg-gray-800 shadow-sm p-4">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Utilidad</p>
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Utilidad Bruta</p>
                 <p class="mt-1 text-xl font-bold text-{{ $data['total_utilidad'] >= 0 ? 'green' : 'red' }}-700 dark:text-{{ $data['total_utilidad'] >= 0 ? 'green' : 'red' }}-300">
                     S/ {{ number_format($data['total_utilidad'], 2) }}
                 </p>
             </div>
             <div class="rounded-xl border-l-4 border-{{ $data['margen_general'] >= 10 ? 'green' : ($data['margen_general'] >= 0 ? 'yellow' : 'red') }}-500 bg-white dark:bg-gray-800 shadow-sm p-4">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Margen General</p>
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Margen Bruto</p>
                 <p class="mt-1 text-xl font-bold">{{ $data['margen_general'] }}%</p>
             </div>
-            <div class="rounded-xl border-l-4 border-purple-500 bg-white dark:bg-gray-800 shadow-sm p-4">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Ventas / Productos</p>
-                <p class="mt-1 text-xl font-bold text-purple-700 dark:text-purple-300">{{ $data['total_ventas_count'] }} / {{ $data['total_productos_count'] }}</p>
+            <div class="rounded-xl border-l-4 border-{{ $data['utilidad_neta'] >= 0 ? 'green' : 'red' }}-500 bg-white dark:bg-gray-800 shadow-sm p-4">
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Utilidad Neta (est.)</p>
+                <p class="mt-1 text-xl font-bold text-{{ $data['utilidad_neta'] >= 0 ? 'green' : 'red' }}-700 dark:text-{{ $data['utilidad_neta'] >= 0 ? 'green' : 'red' }}-300">
+                    S/ {{ number_format($data['utilidad_neta'], 2) }}
+                </p>
             </div>
+        </div>
+
+        {{-- Cascada del Estado de Resultados del período --}}
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/60">
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">¿Cómo se llega a la utilidad? — {{ $data['desde'] }} al {{ $data['hasta'] }}</h3>
+            </div>
+            <table class="w-full text-sm">
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    <tr>
+                        <td class="px-4 py-2.5 text-gray-600 dark:text-gray-300">Ventas del período</td>
+                        <td class="px-4 py-2.5 text-right font-medium text-gray-900 dark:text-gray-100">S/ {{ number_format($data['total_venta'], 2) }}</td>
+                        <td class="px-4 py-2.5 text-xs text-gray-400 hidden md:table-cell">Comprobantes activos del rango</td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-2.5 text-gray-600 dark:text-gray-300">(−) Costo de ventas</td>
+                        <td class="px-4 py-2.5 text-right font-medium text-gray-900 dark:text-gray-100">S/ {{ number_format($data['total_costo'], 2) }}</td>
+                        <td class="px-4 py-2.5 text-xs text-gray-400 hidden md:table-cell">Costo de la mercadería vendida (costo × cantidad)</td>
+                    </tr>
+                    <tr class="bg-gray-50 dark:bg-gray-900/40">
+                        <td class="px-4 py-2.5 font-semibold text-gray-900 dark:text-gray-100">= Utilidad Bruta</td>
+                        <td class="px-4 py-2.5 text-right font-bold {{ $data['total_utilidad'] >= 0 ? 'text-emerald-600' : 'text-red-600' }}">S/ {{ number_format($data['total_utilidad'], 2) }}</td>
+                        <td class="px-4 py-2.5 text-xs text-gray-400 hidden md:table-cell">Margen bruto: {{ $data['margen_general'] }}%</td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-2.5 text-gray-600 dark:text-gray-300">(−) Gastos operativos</td>
+                        <td class="px-4 py-2.5 text-right font-medium text-gray-900 dark:text-gray-100">S/ {{ number_format($data['gastos_operativos'], 2) }}</td>
+                        <td class="px-4 py-2.5 text-xs text-gray-400 hidden md:table-cell">Egresos de caja del rango (sin compra de mercadería ni movimientos internos)</td>
+                    </tr>
+                    <tr class="bg-gray-50 dark:bg-gray-900/40">
+                        <td class="px-4 py-2.5 font-semibold text-gray-900 dark:text-gray-100">= Utilidad Operativa</td>
+                        <td class="px-4 py-2.5 text-right font-bold {{ $data['utilidad_operativa'] >= 0 ? 'text-emerald-600' : 'text-red-600' }}">S/ {{ number_format($data['utilidad_operativa'], 2) }}</td>
+                        <td class="px-4 py-2.5 text-xs text-gray-400 hidden md:table-cell"></td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-2.5 text-gray-600 dark:text-gray-300">(−) Gastos financieros e impuestos</td>
+                        <td class="px-4 py-2.5 text-right font-medium text-gray-400">— no registrados —</td>
+                        <td class="px-4 py-2.5 text-xs text-gray-400 hidden md:table-cell">El sistema aún no registra intereses ni IR</td>
+                    </tr>
+                    <tr class="bg-blue-50 dark:bg-blue-900/20 border-t-2 border-blue-200 dark:border-blue-800">
+                        <td class="px-4 py-3 font-bold text-gray-900 dark:text-gray-100">= UTILIDAD NETA (estimada)</td>
+                        <td class="px-4 py-3 text-right text-lg font-bold {{ $data['utilidad_neta'] >= 0 ? 'text-emerald-600' : 'text-red-600' }}">S/ {{ number_format($data['utilidad_neta'], 2) }}</td>
+                        <td class="px-4 py-3 text-xs text-gray-400 hidden md:table-cell">Margen neto: {{ $data['margen_neto'] }}%</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -71,7 +119,7 @@
                         ['id' => 'ventas', 'label' => 'Por Ventas', 'icon' => 'receipt'],
                         ['id' => 'mercados', 'label' => 'Por Mercados', 'icon' => 'map-pin'],
                         ['id' => 'rutas', 'label' => 'Por Rutas', 'icon' => 'road'],
-                        ['id' => 'fechas', 'label' => 'Por Fechas', 'icon' => 'calendar'],
+                        ['id' => 'fechas', 'label' => 'Por Día', 'icon' => 'calendar'],
                     ] as $t)
                         @php $active = $data['tab'] === $t['id']; @endphp
                         <a href="?tab={{ $t['id'] }}&desde={{ $data['desde'] }}&hasta={{ $data['hasta'] }}"
@@ -88,19 +136,19 @@
                     $columnas = [];
                     $filas = [];
                     if ($data['tab'] === 'productos') {
-                        $columnas = ['Producto', 'Cant.', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen'];
+                        $columnas = ['Producto', 'Cant.', 'Venta S/.', 'Costo S/.', 'Util. Bruta S/.', 'M. Bruto'];
                         $filas = $data['por_producto'];
                     } elseif ($data['tab'] === 'ventas') {
-                        $columnas = ['Documento', 'Fecha', 'Cliente', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen'];
+                        $columnas = ['Documento', 'Fecha', 'Cliente', 'Venta S/.', 'Costo S/.', 'Util. Bruta S/.', 'M. Bruto'];
                         $filas = $data['por_venta'];
                     } elseif ($data['tab'] === 'mercados') {
-                        $columnas = ['Mercado', 'Cant.', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen'];
+                        $columnas = ['Mercado', 'Cant.', 'Venta S/.', 'Costo S/.', 'Util. Bruta S/.', 'M. Bruto'];
                         $filas = $data['por_mercado'];
                     } elseif ($data['tab'] === 'rutas') {
-                        $columnas = ['Ruta', 'Cant.', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen'];
+                        $columnas = ['Ruta', 'Cant.', 'Venta S/.', 'Costo S/.', 'Util. Bruta S/.', 'M. Bruto'];
                         $filas = $data['por_ruta'];
                     } elseif ($data['tab'] === 'fechas') {
-                        $columnas = ['Fecha', 'Cant.', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen'];
+                        $columnas = ['Día', 'Cant.', 'Venta S/.', 'Costo S/.', 'Util. Bruta S/.', 'M. Bruto'];
                         $filas = $data['por_fecha'];
                     }
                 @endphp
@@ -186,8 +234,9 @@
             </div>
         </div>
 
-        <div class="text-xs text-gray-400 dark:text-gray-500 italic">
-            * Utilidad = Venta - (Costo unitario × Cantidad). Rango: {{ $data['desde'] }} al {{ $data['hasta'] }}.
+        <div class="text-xs text-gray-400 dark:text-gray-500 italic space-y-0.5">
+            <p>* Las tablas muestran <strong>utilidad bruta</strong> (Venta − Costo de la mercadería): los gastos operativos no se pueden repartir por producto/mercado/ruta, por eso se descuentan solo en el total del período.</p>
+            <p>* Los montos incluyen IGV. La utilidad contable no es lo mismo que la caja: puedes tener utilidad positiva y caja negativa si vendes al crédito (ver Flujo de Caja).</p>
         </div>
     </div>
 

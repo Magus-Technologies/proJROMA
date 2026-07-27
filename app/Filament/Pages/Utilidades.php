@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\CajaMovimiento;
 use App\Models\Cliente;
 use App\Models\Producto;
 use App\Models\ProductoVenta;
@@ -14,6 +15,12 @@ use Illuminate\Support\Facades\DB;
 
 class Utilidades extends Page
 {
+    /**
+     * Categorías de egresos de caja que NO son gasto operativo:
+     * COMPRA es mercadería (ya entra a la utilidad como costo de ventas
+     * al venderse) y CIERRE/APERTURA son movimientos internos de caja.
+     */
+    public const CATEGORIAS_NO_GASTO = ['COMPRA', 'CIERRE', 'APERTURA'];
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-banknotes';
     protected static ?string $navigationLabel = 'Utilidades';
     protected static string|\UnitEnum|null $navigationGroup = 'Finanzas';
@@ -34,14 +41,15 @@ class Utilidades extends Page
             ->whereBetween('fecha_emision', [$desde, $hasta])
             ->pluck('id_venta');
 
+        $totalLinea = ProductoVenta::sqlTotalLinea();
         $productos = ProductoVenta::whereIn('id_venta', $idsVentas)
-            ->selectRaw('
+            ->selectRaw("
                 id_producto,
                 id_venta,
                 SUM(cantidad) as cantidad,
-                SUM(total) as venta,
+                SUM({$totalLinea}) as venta,
                 SUM(costo * cantidad) as costo
-            ')
+            ")
             ->groupBy('id_producto', 'id_venta')
             ->get();
 
@@ -49,6 +57,21 @@ class Utilidades extends Page
         $totalCosto = $productos->sum('costo');
         $totalUtilidad = $totalVenta - $totalCosto;
         $margenGeneral = $totalVenta > 0 ? round(($totalUtilidad / $totalVenta) * 100, 1) : 0;
+
+        // ── Cascada del Estado de Resultados del período ──────────────
+        // Utilidad bruta (arriba) − gastos operativos = utilidad operativa.
+        // Gastos financieros e impuestos aún no se registran en el sistema,
+        // por lo que la utilidad neta se muestra como estimada.
+        $gastosOperativos = (float) CajaMovimiento::where('tipo', 'EGRESO')
+            ->where('estado', 'CONFIRMADO')
+            ->whereHas('caja', fn ($q) => $q->where('id_empresa', $empresa))
+            ->whereNotIn('categoria', self::CATEGORIAS_NO_GASTO)
+            ->whereBetween('fecha', [$desde, $hasta])
+            ->sum('monto');
+
+        $utilidadOperativa = $totalUtilidad - $gastosOperativos;
+        $utilidadNeta = $utilidadOperativa; // − financieros − impuestos (no registrados)
+        $margenNeto = $totalVenta > 0 ? round(($utilidadNeta / $totalVenta) * 100, 1) : 0;
 
         $ventasIds = $productos->pluck('id_venta')->unique();
         $ventas = Venta::whereIn('id_venta', $ventasIds)->get()->keyBy('id_venta');
@@ -148,6 +171,10 @@ class Utilidades extends Page
             'total_costo' => $totalCosto,
             'total_utilidad' => $totalUtilidad,
             'margen_general' => $margenGeneral,
+            'gastos_operativos' => $gastosOperativos,
+            'utilidad_operativa' => $utilidadOperativa,
+            'utilidad_neta' => $utilidadNeta,
+            'margen_neto' => $margenNeto,
             'total_ventas_count' => $ventas->count(),
             'total_productos_count' => $productosInfo->count(),
             'tab' => $tab,

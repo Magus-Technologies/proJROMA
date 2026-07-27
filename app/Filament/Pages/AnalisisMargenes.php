@@ -40,7 +40,7 @@ class AnalisisMargenes extends Page
                 p.descripcion,
                 p.id_categoria,
                 SUM(productos_ventas.cantidad) as cantidad,
-                SUM(productos_ventas.total) as venta,
+                SUM(' . ProductoVenta::sqlTotalLinea() . ') as venta,
                 SUM(productos_ventas.costo * productos_ventas.cantidad) as costo
             ')
             ->groupBy('p.id_producto', 'p.descripcion', 'p.id_categoria')

@@ -37,7 +37,7 @@ class CosteoRentabilidad extends Page
             ->selectRaw('
                 productos_ventas.id_producto,
                 SUM(productos_ventas.cantidad) as cantidad_vendida,
-                SUM(productos_ventas.total) as venta_total,
+                SUM(' . ProductoVenta::sqlTotalLinea() . ') as venta_total,
                 SUM(productos_ventas.costo * productos_ventas.cantidad) as costo_total
             ')
             ->groupBy('productos_ventas.id_producto')

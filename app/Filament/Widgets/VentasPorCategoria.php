@@ -31,7 +31,7 @@ class VentasPorCategoria extends ChartWidget
             ->where('v.estado', '1')
             ->whereMonth('v.fecha_emision', now()->month)
             ->whereYear('v.fecha_emision', now()->year)
-            ->selectRaw('c.nombre, SUM(pv.total) as total')
+            ->selectRaw('c.nombre, SUM(' . \App\Models\ProductoVenta::sqlTotalLinea('pv') . ') as total')
             ->groupBy('c.id_categoria', 'c.nombre')
             ->orderByDesc('total')
             ->limit(6)

@@ -243,7 +243,7 @@ class ReportesController extends Controller
             $rango($query, 'v.fecha_emision');
 
             $registros = $query
-                ->selectRaw('pv.descripcion as producto, SUM(pv.cantidad) as cantidad, COUNT(DISTINCT v.id_venta) as veces, SUM(pv.total) as monto')
+                ->selectRaw('pv.descripcion as producto, SUM(pv.cantidad) as cantidad, COUNT(DISTINCT v.id_venta) as veces, SUM(' . \App\Models\ProductoVenta::sqlTotalLinea('pv') . ') as monto')
                 ->groupBy('pv.descripcion')->orderByDesc('monto')->get();
 
             $filas = $registros->map(fn ($r): array => [
@@ -944,7 +944,7 @@ class ReportesController extends Controller
 
         $secciones[] = [
             'titulo' => 'Por Productos',
-            'cabeceras' => ['Producto', 'Cant.', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen'],
+            'cabeceras' => ['Producto', 'Cant.', 'Venta S/.', 'Costo S/.', 'Util. Bruta S/.', 'Margen'],
             'cols_moneda' => [2, 3, 4],
             'cols_pct' => [5],
             'total' => [
@@ -964,7 +964,7 @@ class ReportesController extends Controller
 
         $secciones[] = [
             'titulo' => 'Por Ventas',
-            'cabeceras' => ['Documento', 'Fecha', 'Cliente', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen'],
+            'cabeceras' => ['Documento', 'Fecha', 'Cliente', 'Venta S/.', 'Costo S/.', 'Util. Bruta S/.', 'Margen'],
             'cols_moneda' => [3, 4, 5],
             'cols_pct' => [6],
             'total' => [
@@ -980,7 +980,7 @@ class ReportesController extends Controller
 
         $secciones[] = [
             'titulo' => 'Por Mercados',
-            'cabeceras' => ['Mercado', 'Cant.', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen'],
+            'cabeceras' => ['Mercado', 'Cant.', 'Venta S/.', 'Costo S/.', 'Util. Bruta S/.', 'Margen'],
             'cols_moneda' => [2, 3, 4],
             'cols_pct' => [5],
             'total' => [
@@ -996,7 +996,7 @@ class ReportesController extends Controller
 
         $secciones[] = [
             'titulo' => 'Por Rutas',
-            'cabeceras' => ['Ruta', 'Cant.', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen'],
+            'cabeceras' => ['Ruta', 'Cant.', 'Venta S/.', 'Costo S/.', 'Util. Bruta S/.', 'Margen'],
             'cols_moneda' => [2, 3, 4],
             'cols_pct' => [5],
             'total' => [
@@ -1012,7 +1012,7 @@ class ReportesController extends Controller
 
         $secciones[] = [
             'titulo' => 'Por Fechas',
-            'cabeceras' => ['Fecha', 'Cant.', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen'],
+            'cabeceras' => ['Fecha', 'Cant.', 'Venta S/.', 'Costo S/.', 'Util. Bruta S/.', 'Margen'],
             'cols_moneda' => [2, 3, 4],
             'cols_pct' => [5],
             'total' => [

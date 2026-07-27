@@ -33,19 +33,19 @@ class UtilidadesExport implements WithMultipleSheets, ShouldAutoSize
         return [
             new UtilidadesSheetExport('Resumen', $this->buildResumen($data)),
             new UtilidadesSheetExport('Por Productos', $data['por_producto'], [
-                'Producto', 'Cantidad', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen %',
+                'Producto', 'Cantidad', 'Venta S/.', 'Costo S/.', 'Util. Bruta S/.', 'M. Bruto %',
             ], [2, 3, 4], [5]),
             new UtilidadesSheetExport('Por Ventas', $data['por_venta'], [
-                'Documento', 'Fecha', 'Cliente', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen %',
+                'Documento', 'Fecha', 'Cliente', 'Venta S/.', 'Costo S/.', 'Util. Bruta S/.', 'M. Bruto %',
             ], [3, 4, 5], [6]),
             new UtilidadesSheetExport('Por Mercados', $data['por_mercado'], [
-                'Mercado', 'Cantidad', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen %',
+                'Mercado', 'Cantidad', 'Venta S/.', 'Costo S/.', 'Util. Bruta S/.', 'M. Bruto %',
             ], [2, 3, 4], [5]),
             new UtilidadesSheetExport('Por Rutas', $data['por_ruta'], [
-                'Ruta', 'Cantidad', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen %',
+                'Ruta', 'Cantidad', 'Venta S/.', 'Costo S/.', 'Util. Bruta S/.', 'M. Bruto %',
             ], [2, 3, 4], [5]),
             new UtilidadesSheetExport('Por Fechas', $data['por_fecha'], [
-                'Fecha', 'Cantidad', 'Venta S/.', 'Costo S/.', 'Utilidad S/.', 'Margen %',
+                'Fecha', 'Cantidad', 'Venta S/.', 'Costo S/.', 'Util. Bruta S/.', 'M. Bruto %',
             ], [2, 3, 4], [5]),
         ];
     }
@@ -59,8 +59,9 @@ class UtilidadesExport implements WithMultipleSheets, ShouldAutoSize
             ->whereBetween('fecha_emision', [$this->desde, $this->hasta])
             ->pluck('id_venta');
 
+        $totalLinea = ProductoVenta::sqlTotalLinea();
         $productos = ProductoVenta::whereIn('id_venta', $idsVentas)
-            ->selectRaw('id_producto, id_venta, SUM(cantidad) as cantidad, SUM(total) as venta, SUM(costo * cantidad) as costo')
+            ->selectRaw("id_producto, id_venta, SUM(cantidad) as cantidad, SUM({$totalLinea}) as venta, SUM(costo * cantidad) as costo")
             ->groupBy('id_producto', 'id_venta')
             ->get();
 
@@ -146,14 +147,32 @@ class UtilidadesExport implements WithMultipleSheets, ShouldAutoSize
         $totalVenta = $data['total_venta'];
         $totalCosto = $data['total_costo'];
         $totalUtilidad = $totalVenta - $totalCosto;
+
+        // Gastos operativos del período (sin compra de mercadería ni
+        // movimientos internos de caja) — misma regla que la página.
+        $gastosOperativos = (float) \App\Models\CajaMovimiento::where('tipo', 'EGRESO')
+            ->where('estado', 'CONFIRMADO')
+            ->whereHas('caja', fn ($q) => $q->where('id_empresa', $this->idEmpresa))
+            ->whereNotIn('categoria', \App\Filament\Pages\Utilidades::CATEGORIAS_NO_GASTO)
+            ->whereBetween('fecha', [$this->desde, $this->hasta])
+            ->sum('monto');
+
+        $utilidadOperativa = $totalUtilidad - $gastosOperativos;
+
         return [
             ['Indicador', 'Valor'],
-            ['Ventas', 'S/ ' . number_format($totalVenta, 2)],
-            ['Costo Total', 'S/ ' . number_format($totalCosto, 2)],
-            ['Utilidad', 'S/ ' . number_format($totalUtilidad, 2)],
-            ['Margen General', ($totalVenta > 0 ? round(($totalUtilidad / $totalVenta) * 100, 1) : 0) . '%'],
-            ['Ventas realizadas', count($data['ventas'])],
             ['Período', $this->desde . ' al ' . $this->hasta],
+            ['Ventas realizadas', count($data['ventas'])],
+            ['Ventas', 'S/ ' . number_format($totalVenta, 2)],
+            ['(−) Costo de Ventas', 'S/ ' . number_format($totalCosto, 2)],
+            ['= Utilidad Bruta', 'S/ ' . number_format($totalUtilidad, 2)],
+            ['Margen Bruto', ($totalVenta > 0 ? round(($totalUtilidad / $totalVenta) * 100, 1) : 0) . '%'],
+            ['(−) Gastos Operativos', 'S/ ' . number_format($gastosOperativos, 2)],
+            ['= Utilidad Operativa', 'S/ ' . number_format($utilidadOperativa, 2)],
+            ['(−) Gastos financieros e impuestos', 'No registrados en el sistema'],
+            ['= UTILIDAD NETA (estimada)', 'S/ ' . number_format($utilidadOperativa, 2)],
+            ['Margen Neto', ($totalVenta > 0 ? round(($utilidadOperativa / $totalVenta) * 100, 1) : 0) . '%'],
+            ['Nota', 'Las demás hojas muestran utilidad bruta: los gastos no son atribuibles por producto/mercado/ruta. Montos incluyen IGV.'],
         ];
     }
 }

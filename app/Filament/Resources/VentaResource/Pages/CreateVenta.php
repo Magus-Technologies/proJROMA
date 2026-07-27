@@ -335,9 +335,12 @@ class CreateVenta extends CreateRecord
                                                             && $get('tipo_pago') !== 'EFECTIVO')
                                                         ->columnSpan(2),
 
-                                                    FileUpload::make('voucher')
-                                                        ->label('Captura del pago')
+                                                    FileUpload::make('comprobantes')
+                                                        ->label('Comprobantes del pago')
+                                                        ->helperText('Hasta 3 imágenes.')
                                                         ->image()
+                                                        ->multiple()
+                                                        ->maxFiles(3)
                                                         ->disk('public')
                                                         ->directory('vouchers')
                                                         ->imagePreviewHeight('90')
@@ -854,6 +857,8 @@ class CreateVenta extends CreateRecord
                     continue;
                 }
 
+                $comprobantes = array_values($pago['comprobantes'] ?? []);
+
                 $dv = DiasVenta::create([
                     'id_venta'   => $venta->id_venta,
                     'fecha'      => $pago['fecha'],
@@ -861,7 +866,7 @@ class CreateVenta extends CreateRecord
                     'estado'     => ($pago['pagado'] ?? false) ? '1' : '0',
                     'tipo_pago'  => $pago['tipo_pago'] ?? 'EFECTIVO',
                     'referencia' => $pago['referencia'] ?? null,
-                    'voucher'    => $pago['voucher'] ?? null,
+                    'voucher'    => $comprobantes[0] ?? null,
                     'id_usuario' => $usuario,
                 ]);
 
@@ -888,6 +893,18 @@ class CreateVenta extends CreateRecord
                         'id_movimiento_caja' => $idMovimiento,
                         'id_usuario'         => $usuario,
                         'estado'             => 'ACTIVO',
+                    ]);
+
+                    // Desglose del pago de la cuota (con comprobantes) para "Ver pagos".
+                    \App\Models\VentaPago::create([
+                        'id_venta'           => $venta->id_venta,
+                        'id_dias_venta'      => $dv->dias_venta_id,
+                        'metodo_pago'        => $pago['tipo_pago'] ?? 'EFECTIVO',
+                        'monto'              => (float) $pago['monto'],
+                        'referencia'         => $pago['referencia'] ?? null,
+                        'comprobantes'       => $comprobantes ?: null,
+                        'id_movimiento_caja' => $idMovimiento,
+                        'id_usuario'         => $usuario,
                     ]);
                 }
             }

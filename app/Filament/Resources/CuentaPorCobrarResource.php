@@ -9,6 +9,7 @@ use App\Services\CajaService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -200,6 +201,18 @@ class CuentaPorCobrarResource extends Resource
                                 filled($get('tipo_pago')) && $get('tipo_pago') !== 'EFECTIVO')
                             ->required(fn (callable $get): bool =>
                                 filled($get('tipo_pago')) && $get('tipo_pago') !== 'EFECTIVO'),
+                        FileUpload::make('comprobantes')
+                            ->label('Comprobantes del pago')
+                            ->helperText('Hasta 3 imágenes.')
+                            ->image()
+                            ->multiple()
+                            ->maxFiles(3)
+                            ->disk('public')
+                            ->directory('vouchers')
+                            ->imagePreviewHeight('90')
+                            ->maxSize(4096)
+                            ->visible(fn (callable $get): bool =>
+                                filled($get('tipo_pago')) && $get('tipo_pago') !== 'EFECTIVO'),
                     ])
                     ->action(function (DiasVenta $record, array $data): void {
                         static::registrarAbono($record, $data);
@@ -376,6 +389,20 @@ class CuentaPorCobrarResource extends Resource
                 'estado'             => 'ACTIVO',
             ]);
 
+            // Desglose del cobro (con comprobantes) para "Ver pagos" de la venta.
+            // Varios abonos con distinto método = pago mixto de la cuota.
+            $comprobantes = array_values($data['comprobantes'] ?? []);
+            \App\Models\VentaPago::create([
+                'id_venta'           => $record->id_venta,
+                'id_dias_venta'      => $record->dias_venta_id,
+                'metodo_pago'        => $data['tipo_pago'],
+                'monto'              => $monto,
+                'referencia'         => $data['referencia'] ?? null,
+                'comprobantes'       => $comprobantes ?: null,
+                'id_movimiento_caja' => $idMovimiento,
+                'id_usuario'         => $idUsuario,
+            ]);
+
             static::sincronizarCuota($record->refresh());
         });
 
@@ -430,6 +457,16 @@ class CuentaPorCobrarResource extends Resource
                 referencia:  $data['referencia'] ?? null,
             );
 
+            // Reflejar la corrección en el desglose de "Ver pagos" (mismo movimiento origen).
+            \App\Models\VentaPago::where('id_venta', $record->id_venta)
+                ->where('id_movimiento_caja', $abono->id_movimiento_caja)
+                ->update([
+                    'metodo_pago'        => $data['tipo_pago'],
+                    'monto'              => $monto,
+                    'referencia'         => $data['referencia'] ?? null,
+                    'id_movimiento_caja' => $idMovimiento,
+                ]);
+
             $abono->update([
                 'monto'              => $monto,
                 'metodo_pago'        => $data['tipo_pago'],
@@ -459,6 +496,10 @@ class CuentaPorCobrarResource extends Resource
         DB::transaction(function () use ($record, $abono, $motivo): void {
             if ($abono->id_movimiento_caja) {
                 app(CajaService::class)->anularMovimiento($abono->id_movimiento_caja);
+                // Quitar su desglose de "Ver pagos" (se emparejan por el movimiento de caja).
+                \App\Models\VentaPago::where('id_venta', $record->id_venta)
+                    ->where('id_movimiento_caja', $abono->id_movimiento_caja)
+                    ->delete();
             }
 
             $abono->update([

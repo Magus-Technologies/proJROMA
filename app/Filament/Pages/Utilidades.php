@@ -18,9 +18,10 @@ class Utilidades extends Page
     /**
      * Categorías de egresos de caja que NO son gasto operativo:
      * COMPRA es mercadería (ya entra a la utilidad como costo de ventas
-     * al venderse) y CIERRE/APERTURA son movimientos internos de caja.
+     * al venderse) y CIERRE/APERTURA/TRANSFERENCIA son movimientos
+     * internos entre cajas.
      */
-    public const CATEGORIAS_NO_GASTO = ['COMPRA', 'CIERRE', 'APERTURA'];
+    public const CATEGORIAS_NO_GASTO = ['COMPRA', 'CIERRE', 'APERTURA', 'TRANSFERENCIA'];
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-banknotes';
     protected static ?string $navigationLabel = 'Utilidades';
     protected static string|\UnitEnum|null $navigationGroup = 'Finanzas';

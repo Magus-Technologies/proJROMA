@@ -63,6 +63,7 @@ class MovimientosCajaResource extends Resource
                     'APERTURA'   => 'Apertura',
                     'CIERRE'     => 'Cierre',
                     'CUADRE'     => 'Cuadre',
+                    'TRANSFERENCIA' => 'Transferencia',
                     'MANUAL'     => 'Manual',
                 ])
                 ->default('MANUAL'),
@@ -127,6 +128,7 @@ class MovimientosCajaResource extends Resource
                         'APERTURA'   => 'Apertura',
                         'CIERRE'     => 'Cierre',
                         'CUADRE'     => 'Cuadre',
+                        'TRANSFERENCIA' => 'Transferencia',
                         'MANUAL'     => 'Manual',
                         default      => $state,
                     }),

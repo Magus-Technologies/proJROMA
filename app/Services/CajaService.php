@@ -125,6 +125,229 @@ class CajaService
     }
 
     /**
+     * Asignar fondo desde una caja principal (bóveda) hacia una caja hija.
+     * El dinero sale de la bóveda EN ESTE MOMENTO (el sobre ya se preparó):
+     * así nadie puede asignar dos veces el mismo efectivo — la validación de
+     * saldo insuficiente lo impide sola.
+     */
+    public function asignarFondo(int $idCajaOrigen, int $idCajaDestino, float $monto, int $idUsuarioAsigna, ?string $observaciones = null): int
+    {
+        return DB::transaction(function () use ($idCajaOrigen, $idCajaDestino, $monto, $idUsuarioAsigna, $observaciones) {
+            if ($monto <= 0) throw new \RuntimeException('El monto debe ser mayor a 0.');
+            if ($idCajaOrigen === $idCajaDestino) throw new \RuntimeException('La caja origen y destino no pueden ser la misma.');
+
+            $origen = DB::table('cajas')->where('id', $idCajaOrigen)->first();
+            $destino = DB::table('cajas')->where('id', $idCajaDestino)->first();
+            if (!$origen || !$destino) throw new \RuntimeException('Caja no encontrada.');
+            if ($destino->id_caja_padre === null) throw new \RuntimeException('El destino debe ser una caja hija (las principales no aperturan turno).');
+
+            // El cajero responsable es el de la caja destino: no se elige a mano
+            $idCajero = (int) ($destino->id_usuario_responsable ?? 0);
+            if ($idCajero === 0) throw new \RuntimeException('La caja destino no tiene responsable asignado. Configúralo primero en Gestión de Cajas.');
+
+            $yaAsignada = DB::table('transferencias_fondo')
+                ->where('id_caja_destino', $idCajaDestino)
+                ->where('estado', 'ASIGNADA')
+                ->exists();
+            if ($yaAsignada) throw new \RuntimeException('La caja destino ya tiene una asignación pendiente de aplicar.');
+
+            $abierta = DB::table('caja_aperturas')
+                ->where('id_caja', $idCajaDestino)
+                ->where('estado', 'ABIERTA')
+                ->orderByDesc('id')
+                ->first();
+            if ($abierta) {
+                throw new \RuntimeException('La caja "' . $destino->nombre . '" tiene un turno abierto desde el '
+                    . \Carbon\Carbon::parse($abierta->created_at)->format('d/m/Y H:i')
+                    . ' (apertura #' . $abierta->id . '). Ciérralo antes de asignarle un nuevo fondo.');
+            }
+
+            // Un cierre pendiente aún puede ser RECHAZADO (lo que reabre el
+            // turno); no se asigna fondo nuevo hasta que se apruebe o rechace.
+            $cierrePendiente = DB::table('cierre_caja')
+                ->where('id_caja', $idCajaDestino)
+                ->where('estado', 'PENDIENTE')
+                ->orderByDesc('id')
+                ->first();
+            if ($cierrePendiente) {
+                throw new \RuntimeException('La caja "' . $destino->nombre . '" tiene el cierre #' . $cierrePendiente->id
+                    . ' pendiente de aprobación. Apruébalo o recházalo en Cierres y Cuadre antes de asignar un nuevo fondo.');
+            }
+
+            $idTransferencia = DB::table('transferencias_fondo')->insertGetId([
+                'id_caja_origen' => $idCajaOrigen,
+                'id_caja_destino' => $idCajaDestino,
+                'id_usuario_asigna' => $idUsuarioAsigna,
+                'id_usuario_cajero' => $idCajero,
+                'monto' => $monto,
+                'estado' => 'ASIGNADA',
+                'observaciones' => $observaciones,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // El egreso valida saldo suficiente de la bóveda por sí solo
+            $idMovimiento = $this->registrarMovimiento([
+                'id_caja' => $idCajaOrigen,
+                'tipo' => 'EGRESO',
+                'categoria' => 'TRANSFERENCIA',
+                'descripcion' => 'Asignación de fondo a ' . $destino->nombre . ' (asignación #' . $idTransferencia . ')',
+                'monto' => $monto,
+                'instrumento_tipo' => 'EFECTIVO',
+                'origen_tipo' => 'TRANSFERENCIA_FONDO',
+                'origen_id' => $idTransferencia,
+                'id_usuario' => $idUsuarioAsigna,
+            ]);
+
+            DB::table('transferencias_fondo')->where('id', $idTransferencia)
+                ->update(['id_movimiento_egreso' => $idMovimiento, 'updated_at' => now()]);
+
+            return $idTransferencia;
+        });
+    }
+
+    /**
+     * Anular (admin) o rechazar (cajero) una asignación aún no aplicada:
+     * el efectivo regresa a la bóveda con un movimiento de reversa.
+     */
+    public function revertirAsignacion(int $idTransferencia, int $idUsuario, string $nuevoEstado = 'ANULADA', ?string $motivo = null): void
+    {
+        DB::transaction(function () use ($idTransferencia, $idUsuario, $nuevoEstado, $motivo) {
+            $tr = DB::table('transferencias_fondo')->where('id', $idTransferencia)->lockForUpdate()->first();
+            if (!$tr) throw new \RuntimeException('Asignación no encontrada.');
+            if ($tr->estado !== 'ASIGNADA') throw new \RuntimeException('Solo se puede revertir una asignación pendiente.');
+
+            $this->registrarMovimiento([
+                'id_caja' => $tr->id_caja_origen,
+                'tipo' => 'INGRESO',
+                'categoria' => 'TRANSFERENCIA',
+                'descripcion' => 'Reversa de asignación #' . $idTransferencia . ($motivo ? ' — ' . $motivo : ''),
+                'monto' => (float) $tr->monto,
+                'instrumento_tipo' => 'EFECTIVO',
+                'origen_tipo' => 'TRANSFERENCIA_FONDO',
+                'origen_id' => $idTransferencia,
+                'id_usuario' => $idUsuario,
+            ]);
+
+            DB::table('transferencias_fondo')->where('id', $idTransferencia)->update([
+                'estado' => in_array($nuevoEstado, ['ANULADA', 'RECHAZADA'], true) ? $nuevoEstado : 'ANULADA',
+                'observaciones' => trim(($tr->observaciones ? $tr->observaciones . ' | ' : '') . ($motivo ?? '')) ?: $tr->observaciones,
+                'updated_at' => now(),
+            ]);
+        });
+    }
+
+    /**
+     * El cajero cuenta el efectivo recibido y apertura la caja contra la
+     * asignación. Si el conteo difiere del monto asignado, la caja abre con
+     * lo CONTADO y queda una discrepancia pendiente de resolver por un
+     * supervisor (el faltante no es deuda del cajero: recién recibe).
+     */
+    public function abrirCajaConFondo(int $idTransferencia, float $montoContado, array $detalles, int $idUsuario, ?string $fecha = null, ?string $observaciones = null): int
+    {
+        return DB::transaction(function () use ($idTransferencia, $montoContado, $detalles, $idUsuario, $fecha, $observaciones) {
+            $tr = DB::table('transferencias_fondo')->where('id', $idTransferencia)->lockForUpdate()->first();
+            if (!$tr || $tr->estado !== 'ASIGNADA') throw new \RuntimeException('La asignación ya no está disponible.');
+            if ($montoContado <= 0) throw new \RuntimeException('El conteo del efectivo debe ser mayor a 0.');
+
+            $yaAbierta = DB::table('caja_aperturas')
+                ->where('id_caja', $tr->id_caja_destino)
+                ->where('estado', 'ABIERTA')
+                ->exists();
+            if ($yaAbierta) throw new \RuntimeException('La caja ya tiene una apertura abierta.');
+
+            $idApertura = DB::table('caja_aperturas')->insertGetId([
+                'id_caja' => $tr->id_caja_destino,
+                'id_transferencia' => $tr->id,
+                'fecha' => $fecha ?? now()->toDateString(),
+                'monto_total' => $montoContado,
+                'estado' => 'ABIERTA',
+                'id_usuario_apertura' => $idUsuario,
+                'observaciones' => $observaciones,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            if ($detalles !== []) {
+                DB::table('caja_apertura_detalles')->insert(array_map(fn (array $d): array => [
+                    'id_apertura' => $idApertura,
+                    'denominacion' => $d['denominacion'],
+                    'tipo' => $d['tipo'],
+                    'cantidad' => $d['cantidad'],
+                    'subtotal' => $d['subtotal'],
+                ], $detalles));
+            }
+
+            $this->registrarMovimiento([
+                'id_caja' => $tr->id_caja_destino,
+                'fecha' => $fecha ?? now()->toDateString(),
+                'tipo' => 'INGRESO',
+                'categoria' => 'APERTURA',
+                'descripcion' => 'Apertura de caja (fondo asignado #' . $tr->id . ')',
+                'monto' => $montoContado,
+                'instrumento_tipo' => 'EFECTIVO',
+                'origen_tipo' => 'APERTURA',
+                'origen_id' => $idApertura,
+                'id_usuario' => $idUsuario,
+            ]);
+
+            $diferencia = round($montoContado - (float) $tr->monto, 2);
+
+            DB::table('transferencias_fondo')->where('id', $tr->id)->update([
+                'estado' => 'APLICADA',
+                'monto_contado' => $montoContado,
+                'discrepancia_estado' => abs($diferencia) > 0.001 ? 'PENDIENTE' : null,
+                'updated_at' => now(),
+            ]);
+
+            return $idApertura;
+        });
+    }
+
+    /**
+     * Un supervisor resuelve la discrepancia de una apertura con fondo asignado.
+     * - AJUSTE_BOVEDA: el sobre se preparó mal. Faltante → el dinero sigue en
+     *   bóveda (INGRESO de ajuste); sobrante → salió de más (EGRESO de ajuste).
+     * - PERDIDA: el dinero se perdió en tránsito; queda documentado sin ajuste.
+     */
+    public function resolverDiscrepancia(int $idTransferencia, string $resolucion, int $idUsuario, ?string $observaciones = null): void
+    {
+        DB::transaction(function () use ($idTransferencia, $resolucion, $idUsuario, $observaciones) {
+            $tr = DB::table('transferencias_fondo')->where('id', $idTransferencia)->lockForUpdate()->first();
+            if (!$tr) throw new \RuntimeException('Asignación no encontrada.');
+            if ($tr->discrepancia_estado !== 'PENDIENTE') throw new \RuntimeException('Esta asignación no tiene discrepancia pendiente.');
+
+            $diferencia = round((float) $tr->monto_contado - (float) $tr->monto, 2);
+
+            if ($resolucion === 'AJUSTE_BOVEDA' && abs($diferencia) > 0.001) {
+                $this->registrarMovimiento([
+                    'id_caja' => $tr->id_caja_origen,
+                    'tipo' => $diferencia < 0 ? 'INGRESO' : 'EGRESO',
+                    'categoria' => 'AJUSTE',
+                    'descripcion' => ($diferencia < 0
+                        ? 'Ajuste: fondo asignado no entregado (asignación #'
+                        : 'Ajuste: fondo entregado de más (asignación #') . $tr->id . ')',
+                    'monto' => abs($diferencia),
+                    'instrumento_tipo' => 'EFECTIVO',
+                    'origen_tipo' => 'TRANSFERENCIA_FONDO',
+                    'origen_id' => $tr->id,
+                    'id_usuario' => $idUsuario,
+                    // Conciliación: se aplica aunque la bóveda quede en negativo
+                    'permitir_negativo' => true,
+                ]);
+            }
+
+            DB::table('transferencias_fondo')->where('id', $tr->id)->update([
+                'discrepancia_estado' => 'RESUELTA',
+                'discrepancia_resolucion' => $resolucion === 'AJUSTE_BOVEDA' ? 'AJUSTE_BOVEDA' : 'PERDIDA',
+                'id_usuario_resuelve' => $idUsuario,
+                'observaciones' => trim(($tr->observaciones ? $tr->observaciones . ' | ' : '') . ($observaciones ?? '')) ?: $tr->observaciones,
+                'updated_at' => now(),
+            ]);
+        });
+    }
+
+    /**
      * Registrar el cierre diario de una caja.
      */
     public function cerrarCaja(int $idCaja, float $saldoDeclarado, array $desglose, int $idUsuario): int

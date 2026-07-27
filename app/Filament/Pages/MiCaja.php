@@ -329,6 +329,7 @@ class MiCaja extends Page implements HasTable
                         'AJUSTE'   => 'Ajuste',
                         'CIERRE'   => 'Cierre',
                         'CUADRE'   => 'Cuadre',
+                        'TRANSFERENCIA' => 'Transferencia de fondo',
                         'TMS'      => 'TMS (despachos)',
                     ]),
 
@@ -551,6 +552,17 @@ class MiCaja extends Page implements HasTable
                 ->icon('heroicon-o-lock-open')
                 ->color('primary')
                 ->modalWidth('3xl')
+                ->modalDescription(function () use ($cajaId): ?string {
+                    $tr = \App\Models\TransferenciaFondo::with('origen', 'asignadoPor')
+                        ->where('id_caja_destino', $cajaId)
+                        ->where('estado', 'ASIGNADA')
+                        ->orderBy('id')
+                        ->first();
+
+                    return $tr
+                        ? '💰 Fondo asignado: S/ ' . number_format($tr->monto, 2) . ' desde "' . ($tr->origen?->nombre ?? 'bóveda') . '" (asignó ' . ($tr->asignadoPor?->nombres ?? '—') . '). Cuenta el efectivo recibido: la caja abrirá con lo que declares y cualquier diferencia quedará como discrepancia para el supervisor.'
+                        : null;
+                })
                 ->visible(fn (): bool => $esHija && ! DB::table('caja_aperturas')
                     ->where('id_caja', $cajaId)
                     ->where('estado', 'ABIERTA')
@@ -565,6 +577,23 @@ class MiCaja extends Page implements HasTable
                         ->label('Observaciones')
                         ->maxLength(500),
                 ])
+                ->fillForm(function () use ($cajaId): array {
+                    $tr = \App\Models\TransferenciaFondo::where('id_caja_destino', $cajaId)
+                        ->where('estado', 'ASIGNADA')
+                        ->orderBy('id')
+                        ->first();
+
+                    $data = ['fecha' => now()->format('Y-m-d'), 'observaciones' => null];
+                    foreach (array_keys(self::DENOMINACIONES) as $clave) {
+                        $data[$clave] = 0;
+                    }
+                    // Con fondo asignado, el monto a declarar viene precargado:
+                    // un clic en Enviar lo acepta tal cual, o se corrige/cuenta
+                    // el desglose si lo recibido difiere.
+                    $data['monto_fijo'] = $tr?->monto;
+
+                    return $data;
+                })
                 ->action(function (array $data) use ($cajaId): void {
                     [$montoTotal, $detalles, $esMontoFijo] = self::resolverConteo($data);
 
@@ -574,6 +603,46 @@ class MiCaja extends Page implements HasTable
                         return;
                     }
 
+                    // Si hay un fondo asignado pendiente, la apertura se hace
+                    // contra la asignación (traspaso bóveda → caja trazable).
+                    $transferencia = \App\Models\TransferenciaFondo::where('id_caja_destino', $cajaId)
+                        ->where('estado', 'ASIGNADA')
+                        ->orderBy('id')
+                        ->first();
+
+                    if ($transferencia) {
+                        try {
+                            app(CajaService::class)->abrirCajaConFondo(
+                                $transferencia->id,
+                                $montoTotal,
+                                $detalles,
+                                (int) auth()->user()->usuario_id,
+                                $data['fecha'],
+                                trim(($data['observaciones'] ?? '') . ($esMontoFijo ? ' [Monto fijo ingresado]' : '')) ?: null,
+                            );
+                        } catch (\RuntimeException $e) {
+                            Notification::make()->danger()->title($e->getMessage())->send();
+
+                            return;
+                        }
+
+                        $dif = round($montoTotal - $transferencia->monto, 2);
+                        $detalleDif = abs($dif) < 0.01
+                            ? 'El conteo coincide con el fondo asignado.'
+                            : ($dif > 0
+                                ? 'Sobrante de S/ ' . number_format($dif, 2)
+                                : 'Faltante de S/ ' . number_format(abs($dif), 2)) . ' respecto a lo asignado — quedó como discrepancia para el supervisor.';
+
+                        Notification::make()->success()
+                            ->title('Caja aperturada con fondo asignado — S/ ' . number_format($montoTotal, 2))
+                            ->body($detalleDif)
+                            ->send();
+                        $this->caja = $this->resolverCaja();
+
+                        return;
+                    }
+
+                    // Sin asignación pendiente: apertura manual (flujo anterior)
                     DB::transaction(function () use ($data, $cajaId, $montoTotal, $detalles, $esMontoFijo): void {
                         $idApertura = DB::table('caja_aperturas')->insertGetId([
                             'id_caja'             => $cajaId,

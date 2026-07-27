@@ -1,5 +1,8 @@
 @php
-    $diferencia = round($cierre->saldo_declarado - $cierre->saldo_sistema, 2);
+    // La diferencia se calcula contra el esperado del TURNO (recalculado de
+    // los movimientos), no contra el saldo_sistema guardado — así el modal
+    // es correcto incluso para cierres registrados con la lógica antigua.
+    $diferencia = round($cierre->saldo_declarado - $esperado, 2);
 @endphp
 
 <div class="space-y-4">

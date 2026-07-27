@@ -54,12 +54,12 @@ class CierresCajaResource extends Resource
                     ->searchable(),
 
                 TextColumn::make('saldo_declarado')
-                    ->label('Saldo Declarado')
+                    ->label('Declarado')
                     ->money('PEN')
                     ->sortable(),
 
                 TextColumn::make('saldo_sistema')
-                    ->label('Saldo Sistema')
+                    ->label('Esperado (turno)')
                     ->money('PEN')
                     ->sortable(),
 

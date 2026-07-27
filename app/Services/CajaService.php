@@ -27,7 +27,11 @@ class CajaService
                 $saldoPosterior = $saldoAnterior + $monto;
             } else {
                 $saldoPosterior = $saldoAnterior - $monto;
-                if ($monto > 0 && $saldoPosterior < 0) {
+                // Los movimientos de conciliación (ej. AJUSTE por faltante al
+                // aprobar un cierre) deben aplicarse aunque dejen la caja en
+                // negativo: registran que el dinero realmente no está.
+                $permitirNegativo = (bool) ($data['permitir_negativo'] ?? false);
+                if (!$permitirNegativo && $monto > 0 && $saldoPosterior < 0) {
                     throw new \RuntimeException(
                         "Saldo insuficiente. Disponible: S/ " . number_format($saldoAnterior, 2)
                     );
@@ -215,6 +219,8 @@ class CajaService
                         'origen_tipo' => 'CIERRE',
                         'origen_id'   => $idCierre,
                         'id_usuario'  => $idUsuarioAprueba,
+                        // Conciliación: se aplica aunque la caja quede en negativo
+                        'permitir_negativo' => true,
                     ]);
                 }
 

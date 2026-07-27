@@ -67,6 +67,10 @@ class AdminPanelProvider extends PanelProvider
                 fn () => view('filament.topbar.user-badge'),
             )
             ->renderHook(
+                \Filament\View\PanelsRenderHook::USER_MENU_BEFORE,
+                fn (): string => \Illuminate\Support\Facades\Blade::render('@livewire("campana-vencimientos")'),
+            )
+            ->renderHook(
                 \Filament\View\PanelsRenderHook::SIDEBAR_START,
                 fn () => view('filament.sidebar-header'),
             )

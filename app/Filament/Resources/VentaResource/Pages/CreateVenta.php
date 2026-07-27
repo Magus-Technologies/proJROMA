@@ -40,6 +40,7 @@ use Illuminate\Validation\ValidationException;
 
 class CreateVenta extends CreateRecord
 {
+    use \App\Filament\Concerns\ArmaPagosVenta;
     use \App\Filament\Concerns\HasClienteBuscador;
     use \App\Filament\Concerns\ReparteCuotas;
 
@@ -111,15 +112,6 @@ class CreateVenta extends CreateRecord
             'productos'    => $productos,
             'lista_pagos'  => $cuotas ?: null,
         ], fn ($v) => $v !== null)));
-    }
-
-    /**
-     * Métodos de pago según Métodos de Pago: Efectivo (fijo) + billeteras
-     * registradas (con titular) + cuentas bancarias para transferencias.
-     */
-    protected static function opcionesMetodoPago(): array
-    {
-        return CajaService::opcionesMetodoPago();
     }
 
     public function form(Schema $schema): Schema
@@ -360,6 +352,61 @@ class CreateVenta extends CreateRecord
                                         }),
                                 ]),
                             ]),
+
+                        // ── Pago al contado (soporta pago mixto) ─────────────
+                        Section::make('Pago')
+                            ->compact()
+                            ->description('Cómo se cobra esta venta al contado.')
+                            ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 1)
+                            ->schema([
+                                Toggle::make('pago_mixto')
+                                    ->label('Pago mixto (varios métodos)')
+                                    ->helperText('Activalo si el cliente paga con más de un método (ej. parte en efectivo y parte en Yape).')
+                                    ->live()
+                                    ->default(false)
+                                    ->columnSpanFull(),
+
+                                // Un solo método (caso común): el monto es el total.
+                                Grid::make(2)
+                                    ->visible(fn (callable $get): bool => ! ($get('pago_mixto') ?? false))
+                                    ->schema([
+                                        Select::make('metodo_pago')
+                                            ->label('Método de pago')
+                                            ->options(fn (): array => static::opcionesMetodoPago())
+                                            ->default('EFECTIVO')
+                                            ->live()
+                                            ->columnSpanFull(),
+
+                                        TextInput::make('pago_referencia')
+                                            ->label('N° de operación')
+                                            ->placeholder('Código que figura en el comprobante del pago')
+                                            ->maxLength(60)
+                                            ->visible(fn (callable $get): bool => static::noEsEfectivo($get('metodo_pago')))
+                                            ->columnSpanFull(),
+
+                                        FileUpload::make('pago_comprobantes')
+                                            ->label('Comprobantes del pago')
+                                            ->helperText('Hasta 3 imágenes (captura del Yape, voucher de la transferencia, etc.).')
+                                            ->image()
+                                            ->multiple()
+                                            ->maxFiles(3)
+                                            ->disk('public')
+                                            ->directory('vouchers')
+                                            ->imagePreviewHeight('100')
+                                            ->maxSize(4096)
+                                            ->visible(fn (callable $get): bool => static::noEsEfectivo($get('metodo_pago')))
+                                            ->columnSpanFull(),
+                                    ]),
+
+                                // Pago mixto: varios métodos que deben sumar el total.
+                                Group::make([
+                                    static::repetidorPagos('pagos_contado'),
+                                    Placeholder::make('balance_pagos')
+                                        ->hiddenLabel()
+                                        ->content(fn (callable $get): HtmlString => static::balancePagos($get)),
+                                ])
+                                    ->visible(fn (callable $get): bool => $get('pago_mixto') ?? false),
+                            ]),
                     ])->columnSpan(['default' => 1, 'xl' => 2]),
 
                     // ── COLUMNA DERECHA (angosta): comprobante, cliente, resumen ──
@@ -415,45 +462,6 @@ class CreateVenta extends CreateRecord
                                     ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 2)
                                     ->requiredIf('id_tipo_pago', 2)
                                     ->after('fecha'),
-
-                                // ── Pago al contado ──────────────────────────
-                                // En crédito el pago se registra por cuota (modal),
-                                // así que estos campos solo aplican al contado.
-                                Select::make('metodo_pago')
-                                    ->label('Método de pago')
-                                    ->options(fn (): array => static::opcionesMetodoPago())
-                                    ->default('EFECTIVO')
-                                    ->live()
-                                    ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 1)
-                                    ->columnSpanFull(),
-
-                                TextInput::make('pago_referencia')
-                                    ->label('N° de operación')
-                                    ->placeholder('Código que figura en el comprobante del pago')
-                                    ->maxLength(60)
-                                    ->visible(fn (callable $get): bool =>
-                                        (int) $get('id_tipo_pago') === 1
-                                        && filled($get('metodo_pago'))
-                                        && $get('metodo_pago') !== 'EFECTIVO')
-                                    ->required(fn (callable $get): bool =>
-                                        (int) $get('id_tipo_pago') === 1
-                                        && filled($get('metodo_pago'))
-                                        && $get('metodo_pago') !== 'EFECTIVO')
-                                    ->columnSpanFull(),
-
-                                FileUpload::make('pago_voucher')
-                                    ->label('Captura del pago')
-                                    ->helperText('Opcional. Imagen del comprobante del pago (billetera o banco).')
-                                    ->image()
-                                    ->disk('public')
-                                    ->directory('vouchers')
-                                    ->imagePreviewHeight('120')
-                                    ->maxSize(4096)
-                                    ->visible(fn (callable $get): bool =>
-                                        (int) $get('id_tipo_pago') === 1
-                                        && filled($get('metodo_pago'))
-                                        && $get('metodo_pago') !== 'EFECTIVO')
-                                    ->columnSpanFull(),
 
                                 TextInput::make('observacion')
                                     ->label('Observación')
@@ -600,6 +608,101 @@ class CreateVenta extends CreateRecord
         throw new Halt();
     }
 
+    /** Muestra, en el pago mixto, cuánto suman los métodos vs el total. */
+    protected static function balancePagos(callable $get): HtmlString
+    {
+        $total = collect($get('productos') ?? [])->sum(
+            fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['precio'] ?? 0)
+        );
+        $suma = static::sumaPagos($get('pagos_contado'));
+        $dif  = round($total - $suma, 2);
+
+        $color = abs($dif) < 0.01 ? '#16a34a' : '#dc2626';
+        $estado = abs($dif) < 0.01
+            ? 'Los métodos cubren el total.'
+            : ($dif > 0
+                ? 'Falta asignar S/ ' . number_format($dif, 2)
+                : 'Excede el total en S/ ' . number_format(abs($dif), 2));
+
+        return new HtmlString(
+            '<div style="font-size:.85rem;">Total: <b>S/ ' . number_format($total, 2) . '</b> &middot; '
+            . 'Métodos: <b>S/ ' . number_format($suma, 2) . '</b><br>'
+            . '<span style="color:' . $color . '">' . $estado . '</span></div>'
+        );
+    }
+
+    /**
+     * Normaliza el pago del contado a una lista de líneas homogéneas.
+     * En modo simple es una sola línea por el total; en mixto, las del repetidor.
+     *
+     * @return list<array{metodo_pago: string, monto: float, referencia: ?string, comprobantes: array<int, string>}>
+     */
+    protected static function lineasContado(array $data, float $total): array
+    {
+        if ($data['pago_mixto'] ?? false) {
+            return collect($data['pagos_contado'] ?? [])
+                ->filter(fn ($p): bool => (float) ($p['monto'] ?? 0) > 0)
+                ->map(fn ($p): array => [
+                    'metodo_pago'  => $p['metodo_pago'] ?? 'EFECTIVO',
+                    'monto'        => round((float) $p['monto'], 2),
+                    'referencia'   => $p['referencia'] ?? null,
+                    'comprobantes' => array_values($p['comprobantes'] ?? []),
+                ])
+                ->values()->toArray();
+        }
+
+        return [[
+            'metodo_pago'  => $data['metodo_pago'] ?? 'EFECTIVO',
+            'monto'        => round($total, 2),
+            'referencia'   => $data['pago_referencia'] ?? null,
+            'comprobantes' => array_values($data['pago_comprobantes'] ?? []),
+        ]];
+    }
+
+    /** Método/referencia/voucher "principal" para las columnas legadas de `ventas`. */
+    protected static function pagoPrincipal(array $lineas): array
+    {
+        $unica = count($lineas) === 1;
+
+        return [
+            'metodo'     => $unica ? ($lineas[0]['metodo_pago'] ?? 'EFECTIVO') : 'MIXTO',
+            'referencia' => $unica ? ($lineas[0]['referencia'] ?? null) : null,
+            'voucher'    => $unica ? ($lineas[0]['comprobantes'][0] ?? null) : null,
+        ];
+    }
+
+    /**
+     * Crea las filas venta_pagos del contado. Con $conCaja registra además el
+     * ingreso en caja por cada método (solo al crear; la edición no re-cobra).
+     */
+    protected static function registrarPagosContado(Venta $venta, array $lineas, string $doc, int $usuario, bool $conCaja = true): void
+    {
+        foreach ($lineas as $linea) {
+            $idMovimiento = $conCaja
+                ? app(CajaService::class)->registrarCobro(
+                    idUsuario:  $usuario,
+                    monto:      $linea['monto'],
+                    tipoPago:   $linea['metodo_pago'],
+                    idVenta:    $venta->id_venta,
+                    documento:  $doc,
+                    categoria:  'VENTA',
+                    referencia: $linea['referencia'],
+                )
+                : null;
+
+            \App\Models\VentaPago::create([
+                'id_venta'           => $venta->id_venta,
+                'id_dias_venta'      => null,
+                'metodo_pago'        => $linea['metodo_pago'],
+                'monto'              => $linea['monto'],
+                'referencia'         => $linea['referencia'],
+                'comprobantes'       => $linea['comprobantes'] ?: null,
+                'id_movimiento_caja' => $idMovimiento,
+                'id_usuario'         => $usuario,
+            ]);
+        }
+    }
+
     protected function handleRecordCreation(array $data): Model
     {
         return DB::transaction(function () use ($data): Venta {
@@ -644,6 +747,20 @@ class CreateVenta extends CreateRecord
 
             $esContado = (int) $data['id_tipo_pago'] === 1;
 
+            // Pago del contado (uno o varios métodos). La suma debe dar el total.
+            $lineasPago = $esContado ? static::lineasContado($data, $total) : [];
+            if ($esContado) {
+                if ($lineasPago === []) {
+                    $this->fallo('Indicá al menos un método de pago.');
+                }
+                $suma = static::sumaPagos($lineasPago);
+                if (abs($suma - $total) > 0.01) {
+                    $this->fallo('Los métodos de pago suman S/ ' . number_format($suma, 2)
+                        . ' pero el total es S/ ' . number_format($total, 2) . '.');
+                }
+            }
+            $principal = static::pagoPrincipal($lineasPago);
+
             // Afectación IGV del comprobante: gravado descompone el 18%;
             // exonerado/inafecto no llevan IGV (subtotal = total).
             $afectacion = $data['tipo_igv'] ?? 'gravado';
@@ -654,11 +771,11 @@ class CreateVenta extends CreateRecord
             $venta = Venta::create([
                 'id_tido'           => $data['id_tido'],
                 'id_tipo_pago'      => $data['id_tipo_pago'],
-                // El pago del contado se registra en la venta; el del crédito,
-                // por cuota (dias_ventas).
-                'metodo_pago'       => $esContado ? ($data['metodo_pago'] ?? 'EFECTIVO') : null,
-                'pago_referencia'   => $esContado ? ($data['pago_referencia'] ?? null) : null,
-                'pago_voucher'      => $esContado ? ($data['pago_voucher'] ?? null) : null,
+                // El pago del contado se registra en la venta (detalle en venta_pagos);
+                // el del crédito, por cuota (dias_ventas).
+                'metodo_pago'       => $esContado ? $principal['metodo'] : null,
+                'pago_referencia'   => $esContado ? $principal['referencia'] : null,
+                'pago_voucher'      => $esContado ? $principal['voucher'] : null,
                 'fecha_emision'     => $data['fecha'],
                 'fecha_vencimiento' => $data['fecha_vencimiento'] ?? $data['fecha'],
                 'direccion'         => $data['direccion'] ?? '-',
@@ -723,19 +840,11 @@ class CreateVenta extends CreateRecord
                 ]);
             }
 
-            // Contado: la venta se cobra al momento, así que el ingreso entra
-            // de inmediato a la caja del vendedor con su instrumento y N° de
-            // operación (billetera, transferencia o efectivo).
+            // Contado: la venta se cobra al momento. Cada método entra a la caja
+            // del vendedor con su instrumento y N° de operación, y queda su fila
+            // en venta_pagos con los comprobantes.
             if ($esContado) {
-                app(CajaService::class)->registrarCobro(
-                    idUsuario:  $usuario,
-                    monto:      (float) $total,
-                    tipoPago:   $data['metodo_pago'] ?? 'EFECTIVO',
-                    idVenta:    $venta->id_venta,
-                    documento:  $doc,
-                    categoria:  'VENTA',
-                    referencia: $data['pago_referencia'] ?? null,
-                );
+                static::registrarPagosContado($venta, $lineasPago, $doc, $usuario);
             }
 
             // Las cuotas solo aplican a crédito; ignorar ítems vacíos del repeater.

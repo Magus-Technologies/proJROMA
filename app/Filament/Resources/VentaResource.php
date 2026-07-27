@@ -344,6 +344,17 @@ class VentaResource extends Resource
                     ->url(fn (Venta $record): string =>
                         \App\Filament\Resources\GuiaRemisionResource::getUrl('create', ['venta' => $record->id_venta])),
 
+                Action::make('ver_pagos')
+                    ->label('Ver pagos')
+                    ->icon('heroicon-m-banknotes')
+                    ->color('gray')
+                    ->visible(fn (Venta $record): bool => $record->pagosMetodos()->exists())
+                    ->modalHeading('Métodos de pago y comprobantes')
+                    ->modalWidth('lg')
+                    ->modalContent(fn (Venta $record) => view('filament.ventas.pagos', ['venta' => $record]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Cerrar'),
+
                 Action::make('anular')
                     ->label('Anular')
                     ->icon('heroicon-o-no-symbol')

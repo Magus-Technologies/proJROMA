@@ -34,6 +34,7 @@ class Venta extends Model
     public function tipoDocSunat()   { return $this->belongsTo(DocumentoSunat::class,'id_tido','id_tido'); }
     public function productosVenta() { return $this->hasMany(ProductoVenta::class,'id_venta','id_venta'); }
     public function pagos()          { return $this->hasMany(DiasVenta::class,'id_venta','id_venta'); }
+    public function pagosMetodos()   { return $this->hasMany(VentaPago::class,'id_venta','id_venta'); }
     public function sunat()          { return $this->hasOne(VentaSunat::class,'id_venta','id_venta'); }
 
     public function scopeDeEmpresa(Builder $q, int $id): Builder { return $q->where('id_empresa',$id); }

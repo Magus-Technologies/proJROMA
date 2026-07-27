@@ -53,13 +53,30 @@ class EditVenta extends CreateVenta
 
         $this->ventaEditando = $venta;
 
+        // Pagos del contado ya registrados (para reponer el formulario).
+        $pagosContado = \App\Models\VentaPago::where('id_venta', $venta->id_venta)
+            ->whereNull('id_dias_venta')
+            ->get()
+            ->map(fn (\App\Models\VentaPago $p): array => [
+                'metodo_pago'  => $p->metodo_pago ?: 'EFECTIVO',
+                'monto'        => $p->monto,
+                'referencia'   => $p->referencia,
+                'comprobantes' => $p->comprobantes ?? [],
+            ])
+            ->values()->toArray();
+
+        $esMixto = count($pagosContado) > 1;
+        $unico   = $pagosContado[0] ?? null;
+
         $this->form->fill([
             'id_tido'           => (string) $venta->id_tido,
             'id_cliente'        => $venta->id_cliente,
             'id_tipo_pago'      => (string) $venta->id_tipo_pago,
-            'metodo_pago'       => $venta->metodo_pago ?: 'EFECTIVO',
-            'pago_referencia'   => $venta->pago_referencia,
-            'pago_voucher'      => $venta->pago_voucher,
+            'pago_mixto'        => $esMixto,
+            'metodo_pago'       => $esMixto ? 'EFECTIVO' : ($unico['metodo_pago'] ?? ($venta->metodo_pago ?: 'EFECTIVO')),
+            'pago_referencia'   => $esMixto ? null : ($unico['referencia'] ?? $venta->pago_referencia),
+            'pago_comprobantes' => $esMixto ? [] : ($unico['comprobantes'] ?? array_filter([$venta->pago_voucher])),
+            'pagos_contado'     => $pagosContado ?: null,
             'tipo_igv'          => $venta->tipo_igv ?: 'gravado',
             'fecha'             => optional($venta->fecha_emision)->toDateString(),
             'fecha_vencimiento' => optional($venta->fecha_vencimiento)->toDateString(),
@@ -128,6 +145,8 @@ class EditVenta extends CreateVenta
             }
             ProductoVenta::where('id_venta', $venta->id_venta)->delete();
             DiasVenta::where('id_venta', $venta->id_venta)->delete();
+            // Los pagos del contado se reconstruyen desde el formulario.
+            \App\Models\VentaPago::where('id_venta', $venta->id_venta)->whereNull('id_dias_venta')->delete();
 
             // ── 2) Validar stock nuevo y resolver líneas ──
             $lineas = [];
@@ -160,11 +179,25 @@ class EditVenta extends CreateVenta
 
             $esContado = (int) $data['id_tipo_pago'] === 1;
 
+            // Pago del contado (uno o varios métodos). La suma debe dar el total.
+            $lineasPago = $esContado ? static::lineasContado($data, $total) : [];
+            if ($esContado) {
+                if ($lineasPago === []) {
+                    $this->fallo('Indicá al menos un método de pago.');
+                }
+                $suma = static::sumaPagos($lineasPago);
+                if (abs($suma - $total) > 0.01) {
+                    $this->fallo('Los métodos de pago suman S/ ' . number_format($suma, 2)
+                        . ' pero el total es S/ ' . number_format($total, 2) . '.');
+                }
+            }
+            $principal = static::pagoPrincipal($lineasPago);
+
             $venta->update([
                 'id_tipo_pago'      => $data['id_tipo_pago'],
-                'metodo_pago'       => $esContado ? ($data['metodo_pago'] ?? 'EFECTIVO') : null,
-                'pago_referencia'   => $esContado ? ($data['pago_referencia'] ?? null) : null,
-                'pago_voucher'      => $esContado ? ($data['pago_voucher'] ?? null) : null,
+                'metodo_pago'       => $esContado ? $principal['metodo'] : null,
+                'pago_referencia'   => $esContado ? $principal['referencia'] : null,
+                'pago_voucher'      => $esContado ? $principal['voucher'] : null,
                 'fecha_emision'     => $data['fecha'],
                 'fecha_vencimiento' => $data['fecha_vencimiento'] ?? $data['fecha'],
                 'direccion'         => $data['direccion'] ?? '-',
@@ -216,7 +249,12 @@ class EditVenta extends CreateVenta
                 ]);
             }
 
-            // ── 5) Cuotas (solo crédito, sin ítems vacíos) ──
+            // ── 5) Pagos del contado (la edición no re-cobra caja) ──
+            if ($esContado) {
+                static::registrarPagosContado($venta, $lineasPago, $doc, $usuario, conCaja: false);
+            }
+
+            // ── 6) Cuotas (solo crédito, sin ítems vacíos) ──
             $cuotas = ((int) $data['id_tipo_pago'] === 2) ? ($data['lista_pagos'] ?? []) : [];
             foreach ($cuotas as $pago) {
                 if (blank($pago['monto'] ?? null) || blank($pago['fecha'] ?? null)) {

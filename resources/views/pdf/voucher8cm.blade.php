@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <style>
+    /* dompdf controla los márgenes del papel con @page (NO con opciones).
+       ~1 cm a los lados, poco arriba/abajo. */
+    @page { margin: 6pt 28pt; }
     * { margin:0; padding:0; box-sizing:border-box; }
     /* Ocupar todo el ancho útil del papel (si se fija en px queda angosto y
        sobra margen a la derecha, porque el papel es más ancho que 226px). */

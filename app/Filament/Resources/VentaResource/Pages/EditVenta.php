@@ -89,14 +89,21 @@ class EditVenta extends CreateVenta
                 'precio'      => number_format((float) $p->precio, 2, '.', ''),
                 'linea_total' => number_format((float) $p->total, 2, '.', ''),
             ])->values()->toArray(),
-            'lista_pagos'       => $venta->pagos->map(fn (DiasVenta $c): array => [
-                'fecha'      => optional($c->fecha)->toDateString(),
-                'monto'      => $c->monto,
-                'tipo_pago'  => $c->tipo_pago ?: 'EFECTIVO',
-                'pagado'     => $c->estado === '1',
-                'referencia' => $c->referencia,
-                'voucher'    => $c->voucher,
-            ])->values()->toArray(),
+            'lista_pagos'       => $venta->pagos->map(function (DiasVenta $c) use ($venta): array {
+                // Comprobantes: preferir los de venta_pagos de la cuota; si no, el voucher legado.
+                $comprobantes = \App\Models\VentaPago::where('id_venta', $venta->id_venta)
+                    ->where('id_dias_venta', $c->dias_venta_id)
+                    ->value('comprobantes');
+
+                return [
+                    'fecha'        => optional($c->fecha)->toDateString(),
+                    'monto'        => $c->monto,
+                    'tipo_pago'    => $c->tipo_pago ?: 'EFECTIVO',
+                    'pagado'       => $c->estado === '1',
+                    'referencia'   => $c->referencia,
+                    'comprobantes' => $comprobantes ?: array_filter([$c->voucher]),
+                ];
+            })->values()->toArray(),
         ]);
     }
 
@@ -145,8 +152,8 @@ class EditVenta extends CreateVenta
             }
             ProductoVenta::where('id_venta', $venta->id_venta)->delete();
             DiasVenta::where('id_venta', $venta->id_venta)->delete();
-            // Los pagos del contado se reconstruyen desde el formulario.
-            \App\Models\VentaPago::where('id_venta', $venta->id_venta)->whereNull('id_dias_venta')->delete();
+            // Los pagos (contado y por cuota) se reconstruyen desde el formulario.
+            \App\Models\VentaPago::where('id_venta', $venta->id_venta)->delete();
 
             // ── 2) Validar stock nuevo y resolver líneas ──
             $lineas = [];
@@ -261,16 +268,31 @@ class EditVenta extends CreateVenta
                     continue;
                 }
 
-                DiasVenta::create([
+                $comprobantes = array_values($pago['comprobantes'] ?? []);
+
+                $dv = DiasVenta::create([
                     'id_venta'   => $venta->id_venta,
                     'fecha'      => $pago['fecha'],
                     'monto'      => $pago['monto'],
                     'estado'     => ($pago['pagado'] ?? false) ? '1' : '0',
                     'tipo_pago'  => $pago['tipo_pago'] ?? 'EFECTIVO',
                     'referencia' => $pago['referencia'] ?? null,
-                    'voucher'    => $pago['voucher'] ?? null,
+                    'voucher'    => $comprobantes[0] ?? null,
                     'id_usuario' => $usuario,
                 ]);
+
+                // Cuota pagada al momento: dejar su desglose con comprobantes.
+                if (($pago['pagado'] ?? false)) {
+                    \App\Models\VentaPago::create([
+                        'id_venta'      => $venta->id_venta,
+                        'id_dias_venta' => $dv->dias_venta_id,
+                        'metodo_pago'   => $pago['tipo_pago'] ?? 'EFECTIVO',
+                        'monto'         => (float) $pago['monto'],
+                        'referencia'    => $pago['referencia'] ?? null,
+                        'comprobantes'  => $comprobantes ?: null,
+                        'id_usuario'    => $usuario,
+                    ]);
+                }
             }
 
             Notification::make()->success()

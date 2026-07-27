@@ -227,39 +227,45 @@ class CuentaPorPagarResource extends Resource
                             }
                         }
 
-                        DB::transaction(function () use ($record, $data): void {
-                            [$instrumentoTipo, $instrumentoId] = CajaService::mapInstrumento($data['metodo_pago'] ?? 'EFECTIVO');
+                        try {
+                            DB::transaction(function () use ($record, $data): void {
+                                [$instrumentoTipo, $instrumentoId] = CajaService::mapInstrumento($data['metodo_pago'] ?? 'EFECTIVO');
 
-                            $idCaja = null;
-                            $caja = static::cajaDelUsuario();
+                                $idCaja = null;
+                                $caja = static::cajaDelUsuario();
 
-                            if ($caja) {
-                                $idCaja = $caja->id;
-                                $doc = trim("{$record->serie}-{$record->numero}", '-');
+                                if ($caja) {
+                                    $idCaja = $caja->id;
+                                    $doc = trim("{$record->serie}-{$record->numero}", '-');
 
-                                app(CajaService::class)->registrarMovimiento([
-                                    'id_caja'          => $caja->id,
-                                    'tipo'             => 'EGRESO',
-                                    'categoria'        => 'COMPRA',
-                                    'descripcion'      => 'Pago compra ' . ($doc ?: "#{$record->id_compra}"),
-                                    'monto'            => (float) $data['monto'],
+                                    app(CajaService::class)->registrarMovimiento([
+                                        'id_caja'          => $caja->id,
+                                        'tipo'             => 'EGRESO',
+                                        'categoria'        => 'COMPRA',
+                                        'descripcion'      => 'Pago compra ' . ($doc ?: "#{$record->id_compra}"),
+                                        'monto'            => (float) $data['monto'],
+                                        'fecha'            => $data['fecha'],
+                                        'instrumento_tipo' => $instrumentoTipo,
+                                        'instrumento_id'   => $instrumentoId,
+                                        'referencia'       => $data['referencia'] ?? null,
+                                        'id_usuario'       => (int) auth()->user()->usuario_id,
+                                    ]);
+                                }
+
+                                DiasCompra::create([
+                                    'id_compra'        => $record->id_compra,
+                                    'monto'            => $data['monto'],
                                     'fecha'            => $data['fecha'],
+                                    'estado'           => '1',
+                                    'id_caja'          => $idCaja,
                                     'instrumento_tipo' => $instrumentoTipo,
-                                    'instrumento_id'   => $instrumentoId,
-                                    'referencia'       => $data['referencia'] ?? null,
-                                    'id_usuario'       => (int) auth()->user()->usuario_id,
                                 ]);
-                            }
+                            });
+                        } catch (\RuntimeException $e) {
+                            Notification::make()->danger()->title($e->getMessage())->persistent()->send();
 
-                            DiasCompra::create([
-                                'id_compra'        => $record->id_compra,
-                                'monto'            => $data['monto'],
-                                'fecha'            => $data['fecha'],
-                                'estado'           => '1',
-                                'id_caja'          => $idCaja,
-                                'instrumento_tipo' => $instrumentoTipo,
-                            ]);
-                        });
+                            return;
+                        }
 
                         Notification::make()->success()->title('Pago registrado')->send();
                     }),

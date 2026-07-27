@@ -18,7 +18,7 @@ class AlmacenStockStats extends StatsOverviewWidget
 
         $almacenes    = Almacen::where('id_empresa', $empresa)->where('estado', 1)->count();
         $conStock     = Producto::deEmpresa($empresa)->activos()->where('cantidad', '>', 0)->count();
-        $bajoStock    = Producto::deEmpresa($empresa)->activos()->bajoStock(5)->count();
+        $bajoStock    = Producto::deEmpresa($empresa)->activos()->bajoStock()->count();
 
         return [
             Stat::make('Almacenes Activos', number_format($almacenes))

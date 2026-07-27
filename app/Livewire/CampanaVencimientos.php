@@ -45,6 +45,48 @@ class CampanaVencimientos extends Component
         return $this->puedeVer ? $this->baseQuery()->count() : 0;
     }
 
+    // ── Alertas de bajo stock (notificaciones de BD del usuario) ─────────
+
+    protected function stockQuery(): \Illuminate\Database\Query\Builder
+    {
+        return \Illuminate\Support\Facades\DB::table('notifications')
+            ->where('notifiable_type', \App\Models\User::class)
+            ->where('notifiable_id', (int) auth()->user()?->usuario_id)
+            ->whereNull('read_at');
+    }
+
+    public function getCantidadStockProperty(): int
+    {
+        return auth()->check() ? $this->stockQuery()->count() : 0;
+    }
+
+    /** @return Collection<int, array<string, string>> */
+    public function getAlertasStockProperty(): Collection
+    {
+        if (! auth()->check()) {
+            return collect();
+        }
+
+        return $this->stockQuery()
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get()
+            ->map(function ($n): array {
+                $data = json_decode($n->data, true) ?: [];
+
+                return [
+                    'titulo' => $data['title'] ?? 'Notificación',
+                    'cuerpo' => $data['body'] ?? '',
+                    'cuando' => \Carbon\Carbon::parse($n->created_at)->diffForHumans(),
+                ];
+            });
+    }
+
+    public function marcarStockLeidas(): void
+    {
+        $this->stockQuery()->update(['read_at' => now()]);
+    }
+
     /** @return Collection<int, array<string, mixed>> */
     public function getNotificacionesProperty(): Collection
     {
@@ -98,10 +140,14 @@ class CampanaVencimientos extends Component
     public function render()
     {
         return view('livewire.campana-vencimientos', [
-            'puedeVer'      => $this->puedeVer,
-            'cantidad'      => $this->cantidad,
-            'notificaciones'=> $this->notificaciones,
-            'url'           => CuentaPorCobrarResource::getUrl('index'),
+            'puedeVer'       => $this->puedeVer,
+            'cantidad'       => $this->cantidad,
+            'notificaciones' => $this->notificaciones,
+            'url'            => CuentaPorCobrarResource::getUrl('index'),
+            'cantidadStock'  => $this->cantidadStock,
+            'alertasStock'   => $this->alertasStock,
+            'urlStock'       => \App\Filament\Resources\ProductoResource::getUrl('index'),
+            'total'          => $this->cantidad + $this->cantidadStock,
         ]);
     }
 }

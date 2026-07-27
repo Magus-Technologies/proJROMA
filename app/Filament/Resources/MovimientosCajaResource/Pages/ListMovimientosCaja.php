@@ -9,6 +9,7 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 
 class ListMovimientosCaja extends ListRecords
@@ -72,20 +73,38 @@ class ListMovimientosCaja extends ListRecords
             ]);
         };
 
+        // Las validaciones del servicio (ej. saldo insuficiente) se muestran
+        // como notificación y el modal queda abierto para corregir.
+        $ejecutar = function (array $data, string $tipo, Action $action) use ($registrar): void {
+            try {
+                $registrar($data, $tipo);
+            } catch (\RuntimeException $e) {
+                Notification::make()->danger()->title($e->getMessage())->send();
+
+                $action->halt();
+
+                return;
+            }
+
+            Notification::make()->success()
+                ->title(($tipo === 'INGRESO' ? 'Ingreso' : 'Egreso') . ' registrado')
+                ->send();
+        };
+
         return [
             Action::make('ingreso')
                 ->label('Registrar Ingreso')
                 ->color('success')
                 ->icon('heroicon-o-arrow-down-circle')
                 ->form($movimientoForm)
-                ->action(fn (array $data) => $registrar($data, 'INGRESO')),
+                ->action(fn (array $data, Action $action) => $ejecutar($data, 'INGRESO', $action)),
 
             Action::make('egreso')
                 ->label('Registrar Egreso')
                 ->color('danger')
                 ->icon('heroicon-o-arrow-up-circle')
                 ->form($movimientoForm)
-                ->action(fn (array $data) => $registrar($data, 'EGRESO')),
+                ->action(fn (array $data, Action $action) => $ejecutar($data, 'EGRESO', $action)),
         ];
     }
 }

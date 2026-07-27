@@ -1,6 +1,6 @@
 {{-- Campanita con panel de notificaciones. Se refresca sola cada 60s. --}}
 <div wire:poll.60s class="flex items-center">
-    @if ($puedeVer)
+    @if ($puedeVer || $cantidadStock > 0)
         <div x-data="{ abierto: false }" class="relative">
             {{-- Botón campana --}}
             <button
@@ -15,9 +15,9 @@
                           d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
                 </svg>
 
-                @if ($cantidad > 0)
+                @if ($total > 0)
                     <span class="absolute -right-0.5 -top-0.5 flex min-w-[1.15rem] items-center justify-center rounded-full bg-danger-600 px-1 text-[0.7rem] font-semibold leading-tight text-white ring-2 ring-white dark:ring-gray-900">
-                        {{ $cantidad > 9 ? '9+' : $cantidad }}
+                        {{ $total > 9 ? '9+' : $total }}
                     </span>
                 @endif
             </button>
@@ -41,14 +41,52 @@
                         </svg>
                         <span class="text-base font-semibold text-gray-900 dark:text-white">Notificaciones</span>
                     </div>
-                    @if ($cantidad > 0)
-                        <span class="inline-flex items-center rounded-full bg-danger-50 px-2.5 py-0.5 text-xs font-semibold text-danger-700 dark:bg-danger-400/10 dark:text-danger-400">
-                            {{ $cantidad }} por cobrar
-                        </span>
-                    @endif
+                    <div class="flex items-center gap-1.5">
+                        @if ($cantidadStock > 0)
+                            <span class="inline-flex items-center rounded-full bg-warning-50 px-2.5 py-0.5 text-xs font-semibold text-warning-700 dark:bg-warning-400/10 dark:text-warning-400">
+                                {{ $cantidadStock }} stock
+                            </span>
+                        @endif
+                        @if ($cantidad > 0)
+                            <span class="inline-flex items-center rounded-full bg-danger-50 px-2.5 py-0.5 text-xs font-semibold text-danger-700 dark:bg-danger-400/10 dark:text-danger-400">
+                                {{ $cantidad }} por cobrar
+                            </span>
+                        @endif
+                    </div>
                 </div>
 
                 <div class="h-px bg-gray-100 dark:bg-white/10"></div>
+
+                {{-- Sección: alertas de bajo stock --}}
+                @if ($cantidadStock > 0)
+                    <div class="flex items-center justify-between px-5 py-2 bg-warning-50/60 dark:bg-warning-400/5">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-warning-700 dark:text-warning-400">Alertas</span>
+                        <button
+                            type="button"
+                            wire:click="marcarStockLeidas"
+                            class="text-xs font-medium text-gray-400 transition hover:text-gray-600 dark:hover:text-gray-300"
+                        >
+                            Marcar leídas
+                        </button>
+                    </div>
+                    <div class="divide-y divide-gray-50 dark:divide-white/5">
+                        @foreach ($alertasStock as $a)
+                            <a href="{{ $urlStock }}" class="flex items-start gap-3 px-5 py-3 transition hover:bg-gray-50 dark:hover:bg-white/5">
+                                <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warning-100 text-warning-600 dark:bg-warning-400/10 dark:text-warning-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-5 w-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
+                                    </svg>
+                                </span>
+                                <div class="min-w-0 flex-1">
+                                    <span class="block truncate text-sm font-semibold text-gray-900 dark:text-white">{{ $a['titulo'] }}</span>
+                                    <span class="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">{{ $a['cuerpo'] }}</span>
+                                    <span class="mt-1 block text-[11px] text-gray-400 dark:text-gray-500">{{ $a['cuando'] }}</span>
+                                </div>
+                            </a>
+                        @endforeach
+                    </div>
+                    <div class="h-px bg-gray-100 dark:bg-white/10"></div>
+                @endif
 
                 {{-- Lista --}}
                 <div style="max-height:24rem;" class="divide-y divide-gray-50 overflow-y-auto dark:divide-white/5">

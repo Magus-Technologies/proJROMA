@@ -428,7 +428,7 @@ class MiCaja extends Page implements HasTable
                             ->label('Observaciones')
                             ->maxLength(500),
                     ])
-                    ->action(function (array $data, CajaMovimiento $record): void {
+                    ->action(function (array $data, CajaMovimiento $record, Action $action): void {
                         $apertura = $this->aperturaDeMovimiento($record);
                         $cajaId   = (int) $this->caja->id;
                         [$montoTotal, $detalles, $esMontoFijo] = self::resolverConteo($data);
@@ -439,6 +439,7 @@ class MiCaja extends Page implements HasTable
                             return;
                         }
 
+                        try {
                         DB::transaction(function () use ($data, $cajaId, $apertura, $montoTotal, $detalles, $esMontoFijo): void {
                             DB::table('caja_aperturas')->where('id', $apertura->id)->update([
                                 'fecha'         => $data['fecha'],
@@ -483,6 +484,13 @@ class MiCaja extends Page implements HasTable
                                 'id_usuario'       => (int) auth()->user()->usuario_id,
                             ]);
                         });
+                        } catch (\RuntimeException $e) {
+                            Notification::make()->danger()->title($e->getMessage())->send();
+
+                            $action->halt();
+
+                            return;
+                        }
 
                         Notification::make()->success()
                             ->title('Apertura actualizada')
@@ -695,8 +703,17 @@ class MiCaja extends Page implements HasTable
                 ->color('success')
                 ->icon('heroicon-o-arrow-down-circle')
                 ->form($movimientoForm)
-                ->action(function (array $data) use ($cajaId): void {
-                    app(CajaService::class)->registrarMovimiento($this->datosMovimientoManual($data, $cajaId, 'INGRESO'));
+                ->action(function (array $data, Action $action) use ($cajaId): void {
+                    try {
+                        app(CajaService::class)->registrarMovimiento($this->datosMovimientoManual($data, $cajaId, 'INGRESO'));
+                    } catch (\RuntimeException $e) {
+                        Notification::make()->danger()->title($e->getMessage())->send();
+
+                        $action->halt();
+
+                        return;
+                    }
+
                     Notification::make()->success()->title('Ingreso registrado')->send();
                     $this->caja = $this->resolverCaja();
                 }),
@@ -706,8 +723,17 @@ class MiCaja extends Page implements HasTable
                 ->color('danger')
                 ->icon('heroicon-o-arrow-up-circle')
                 ->form($movimientoForm)
-                ->action(function (array $data) use ($cajaId): void {
-                    app(CajaService::class)->registrarMovimiento($this->datosMovimientoManual($data, $cajaId, 'EGRESO'));
+                ->action(function (array $data, Action $action) use ($cajaId): void {
+                    try {
+                        app(CajaService::class)->registrarMovimiento($this->datosMovimientoManual($data, $cajaId, 'EGRESO'));
+                    } catch (\RuntimeException $e) {
+                        Notification::make()->danger()->title($e->getMessage())->send();
+
+                        $action->halt();
+
+                        return;
+                    }
+
                     Notification::make()->success()->title('Egreso registrado')->send();
                     $this->caja = $this->resolverCaja();
                 }),

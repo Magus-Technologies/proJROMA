@@ -33,7 +33,9 @@ class CajaService
                 $permitirNegativo = (bool) ($data['permitir_negativo'] ?? false);
                 if (!$permitirNegativo && $monto > 0 && $saldoPosterior < 0) {
                     throw new \RuntimeException(
-                        "Saldo insuficiente. Disponible: S/ " . number_format($saldoAnterior, 2)
+                        "Saldo insuficiente en la caja \"{$caja->nombre}\". Disponible: S/ "
+                        . number_format($saldoAnterior, 2)
+                        . ' — se intentó egresar S/ ' . number_format($monto, 2) . '.'
                     );
                 }
             }

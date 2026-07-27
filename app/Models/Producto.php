@@ -12,12 +12,19 @@ class Producto extends Model
     protected $primaryKey = 'id_producto';
     public    $timestamps = false;
 
+    protected static function booted(): void
+    {
+        // Alerta de bajo stock en la campana cada vez que el stock cambia
+        // (recepciones, ventas, ajustes, traslados, préstamos...)
+        static::saved(fn (Producto $p) => \App\Services\AlertaStockService::evaluar($p));
+    }
+
     protected $fillable = [
         'cod_barra','descripcion','precio','costo','cantidad','iscbp',
         'id_empresa','sucursal','ultima_salida','codsunat','usar_barra',
         'precio_mayor','precio_menor','peso_bruto','razon_social','ruc',
         'estado','almacen','precio2','precio3','precio4','precio_unidad',
-        'codigo','activo',
+        'codigo','activo','stock_minimo','stock_maximo',
         'id_categoria','id_subcategoria','id_marca','id_submarca',
         'medida','presentaciones','cnt_presenta','imagen',
     ];
@@ -33,6 +40,8 @@ class Producto extends Model
         'precio_menor'  => 'float',
         'peso_bruto'    => 'float',
         'cantidad'      => 'integer',
+        'stock_minimo'  => 'integer',
+        'stock_maximo'  => 'integer',
         'ultima_salida' => 'date',
     ];
 
@@ -43,5 +52,10 @@ class Producto extends Model
     public function scopeActivos(Builder $q): Builder              { return $q->where('estado','1'); }
     public function scopeDeEmpresa(Builder $q, int $id): Builder   { return $q->where('id_empresa',$id); }
     public function scopeDeSucursal(Builder $q, int $s): Builder   { return $q->where('sucursal',$s); }
-    public function scopeBajoStock(Builder $q, int $min=5): Builder { return $q->where('cantidad','<=',$min); }
+    /** Bajo stock según el mínimo configurado en cada producto/almacén (0 = sin alerta). */
+    public function scopeBajoStock(Builder $q): Builder
+    {
+        return $q->where('stock_minimo', '>', 0)
+                 ->whereColumn('cantidad', '<=', 'stock_minimo');
+    }
 }

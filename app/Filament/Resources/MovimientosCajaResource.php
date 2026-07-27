@@ -211,7 +211,17 @@ class MovimientosCajaResource extends Resource
                         ->color('danger')
                         ->visible(fn (CajaMovimiento $record): bool => $record->estado === 'CONFIRMADO')
                         ->requiresConfirmation()
-                        ->action(fn (CajaMovimiento $record) => app()->make(CajaService::class)->anularMovimiento($record->id)),
+                        ->action(function (CajaMovimiento $record): void {
+                            try {
+                                app(CajaService::class)->anularMovimiento($record->id);
+                            } catch (\RuntimeException $e) {
+                                \Filament\Notifications\Notification::make()->danger()->title($e->getMessage())->send();
+
+                                return;
+                            }
+
+                            \Filament\Notifications\Notification::make()->success()->title('Movimiento anulado')->send();
+                        }),
 
                     Action::make('ver_detalle')
                         ->label('Ver detalle')

@@ -17,11 +17,15 @@ class BajoStockWidget extends Widget
 
         $bajoStock = Producto::deEmpresa($empresa)
             ->activos()
-            ->bajoStock(5)
+            ->bajoStock()
             ->orderBy('cantidad')
             ->limit(10)
             ->get();
 
-        return view($this->view, compact('bajoStock'));
+        $almacenes = \Illuminate\Support\Facades\DB::table('almacenes')
+            ->where('id_empresa', $empresa)
+            ->pluck('nombre', 'codigo');
+
+        return view($this->view, compact('bajoStock', 'almacenes'));
     }
 }

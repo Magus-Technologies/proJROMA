@@ -17,10 +17,15 @@
                     </div>
                     <div class="flex-1 min-w-0">
                         <p class="truncate text-xs font-medium text-gray-700 dark:text-gray-200">{{ $p->descripcion }}</p>
-                        <p class="text-[10px] text-gray-400 dark:text-gray-500">{{ $p->codigo }}</p>
+                        <p class="text-[10px] text-gray-400 dark:text-gray-500">
+                            {{ $almacenes[$p->almacen] ?? 'Sin almacén' }}{{ $p->codigo ? ' · ' . $p->codigo : '' }}
+                        </p>
                     </div>
-                    <span class="shrink-0 text-xs font-bold {{ $p->cantidad <= 0 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400' }}">
-                        {{ $p->cantidad }}
+                    <span class="shrink-0 text-right">
+                        <span class="block text-xs font-bold {{ $p->cantidad <= 0 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400' }}">
+                            {{ $p->cantidad }}
+                        </span>
+                        <span class="block text-[10px] text-gray-400 dark:text-gray-500">mín {{ $p->stock_minimo }}</span>
                     </span>
                 </div>
             @empty

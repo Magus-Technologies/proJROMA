@@ -6,14 +6,18 @@ use App\Models\Cliente;
 use App\Models\TmsMercado;
 use Maatwebsite\Excel\Concerns\Importable;
 use Maatwebsite\Excel\Concerns\SkipsErrors;
+use Maatwebsite\Excel\Concerns\SkipsFailures;
 use Maatwebsite\Excel\Concerns\SkipsOnError;
+use Maatwebsite\Excel\Concerns\SkipsOnFailure;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
 
-class ClientesImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnError
+class ClientesImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnError, SkipsOnFailure
 {
-    use Importable, SkipsErrors;
+    use Importable, SkipsErrors, SkipsFailures;
+
+    private int $rowCount = 0;
 
     public function __construct(
         protected int $idEmpresa,
@@ -30,6 +34,8 @@ class ClientesImport implements ToModel, WithHeadingRow, WithValidation, SkipsOn
                 $mercadoId = $mercado->id;
             }
         }
+
+        $this->rowCount++;
 
         return Cliente::create([
             'documento'  => trim($row['ruc_dni'] ?? ''),
@@ -70,5 +76,10 @@ class ClientesImport implements ToModel, WithHeadingRow, WithValidation, SkipsOn
     public function headingRow(): int
     {
         return 1;
+    }
+
+    public function getRowCount(): int
+    {
+        return $this->rowCount;
     }
 }

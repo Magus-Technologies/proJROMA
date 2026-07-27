@@ -4,9 +4,11 @@
 <meta charset="UTF-8">
 <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    /* El margen del ticket lo damos con padding del body: dompdf lo respeta
-       siempre (su soporte de @page es parcial). ~1 cm a los lados. */
-    body { font-family: 'Courier New', monospace; font-size: 9px; width: 100%; padding: 8pt 26pt; color:#000; }
+    body { font-family: 'Courier New', monospace; font-size: 9px; width: 100%; color:#000; }
+    /* El contenido va en un contenedor centrado: margin:0 auto reparte el
+       espacio igual a ambos lados (dompdf lo respeta de forma determinística).
+       ~78% deja ~1 cm de margen a cada lado en papel de 80 mm. */
+    .wrap { width: 78%; margin: 0 auto; }
     .center { text-align:center; }
     .bold   { font-weight:bold; }
     .line   { border-top:1px dashed #000; margin:4px 0; }
@@ -31,6 +33,7 @@
 </style>
 </head>
 <body>
+<div class="wrap">
 
 @if(!empty($logoBase64))
 <div style="text-align:center;margin-bottom:4px"><img src="{{ $logoBase64 }}" style="max-height:40px;max-width:160px;"></div>
@@ -122,5 +125,6 @@
     @endif
 </div>
 
+</div>
 </body>
 </html>

@@ -16,9 +16,16 @@
     table.prods td { font-size:8px; padding:1px 0; vertical-align:top; }
     .td-r { text-align:right; }
     .td-c { text-align:center; }
-    .total-line { display:flex; justify-content:space-between; font-size:10px; font-weight:bold; margin:2px 0; }
-    .sub-line   { display:flex; justify-content:space-between; font-size:8px; margin:1px 0; }
+    /* dompdf NO soporta flexbox: las líneas de totales se alinean con tablas. */
+    table.tot   { width:100%; border-collapse:collapse; }
+    table.tot td { padding:1px 0; }
+    .sub-line td   { font-size:8px; }
+    .total-line td { font-size:11px; font-weight:bold; padding:2px 0; }
+    .td-right { text-align:right; }
     .gracias    { text-align:center; font-size:8px; margin-top:6px; }
+    .qr-box  { text-align:center; margin-top:6px; }
+    .qr-box img { width:120px; height:120px; }
+    .qr-cap  { font-size:7px; margin-top:2px; }
 </style>
 </head>
 <body>
@@ -36,7 +43,7 @@
 
 <div class="line"></div>
 
-<div class="doc-tipo">{{ $v->tipoDocumento?->tipo_doc ?? 'NOTA DE VENTA' }}</div>
+<div class="doc-tipo">{{ $v->tipoDocSunat?->nombre ?? 'NOTA DE VENTA' }}</div>
 <div class="doc-serie">{{ $v->documento_completo }}</div>
 
 <div class="line"></div>
@@ -74,21 +81,36 @@
 <div class="line"></div>
 
 @php
-    $subtotal = $v->subtotal ?? round($v->total / 1.18, 2);
-    $igvM     = round($v->total - $subtotal, 2);
+    // Respeta la afectación del comprobante: gravado descompone el 18%;
+    // exonerado / inafecto no llevan IGV (base = total).
+    $esGravado = ($v->tipo_igv ?? 'gravado') === 'gravado';
+    $subtotal  = $esGravado ? ($v->subtotal ?? round($v->total / 1.18, 2)) : $v->total;
+    $igvM      = $esGravado ? round($v->total - $subtotal, 2) : 0;
+    $etiquetaBase = $esGravado ? 'Op. Gravadas:' : (($v->tipo_igv ?? '') === 'exonerado' ? 'Op. Exoneradas:' : 'Op. Inafectas:');
 @endphp
 
-<div class="sub-line"><span>Op. Gravadas:</span><span>S/ {{ number_format($subtotal, 2) }}</span></div>
-<div class="sub-line"><span>IGV (18%):</span><span>S/ {{ number_format($igvM, 2) }}</span></div>
+<table class="tot">
+    <tr class="sub-line"><td>{{ $etiquetaBase }}</td><td class="td-right">S/ {{ number_format($subtotal, 2) }}</td></tr>
+    @if($esGravado)
+    <tr class="sub-line"><td>IGV (18%):</td><td class="td-right">S/ {{ number_format($igvM, 2) }}</td></tr>
+    @endif
+</table>
 
 <div class="line"></div>
 
-<div class="total-line">
-    <span>TOTAL:</span>
-    <span>S/ {{ number_format($v->total, 2) }}</span>
+<table class="tot">
+    <tr class="total-line"><td>TOTAL:</td><td class="td-right">S/ {{ number_format($v->total, 2) }}</td></tr>
+</table>
+
+<div class="line"></div>
+
+@if(!empty($qr))
+<div class="qr-box">
+    <img src="{{ $qr }}" alt="QR">
+    <div class="qr-cap">Representación impresa del comprobante electrónico.</div>
 </div>
-
 <div class="line"></div>
+@endif
 
 <div class="gracias">
     <div>¡Gracias por su compra!</div>

@@ -24,6 +24,16 @@
                         placeholder="N° o glosa..."
                         class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm w-48">
                 </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Estado</label>
+                    <select name="estado"
+                        class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm">
+                        <option value="">Todos</option>
+                        @foreach(\App\Models\AsientoContable::estados() as $v => $l)
+                            <option value="{{ $v }}" @selected($data['estado'] === $v)>{{ $l }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 <button type="submit"
                     class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
                     Filtrar

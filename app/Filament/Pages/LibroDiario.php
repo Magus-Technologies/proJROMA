@@ -23,6 +23,7 @@ class LibroDiario extends Page
         $desde = request('desde', now()->startOfMonth()->format('Y-m-d'));
         $hasta = request('hasta', now()->format('Y-m-d'));
         $search = request('search');
+        $estado = request('estado');
 
         $query = AsientoContable::with('detalle.cuenta', 'user')->orderBy('fecha', 'desc');
 
@@ -31,6 +32,10 @@ class LibroDiario extends Page
                 $q->where('numero', 'like', "%{$search}%")
                   ->orWhere('glosa', 'like', "%{$search}%");
             });
+        }
+
+        if ($estado && array_key_exists($estado, AsientoContable::estados())) {
+            $query->where('estado', $estado);
         }
 
         $asientos = $query->whereBetween('fecha', [$desde, $hasta])->get();
@@ -42,6 +47,7 @@ class LibroDiario extends Page
             'desde' => $desde,
             'hasta' => $hasta,
             'search' => $search,
+            'estado' => $estado,
             'meses' => $this->getMeses(),
             'next_numero' => AsientoContable::nextNumber(),
         ];

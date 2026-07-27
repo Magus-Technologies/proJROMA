@@ -244,21 +244,61 @@ class CierresCajaResource extends Resource
                             ->send();
                     }),
 
-                Action::make('marcar_descontada')
-                    ->label('Deuda descontada')
-                    ->iconButton()
-                    ->tooltip('Marcar deuda como descontada al trabajador')
+                Action::make('cancelar_deuda')
+                    ->label('Cancelar deuda')
                     ->icon('heroicon-o-banknotes')
                     ->color('warning')
-                    ->requiresConfirmation()
-                    ->modalDescription(fn (CierreCaja $record): string => 'Confirma que ya se descontó S/ ' . number_format($record->deuda?->monto ?? 0, 2) . ' a ' . ($record->usuarioCierra?->nombres ?? 'el trabajador') . '.')
                     ->visible(fn (CierreCaja $record): bool => $record->deuda?->estado === 'PENDIENTE')
-                    ->action(function (CierreCaja $record): void {
-                        $record->deuda->update([
-                            'estado'              => 'DESCONTADO',
-                            'id_usuario_registra' => (int) auth()->user()->usuario_id,
-                        ]);
-                        Notification::make()->success()->title('Deuda marcada como descontada.')->send();
+                    ->modalHeading(fn (CierreCaja $record): string => 'Cancelar deuda de ' . ($record->usuarioCierra?->nombres ?? 'el trabajador') . ' — S/ ' . number_format($record->deuda?->monto ?? 0, 2))
+                    ->form([
+                        \Filament\Forms\Components\Radio::make('modo')
+                            ->label('¿Cómo se cancela?')
+                            ->options([
+                                'EFECTIVO'  => 'El trabajador devuelve el dinero (ingresa a la caja principal)',
+                                'DESCUENTO' => 'Se descuenta de su sueldo / planilla (no ingresa dinero a caja)',
+                            ])
+                            ->default('EFECTIVO')
+                            ->required(),
+                        Textarea::make('observaciones')
+                            ->label('Observaciones')
+                            ->placeholder('Ej. devolvió en efectivo el 27/07, descuento en planilla de agosto...')
+                            ->maxLength(255),
+                    ])
+                    ->action(function (CierreCaja $record, array $data): void {
+                        $deuda = $record->deuda;
+
+                        \Illuminate\Support\Facades\DB::transaction(function () use ($record, $deuda, $data): void {
+                            if ($data['modo'] === 'EFECTIVO') {
+                                // El dinero devuelto entra a la caja principal
+                                // (o a la propia caja si no tiene padre).
+                                $idCajaDestino = $record->caja?->id_caja_padre ?: $record->id_caja;
+
+                                app(CajaService::class)->registrarMovimiento([
+                                    'id_caja'          => $idCajaDestino,
+                                    'tipo'             => 'INGRESO',
+                                    'categoria'        => 'REPOSICION',
+                                    'descripcion'      => 'Pago de deuda por faltante en cierre #' . $record->id . ' — ' . ($record->usuarioCierra?->nombres ?? 'trabajador'),
+                                    'monto'            => (float) $deuda->monto,
+                                    'instrumento_tipo' => 'EFECTIVO',
+                                    'origen_tipo'      => 'DEUDA_CIERRE',
+                                    'origen_id'        => $deuda->id,
+                                    'id_usuario'       => (int) auth()->user()->usuario_id,
+                                ]);
+                            }
+
+                            $deuda->update([
+                                'estado'              => $data['modo'] === 'EFECTIVO' ? 'PAGADO' : 'DESCONTADO',
+                                'observaciones'       => trim(($deuda->observaciones ? $deuda->observaciones . ' | ' : '') . ($data['observaciones'] ?? '')) ?: $deuda->observaciones,
+                                'id_usuario_registra' => (int) auth()->user()->usuario_id,
+                            ]);
+                        });
+
+                        Notification::make()->success()
+                            ->title('Deuda cancelada')
+                            ->body($data['modo'] === 'EFECTIVO'
+                                ? 'S/ ' . number_format($deuda->monto, 2) . ' ingresó a la caja principal como reposición.'
+                                : 'Marcada para descuento en planilla — no ingresó dinero a caja.')
+                            ->send();
                     }),
             ])
             ->defaultSort('fecha', 'desc');

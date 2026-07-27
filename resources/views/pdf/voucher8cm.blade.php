@@ -3,13 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <style>
-    /* dompdf controla los márgenes del papel con @page (NO con opciones).
-       ~1 cm a los lados, poco arriba/abajo. */
-    @page { margin: 6pt 28pt; }
     * { margin:0; padding:0; box-sizing:border-box; }
-    /* Ocupar todo el ancho útil del papel (si se fija en px queda angosto y
-       sobra margen a la derecha, porque el papel es más ancho que 226px). */
-    body { font-family: 'Courier New', monospace; font-size: 9px; width: 100%; color:#000; }
+    /* El margen del ticket lo damos con padding del body: dompdf lo respeta
+       siempre (su soporte de @page es parcial). ~1 cm a los lados. */
+    body { font-family: 'Courier New', monospace; font-size: 9px; width: 100%; padding: 8pt 26pt; color:#000; }
     .center { text-align:center; }
     .bold   { font-weight:bold; }
     .line   { border-top:1px dashed #000; margin:4px 0; }

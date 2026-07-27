@@ -38,7 +38,7 @@ class ContabilidadController extends Controller
                 'estado' => 'provisional',
                 'total_debe' => $totalDebe,
                 'total_haber' => $totalHaber,
-                'user_id' => session('usuario_id'),
+                'user_id' => auth()->id(),
             ]);
 
             foreach ($data['detalle'] as $item) {
@@ -62,7 +62,14 @@ class ContabilidadController extends Controller
 
     public function anularAsiento(int $id)
     {
-        AsientoContable::where('id', $id)->update(['estado' => 'anulado']);
+        abort_unless((bool) auth()->user()?->can('contabilidad.anular'), 403);
+
+        $asiento = AsientoContable::findOrFail($id);
+
+        if ($asiento->estado !== 'anulado') {
+            $asiento->update(['estado' => 'anulado']);
+        }
+
         return back();
     }
 }

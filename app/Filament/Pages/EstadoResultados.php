@@ -41,9 +41,9 @@ class EstadoResultados extends Page
             ->whereBetween(DB::raw('STR_TO_DATE(fecha_emision, "%Y-%m-%d")'), [$desde, $hasta])
             ->sum(DB::raw('CAST(total AS DECIMAL(12,2))'));
 
-        $gastos = CajaMovimiento::where('id_caja', '>', 0)
-            ->where('tipo', 'EGRESO')
+        $gastos = CajaMovimiento::where('tipo', 'EGRESO')
             ->where('estado', 'CONFIRMADO')
+            ->whereHas('caja', fn ($q) => $q->where('id_empresa', $empresa))
             ->whereBetween('fecha', [$desde, $hasta])
             ->sum('monto');
 

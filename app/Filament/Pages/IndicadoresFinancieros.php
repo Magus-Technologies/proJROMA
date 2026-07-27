@@ -41,6 +41,7 @@ class IndicadoresFinancieros extends Page
 
         $gastosMes = CajaMovimiento::where('tipo', 'EGRESO')
             ->where('estado', 'CONFIRMADO')
+            ->whereHas('caja', fn ($q) => $q->where('id_empresa', $empresa))
             ->whereMonth('fecha', now()->month)
             ->whereYear('fecha', now()->year)
             ->sum('monto');
@@ -51,13 +52,19 @@ class IndicadoresFinancieros extends Page
         $margenNeto = $ventasMes > 0 ? round(($utilidadNeta / $ventasMes) * 100, 1) : 0;
 
         $saldoCaja = CajaMovimiento::where('estado', 'CONFIRMADO')
+            ->whereHas('caja', fn ($q) => $q->where('id_empresa', $empresa))
             ->selectRaw("SUM(CASE WHEN tipo='INGRESO' THEN monto ELSE 0 END) - SUM(CASE WHEN tipo='EGRESO' THEN monto ELSE 0 END) as saldo")
             ->value('saldo') ?? 0;
 
-        $cxPTotal = DiasCompra::whereNull('estado')->sum('monto');
+        $cxPTotal = DiasCompra::whereNull('estado')
+            ->whereHas('compra', fn ($q) => $q->where('id_empresa', $empresa))
+            ->sum('monto');
         $liquidez = $cxPTotal > 0 ? round($saldoCaja / $cxPTotal, 2) : 0;
 
-        $inventarioCosto = Producto::where('id_empresa', $empresa)->sum('costo');
+        // Valor del inventario = costo unitario × stock (no solo el costo unitario)
+        $inventarioCosto = (float) Producto::where('id_empresa', $empresa)
+            ->selectRaw('COALESCE(SUM(costo * cantidad), 0) as total')
+            ->value('total');
         $rotacionInventario = $inventarioCosto > 0 ? round($costoMes / $inventarioCosto, 2) : 0;
 
         $roi = ($costoMes + $gastosMes) > 0

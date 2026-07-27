@@ -203,12 +203,9 @@
                                 </td>
                                 <td class="px-4 py-2.5 text-right">
                                     @if($a->estado !== 'anulado')
-                                        <form method="POST" action="{{ route('contabilidad.asientos.anular', $a->id) }}" class="inline"
-                                              onsubmit="return confirm('¿Anular este asiento?')">
-                                            @csrf
-                                            <button type="submit"
-                                                class="text-xs text-red-400 hover:text-red-600 transition">Anular</button>
-                                        </form>
+                                        @can('contabilidad.anular')
+                                            {{ ($this->anularAction)(['asiento' => $a->id, 'desde' => $data['desde'], 'hasta' => $data['hasta'], 'search' => $data['search']]) }}
+                                        @endcan
                                     @endif
                                 </td>
                             </tr>

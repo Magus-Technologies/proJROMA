@@ -134,17 +134,11 @@ class CajaService
             // La diferencia NO se ajusta aquí: el AJUSTE (y la deuda del
             // trabajador si hay faltante) se generan al APROBAR el cierre.
             // Así un cierre rechazado no deja rastros que revertir.
-
-            // Registrar el movimiento de CIERRE (monto 0 para no alterar saldo)
-            $this->registrarMovimiento([
-                'id_caja' => $idCaja,
-                'fecha' => now()->toDateString(),
-                'tipo' => 'EGRESO',
-                'categoria' => 'CIERRE',
-                'descripcion' => 'Cierre de caja diario',
-                'monto' => 0,
-                'id_usuario' => $idUsuario,
-            ]);
+            //
+            // El cierre NO genera movimiento en caja_movimientos: no mueve
+            // dinero. Su registro vive únicamente en cierre_caja (pantalla
+            // Cierres y Cuadre). Solo el AJUSTE por diferencia (al aprobar)
+            // es un movimiento real.
 
             // Insertar el registro de cierre
             $idCierre = DB::table('cierre_caja')->insertGetId([
@@ -213,19 +207,8 @@ class CajaService
                     ]);
                 }
 
-                // Generar movimiento de CUADRE en la caja principal (padre) si existe
-                $cajaHija = DB::table('cajas')->where('id', $cierre->id_caja)->first();
-                if ($cajaHija && $cajaHija->id_caja_padre) {
-                    $this->registrarMovimiento([
-                        'id_caja' => $cajaHija->id_caja_padre,
-                        'fecha' => now()->toDateString(),
-                        'tipo' => 'INGRESO',
-                        'categoria' => 'CUADRE',
-                        'descripcion' => 'Cuadre consolidado de caja: ' . $cajaHija->nombre . ' (Cierre #' . $idCierre . ')',
-                        'monto' => 0,
-                        'id_usuario' => $idUsuarioAprueba,
-                    ]);
-                }
+                // (El "cuadre" en la caja padre tampoco genera movimiento:
+                // era una marca de monto 0 que solo ensuciaba el historial.)
             }
 
             if ($nuevoEstado === 'RECHAZADO') {

@@ -146,6 +146,48 @@ class CierresCajaResource extends Resource
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Cerrar'),
 
+                Action::make('ver_movimientos')
+                    ->label('Movimientos del turno')
+                    ->iconButton()
+                    ->tooltip('Ver todos los movimientos desde la apertura hasta el cierre')
+                    ->icon('heroicon-o-list-bullet')
+                    ->color('info')
+                    ->modalHeading(fn (CierreCaja $record): string => 'Movimientos del turno — ' . ($record->caja?->nombre ?? '') . ' (' . $record->fecha?->format('d/m/Y') . ')')
+                    ->modalWidth('4xl')
+                    ->modalContent(function (CierreCaja $record) {
+                        $apertura = $record->id_apertura
+                            ? \Illuminate\Support\Facades\DB::table('caja_aperturas')->where('id', $record->id_apertura)->first()
+                            : \Illuminate\Support\Facades\DB::table('caja_aperturas')
+                                ->where('id_caja', $record->id_caja)
+                                ->where('created_at', '<=', $record->created_at ?? now())
+                                ->orderByDesc('id')
+                                ->first();
+
+                        $movimientos = \Illuminate\Support\Facades\DB::table('caja_movimientos')
+                            ->where('id_caja', $record->id_caja)
+                            ->when($apertura, fn ($q) => $q->where('created_at', '>=', $apertura->created_at))
+                            ->when($record->created_at, fn ($q) => $q->where('created_at', '<=', $record->created_at))
+                            ->orderBy('created_at')
+                            ->get();
+
+                        $confirmados = $movimientos->where('estado', 'CONFIRMADO');
+                        $fondo    = (float) ($apertura->monto_total ?? 0);
+                        $ingresos = (float) $confirmados->where('tipo', 'INGRESO')->where('categoria', '!=', 'APERTURA')->sum('monto');
+                        $egresos  = (float) $confirmados->where('tipo', 'EGRESO')->sum('monto');
+
+                        return view('filament.caja.cierre-movimientos', [
+                            'cierre'      => $record,
+                            'apertura'    => $apertura,
+                            'movimientos' => $movimientos,
+                            'fondo'       => $fondo,
+                            'ingresos'    => $ingresos,
+                            'egresos'     => $egresos,
+                            'esperado'    => $fondo + $ingresos - $egresos,
+                        ]);
+                    })
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Cerrar'),
+
                 Action::make('aprobar')
                     ->label('Aprobar')
                     ->icon('heroicon-o-check-circle')

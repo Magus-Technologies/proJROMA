@@ -129,7 +129,32 @@ class CajaService
             $caja = DB::table('cajas')->where('id', $idCaja)->lockForUpdate()->first();
             if (!$caja) throw new \RuntimeException('Caja no encontrada.');
 
-            $saldoSistema = (float) $caja->saldo_actual;
+            // El cierre de turno es solo de cajas hijas: la caja principal
+            // consolida, no cierra turnos.
+            if (!$caja->id_caja_padre) {
+                throw new \RuntimeException('Solo las cajas hijas realizan cierre de turno.');
+            }
+
+            $apertura = DB::table('caja_aperturas')
+                ->where('id_caja', $idCaja)
+                ->where('estado', 'ABIERTA')
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->first();
+            if (!$apertura) {
+                throw new \RuntimeException('No hay una apertura abierta para esta caja: apertura la caja antes de cerrarla.');
+            }
+
+            // El cuadre es del TURNO, no del histórico de la caja:
+            // fondo de apertura + ingresos − egresos desde la apertura.
+            // (El fondo inicial ya está incluido: se registra como INGRESO
+            // de categoría APERTURA al aperturar.)
+            $saldoSistema = (float) DB::table('caja_movimientos')
+                ->where('id_caja', $idCaja)
+                ->where('estado', 'CONFIRMADO')
+                ->where('created_at', '>=', $apertura->created_at)
+                ->selectRaw("COALESCE(SUM(CASE WHEN tipo = 'INGRESO' THEN monto ELSE -monto END), 0) as s")
+                ->value('s');
 
             // La diferencia NO se ajusta aquí: el AJUSTE (y la deuda del
             // trabajador si hay faltante) se generan al APROBAR el cierre.
@@ -143,6 +168,7 @@ class CajaService
             // Insertar el registro de cierre
             $idCierre = DB::table('cierre_caja')->insertGetId([
                 'id_caja' => $idCaja,
+                'id_apertura' => $apertura->id,
                 'fecha' => now()->toDateString(),
                 'saldo_declarado' => $saldoDeclarado,
                 'saldo_sistema' => $saldoSistema,

@@ -197,9 +197,22 @@ class MiCaja extends Page implements HasTable
      */
     protected function saldosPorInstrumento(): array
     {
+        // El cuadre es del TURNO actual: solo movimientos desde la apertura
+        // abierta (el fondo inicial entra como INGRESO/APERTURA, ya incluido).
+        $apertura = DB::table('caja_aperturas')
+            ->where('id_caja', (int) ($this->caja->id ?? 0))
+            ->where('estado', 'ABIERTA')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $apertura) {
+            return ['efectivo' => 0.0, 'otros' => 0.0];
+        }
+
         $filas = DB::table('caja_movimientos')
             ->where('id_caja', (int) ($this->caja->id ?? 0))
             ->where('estado', 'CONFIRMADO')
+            ->where('created_at', '>=', $apertura->created_at)
             ->selectRaw("
                 COALESCE(instrumento_tipo, 'EFECTIVO') as instrumento,
                 SUM(CASE WHEN tipo = 'INGRESO' THEN monto ELSE -monto END) as saldo

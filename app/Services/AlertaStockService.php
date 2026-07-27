@@ -66,7 +66,7 @@ class AlertaStockService
             ->filter(fn (User $u): bool => method_exists($u, 'esAdmin') && $u->esAdmin());
     }
 
-    protected static function enviar($destinatarios, Notification $notificacion): void
+    public static function enviar($destinatarios, Notification $notificacion): void
     {
         // sendNow: escribe de inmediato (la variante por defecto se encola y
         // este sistema no corre un queue worker).

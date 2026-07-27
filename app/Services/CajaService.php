@@ -204,6 +204,21 @@ class CajaService
             DB::table('transferencias_fondo')->where('id', $idTransferencia)
                 ->update(['id_movimiento_egreso' => $idMovimiento, 'updated_at' => now()]);
 
+            // Avisar al cajero responsable en su campana de notificaciones
+            try {
+                $cajero = \App\Models\User::where('usuario_id', $idCajero)->first();
+                if ($cajero) {
+                    \App\Services\AlertaStockService::enviar($cajero, \Filament\Notifications\Notification::make()
+                        ->info()
+                        ->icon('heroicon-o-banknotes')
+                        ->title('Fondo asignado a tu caja "' . $destino->nombre . '"')
+                        ->body('S/ ' . number_format($monto, 2) . ' desde "' . $origen->nombre
+                            . '". Cuenta el efectivo recibido y apertura tu caja para aplicarlo.'));
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
             return $idTransferencia;
         });
     }
@@ -231,11 +246,28 @@ class CajaService
                 'id_usuario' => $idUsuario,
             ]);
 
+            $estadoFinal = in_array($nuevoEstado, ['ANULADA', 'RECHAZADA'], true) ? $nuevoEstado : 'ANULADA';
+
             DB::table('transferencias_fondo')->where('id', $idTransferencia)->update([
-                'estado' => in_array($nuevoEstado, ['ANULADA', 'RECHAZADA'], true) ? $nuevoEstado : 'ANULADA',
+                'estado' => $estadoFinal,
                 'observaciones' => trim(($tr->observaciones ? $tr->observaciones . ' | ' : '') . ($motivo ?? '')) ?: $tr->observaciones,
                 'updated_at' => now(),
             ]);
+
+            // Avisar al cajero que la asignación quedó sin efecto
+            try {
+                $cajero = \App\Models\User::where('usuario_id', (int) $tr->id_usuario_cajero)->first();
+                if ($cajero) {
+                    \App\Services\AlertaStockService::enviar($cajero, \Filament\Notifications\Notification::make()
+                        ->warning()
+                        ->icon('heroicon-o-arrow-uturn-left')
+                        ->title('Asignación de fondo ' . ($estadoFinal === 'RECHAZADA' ? 'rechazada' : 'anulada'))
+                        ->body('La asignación #' . $idTransferencia . ' de S/ ' . number_format((float) $tr->monto, 2)
+                            . ' quedó sin efecto' . ($motivo ? ': ' . $motivo : '.') ));
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
         });
     }
 

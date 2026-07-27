@@ -37,7 +37,7 @@
                                         {{ $c['label'] }}
                                     </td>
                                     <td class="px-4 py-1.5 text-right {{ $c['nivel'] === 1 ? 'font-bold text-green-700 dark:text-green-300' : '' }}">
-                                        {{ $c['nivel'] <= 2 ? '' : 'S/ ' . number_format($c['saldo'], 2) }}
+                                        S/ {{ number_format($c['saldo'], 2) }}
                                     </td>
                                 </tr>
                             @empty
@@ -70,7 +70,7 @@
                                             {{ $c['label'] }}
                                         </td>
                                         <td class="px-4 py-1.5 text-right {{ $c['nivel'] === 1 ? 'font-bold text-yellow-700 dark:text-yellow-300' : '' }}">
-                                            {{ $c['nivel'] <= 2 ? '' : 'S/ ' . number_format($c['saldo'], 2) }}
+                                            S/ {{ number_format($c['saldo'], 2) }}
                                         </td>
                                     </tr>
                                 @empty
@@ -101,7 +101,7 @@
                                             {{ $c['label'] }}
                                         </td>
                                         <td class="px-4 py-1.5 text-right {{ $c['nivel'] === 1 ? 'font-bold text-blue-700 dark:text-blue-300' : '' }}">
-                                            {{ $c['nivel'] <= 2 ? '' : 'S/ ' . number_format($c['saldo'], 2) }}
+                                            S/ {{ number_format($c['saldo'], 2) }}
                                         </td>
                                     </tr>
                                 @empty
@@ -145,8 +145,9 @@
             </div>
         </div>
 
-        <div class="text-xs text-gray-400 dark:text-gray-500 italic">
-            * Balance Generado al {{ $data['fecha'] }}. Solo se muestran cuentas con saldo &ne; 0.
+        <div class="text-xs text-gray-400 dark:text-gray-500 italic space-y-0.5">
+            <p>* Balance generado al {{ $data['fecha'] }} con los asientos registrados (no anulados). Solo se muestran cuentas con saldo &ne; 0.</p>
+            <p>* Pasivo y patrimonio se muestran con su naturaleza acreedora (Haber − Debe). El Resultado del Ejercicio (Ingresos − Costos − Gastos) se incluye en el patrimonio para que la ecuación contable cierre.</p>
         </div>
     </div>
 </x-filament-panels::page>

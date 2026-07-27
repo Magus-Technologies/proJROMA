@@ -5,6 +5,8 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\MotivoMovimientoResource\Pages;
 use App\Models\MotivoMovimiento;
 use BackedEnum;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -109,17 +111,22 @@ class MotivoMovimientoResource extends Resource
                         '0' => 'Inactivo',
                     ]),
             ])
+            ->actions([
+                EditAction::make(),
+                DeleteAction::make()
+                    ->visible(fn (MotivoMovimiento $record): bool => ! $record->es_sistema),
+            ])
             ->defaultSort('id_motivo', 'desc');
     }
 
     public static function getRelations(): array { return []; }
 
+    // Sin páginas create/edit: Filament abre el formulario en un MODAL
+    // (mismo patrón que el resto de catálogos chicos).
     public static function getPages(): array
     {
         return [
             'index' => Pages\ListMotivoMovimientos::route('/'),
-            'create' => Pages\CreateMotivoMovimiento::route('/create'),
-            'edit' => Pages\EditMotivoMovimiento::route('/{record}/edit'),
         ];
     }
 

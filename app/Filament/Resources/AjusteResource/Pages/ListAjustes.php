@@ -50,7 +50,7 @@ class ListAjustes extends ListRecords
                 ->icon('heroicon-o-adjustments-horizontal')
                 ->color('primary')
                 ->modalWidth('5xl')
-                ->modalHeading('Nuevo Ajuste / Cuadre de stock')
+                ->modalHeading('Nuevo Ajuste de Stock')
                 ->form([
                     Select::make('almacen')
                         ->label('Almacén')
@@ -64,9 +64,8 @@ class ListAjustes extends ListRecords
                     Select::make('modo')
                         ->label('Tipo de ajuste')
                         ->options([
-                            'INGRESO' => '▲ Ingreso — agregar stock (encontrado, devolución, etc.)',
-                            'SALIDA'  => '▼ Salida / Pérdida — retirar stock (merma, rotura, robo, vencido)',
-                            'CUADRE'  => '⚖ Cuadre — indicar el stock físico contado y el sistema calcula la diferencia',
+                            'INGRESO' => '▲ Ingreso — agregar stock (encontrado, devolución, carga inicial...)',
+                            'SALIDA'  => '▼ Salida / Pérdida — retirar stock (merma, rotura, robo, vencido...)',
                         ])
                         ->live()
                         // Al cambiar el tipo se limpia el motivo: el elegido
@@ -78,13 +77,11 @@ class ListAjustes extends ListRecords
                         ->label('Motivo')
                         ->visible(fn (callable $get): bool => filled($get('modo')))
                         // Solo motivos compatibles con el tipo de ajuste elegido
-                        // (I = ingreso, S = salida, A = ambos). En cuadre se
-                        // muestran todos porque puede resultar en cualquiera.
+                        // (I = ingreso, S = salida, A = ambos)
                         ->options(function (callable $get) {
                             $tipos = match ($get('modo')) {
-                                'INGRESO' => ['I', 'A'],
-                                'SALIDA'  => ['S', 'A'],
-                                default   => null,
+                                'SALIDA' => ['S', 'A'],
+                                default  => ['I', 'A'],
                             };
 
                             return MotivoMovimiento::where('id_empresa', (int) session('id_empresa'))
@@ -102,11 +99,7 @@ class ListAjustes extends ListRecords
                             Select::make('tipo')
                                 ->label('Tipo')
                                 ->options(['I' => 'Ingreso', 'S' => 'Salida', 'A' => 'Ambos'])
-                                ->default(match ($get('modo')) {
-                                    'INGRESO' => 'I',
-                                    'SALIDA'  => 'S',
-                                    default   => 'A',
-                                })
+                                ->default(fn (): string => $get('modo') === 'SALIDA' ? 'S' : 'I')
                                 ->required(),
                         ])
                         ->createOptionUsing(fn (array $data): int =>
@@ -154,14 +147,12 @@ class ListAjustes extends ListRecords
                                 )),
 
                             TextInput::make('cantidad')
-                                ->label(fn (callable $get): string => match ($get('../../modo')) {
-                                    'INGRESO' => 'Cantidad a ingresar',
-                                    'SALIDA'  => 'Cantidad a retirar',
-                                    default   => 'Stock contado',
-                                })
+                                ->label(fn (callable $get): string => $get('../../modo') === 'SALIDA'
+                                    ? 'Cantidad a retirar'
+                                    : 'Cantidad a ingresar')
                                 ->numeric()
                                 ->integer()
-                                ->minValue(fn (callable $get): int => $get('../../modo') === 'CUADRE' ? 0 : 1)
+                                ->minValue(1)
                                 ->required()
                                 ->live(debounce: 400),
 
@@ -175,11 +166,9 @@ class ListAjustes extends ListRecords
                                     $actual = static::stockEnAlmacen((int) $get('id_producto'), $get('../../almacen'));
                                     $cantidad = (int) $get('cantidad');
 
-                                    [$nuevo, $dif] = match ($get('../../modo')) {
-                                        'INGRESO' => [$actual + $cantidad, $cantidad],
-                                        'SALIDA'  => [$actual - $cantidad, -$cantidad],
-                                        default   => [$cantidad, $cantidad - $actual],
-                                    };
+                                    [$nuevo, $dif] = $get('../../modo') === 'SALIDA'
+                                        ? [$actual - $cantidad, -$cantidad]
+                                        : [$actual + $cantidad, $cantidad];
 
                                     if ($nuevo < 0) {
                                         return new HtmlString('<span style="color:#dc2626;font-weight:600">⚠ Excede el stock (' . $actual . ')</span>');
@@ -219,7 +208,7 @@ class ListAjustes extends ListRecords
         $emp = (int) session('id_empresa');
         $uid = (int) auth()->user()->usuario_id;
         $obs = trim($data['observacion'] ?? '');
-        $modo = $data['modo'] ?? 'CUADRE';
+        $modo = $data['modo'] ?? 'INGRESO';
         $ajustados = 0;
 
         DB::transaction(function () use ($data, $emp, $uid, $obs, $modo, &$ajustados): void {
@@ -248,14 +237,9 @@ class ListAjustes extends ListRecords
 
                 $anterior = (int) $producto->cantidad;
 
-                // El stock final depende del modo elegido:
-                // INGRESO/SALIDA usan la cantidad directa; CUADRE la trata
-                // como el stock físico contado.
-                $nuevo = match ($modo) {
-                    'INGRESO' => $anterior + $cantidad,
-                    'SALIDA'  => $anterior - $cantidad,
-                    default   => $cantidad,
-                };
+                $nuevo = $modo === 'SALIDA'
+                    ? $anterior - $cantidad
+                    : $anterior + $cantidad;
 
                 $diferencia = $nuevo - $anterior;
 

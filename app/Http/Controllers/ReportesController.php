@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\IndicadoresExport;
 use App\Exports\UtilidadesExport;
 use App\Models\Cotizacion;
 use App\Models\Empresa;
@@ -1053,6 +1054,33 @@ class ReportesController extends Controller
                 $hasta,
             ),
             "utilidades-{$desde}-{$hasta}.xlsx",
+        );
+    }
+
+    public function indicadoresPdf(): \Illuminate\Http\Response
+    {
+        $empresa = $this->getEmpresa();
+        $page = app(\App\Filament\Pages\IndicadoresFinancieros::class);
+
+        return PdfService::a4()
+            ->setMargins(12, 12, 10, 10)
+            ->descargar('pdf.indicadores', [
+                'empresa'    => $empresa,
+                'logoBase64' => $this->getLogoBase64($empresa),
+                'periodo'    => mb_strtoupper(now()->translatedFormat('F Y')),
+                'data'       => $page->getData(),
+                'secciones'  => $page->getSecciones(),
+                'usuario'    => auth()->user()?->nombre_completo ?? '',
+            ], 'indicadores-financieros-' . now()->format('Y-m') . '.pdf');
+    }
+
+    public function indicadoresExcel(): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $empresa = $this->getEmpresa();
+
+        return Excel::download(
+            new IndicadoresExport($empresa->razon_social ?? ''),
+            'indicadores-financieros-' . now()->format('Y-m') . '.xlsx',
         );
     }
 }

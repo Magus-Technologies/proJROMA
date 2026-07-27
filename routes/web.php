@@ -160,5 +160,7 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/ingresos/egresos/{id}', [ReportesController::class, 'ingresosEgresos'])->name('ingresos.egresos');
         Route::get('/utilidades/pdf',   [ReportesController::class, 'utilidadesPdf'])->name('utilidades.pdf');
         Route::get('/utilidades/xls',   [ReportesController::class, 'utilidadesExcel'])->name('utilidades.xls');
+        Route::get('/indicadores/pdf',  [ReportesController::class, 'indicadoresPdf'])->name('indicadores.pdf');
+        Route::get('/indicadores/xls',  [ReportesController::class, 'indicadoresExcel'])->name('indicadores.xls');
     });
 });

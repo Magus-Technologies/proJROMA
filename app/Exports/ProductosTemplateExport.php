@@ -22,22 +22,40 @@ class ProductosTemplateExport implements FromArray, WithHeadings, ShouldAutoSize
     public function array(): array
     {
         return [
-            ['P-001', '7750123456789', 'ACEITE VEGETAL BOTELLA 1L', 'Abarrotes', 'Primor', 5.50, 5.20, 4.80, 100],
+            [
+                '7750123456789',            // Cod. Barra
+                'P-001',                    // Código
+                'ACEITE VEGETAL BOTELLA 1L', // Descripción
+                'UNIDAD',                   // Unidad de Medida
+                'CAJA X 12',                // Presentación
+                12,                         // Unid. por Presentación
+                0.95,                       // Peso (kg)
+                'Abarrotes',                // Categoría
+                'Aceites',                  // Subcategoría
+                'Primor',                   // Marca
+                'Premium',                  // Submarca
+                5.50,                       // Precio
+                4.80,                       // Costo
+            ],
         ];
     }
 
     public function headings(): array
     {
         return [
-            'Código',
             'Cod. Barra',
+            'Código',
             'Descripción *',
+            'Unidad de Medida',
+            'Presentación',
+            'Unid. por Presentación',
+            'Peso (kg) *',
             'Categoría',
+            'Subcategoría',
             'Marca',
-            'Precio *',
-            'Precio Mayor',
+            'Submarca',
+            'Precio',
             'Costo',
-            'Stock Inicial',
         ];
     }
 
@@ -46,7 +64,7 @@ class ProductosTemplateExport implements FromArray, WithHeadings, ShouldAutoSize
         return [
             AfterSheet::class => function (AfterSheet $event): void {
                 $sheet = $event->sheet->getDelegate();
-                $lastCol = 'I';
+                $lastCol = 'M';
 
                 $sheet->getStyle("A1:{$lastCol}1")->applyFromArray([
                     'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],

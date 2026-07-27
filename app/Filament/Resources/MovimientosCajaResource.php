@@ -188,6 +188,18 @@ class MovimientosCajaResource extends Resource
                         'CONFIRMADO' => 'Confirmado',
                         'ANULADO'    => 'Anulado',
                     ]),
+
+                // Absorbe al antiguo módulo "Registro de Caja": ver solo el
+                // extracto de la caja madre (sin las cajas hijas de usuarios).
+                \Filament\Tables\Filters\TernaryFilter::make('caja_principal')
+                    ->label('Caja principal')
+                    ->placeholder('Todas las cajas')
+                    ->trueLabel('Solo caja principal')
+                    ->falseLabel('Solo cajas hijas')
+                    ->queries(
+                        true: fn ($query) => $query->whereNull('cajas.id_caja_padre'),
+                        false: fn ($query) => $query->whereNotNull('cajas.id_caja_padre'),
+                    ),
             ])
             ->actions([
                 ActionGroup::make([

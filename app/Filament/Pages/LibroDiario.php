@@ -22,7 +22,7 @@ class LibroDiario extends Page
         $hasta = request('hasta', now()->format('Y-m-d'));
         $search = request('search');
 
-        $query = AsientoContable::with('detalle.cuenta')->orderBy('fecha', 'desc');
+        $query = AsientoContable::with('detalle.cuenta', 'user')->orderBy('fecha', 'desc');
 
         if ($search) {
             $query->where(function ($q) use ($search) {

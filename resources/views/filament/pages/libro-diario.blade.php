@@ -58,7 +58,7 @@
                         <select name="tipo"
                             class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm">
                             @foreach(\App\Models\AsientoContable::tipos() as $v => $l)
-                                <option value="{{ $v }}">{{ $l }}</option>
+                                <option value="{{ $v }}" @selected($v === 'operaciones')>{{ $l }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -185,7 +185,10 @@
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                 <td class="px-4 py-2.5 font-mono text-sm font-medium text-gray-900 dark:text-gray-100">{{ $a->numero }}</td>
                                 <td class="px-4 py-2.5 text-gray-600 dark:text-gray-400">{{ $a->fecha->format('d/m/Y') }}</td>
-                                <td class="px-4 py-2.5 text-gray-800 dark:text-gray-200 max-w-xs truncate">{{ $a->glosa }}</td>
+                                <td class="px-4 py-2.5 max-w-xs">
+                                    <p class="text-gray-800 dark:text-gray-200 truncate">{{ $a->glosa }}</p>
+                                    <p class="text-[11px] text-gray-400 dark:text-gray-500">{{ $a->user?->nombre_completo ?? $a->user?->nombres ?? '—' }}</p>
+                                </td>
                                 <td class="px-4 py-2.5">
                                     <span class="px-2 py-0.5 text-xs rounded-full {{ $a->tipo === 'apertura' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' : ($a->tipo === 'cierre' ? 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300' : ($a->tipo === 'ajuste' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300')) }}">
                                         {{ \App\Models\AsientoContable::tipos()[$a->tipo] ?? $a->tipo }}

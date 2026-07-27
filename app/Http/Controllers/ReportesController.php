@@ -71,16 +71,18 @@ class ReportesController extends Controller
             'cliente',
             'productosVenta.producto',
             'tipoDocumento',
+            'tipoDocSunat',
             'empresa',
             'pagos',
         ])->findOrFail($voucher);
 
         $empresa    = $this->getEmpresa() ?? Empresa::find($v->id_empresa);
         $logoBase64 = $this->getLogoBase64($empresa);
+        $qr         = \App\Support\QrSunat::deVenta($v);
 
         return PdfService::ticket()
             ->setOption('defaultFont', 'monospace')
-            ->generar('pdf.voucher8cm', compact('v', 'empresa', 'logoBase64'), "voucher-{$v->documento_completo}.pdf");
+            ->generar('pdf.voucher8cm', compact('v', 'empresa', 'logoBase64', 'qr'), "voucher-{$v->documento_completo}.pdf");
     }
 
     public function voucher56cm(int $voucher): \Illuminate\Http\Response

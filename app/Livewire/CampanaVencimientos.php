@@ -78,6 +78,7 @@ class CampanaVencimientos extends Component
                     'titulo' => $data['title'] ?? 'Notificación',
                     'cuerpo' => $data['body'] ?? '',
                     'cuando' => \Carbon\Carbon::parse($n->created_at)->diffForHumans(),
+                    'url'    => $data['url'] ?? null,
                 ];
             });
     }

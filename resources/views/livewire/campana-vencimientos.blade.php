@@ -71,7 +71,7 @@
                     </div>
                     <div class="divide-y divide-gray-50 dark:divide-white/5">
                         @foreach ($alertasStock as $a)
-                            <a href="{{ $urlStock }}" class="flex items-start gap-3 px-5 py-3 transition hover:bg-gray-50 dark:hover:bg-white/5">
+                            <a href="{{ $a['url'] ?? $urlStock }}" class="flex items-start gap-3 px-5 py-3 transition hover:bg-gray-50 dark:hover:bg-white/5">
                                 <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warning-100 text-warning-600 dark:bg-warning-400/10 dark:text-warning-400">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-5 w-5">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />

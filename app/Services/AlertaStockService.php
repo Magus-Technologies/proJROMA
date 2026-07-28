@@ -52,7 +52,8 @@ class AlertaStockService
                 ->title('Venta BAJO COSTO: ' . ($linea->descripcion ?: 'Producto #' . $linea->id_producto))
                 ->body('Vendido a S/ ' . number_format($precio, 2) . ' con costo S/ ' . number_format($costo, 2)
                     . ' (pérdida S/ ' . number_format($perdida, 2) . ')'
-                    . ($documento ? ' en ' . $documento : '') . '.'));
+                    . ($documento ? ' en ' . $documento : '') . '.'),
+                static::urlSegura(fn () => \App\Filament\Resources\VentaResource::getUrl('index')));
         } catch (\Throwable $e) {
             report($e);
         }
@@ -66,14 +67,31 @@ class AlertaStockService
             ->filter(fn (User $u): bool => method_exists($u, 'esAdmin') && $u->esAdmin());
     }
 
-    public static function enviar($destinatarios, Notification $notificacion): void
+    public static function enviar($destinatarios, Notification $notificacion, ?string $url = null): void
     {
+        $data = $notificacion->getDatabaseMessage();
+
+        // URL de destino al hacer clic en la alerta (la campana la usa)
+        if ($url !== null) {
+            $data['url'] = $url;
+        }
+
         // sendNow: escribe de inmediato (la variante por defecto se encola y
         // este sistema no corre un queue worker).
         \Illuminate\Support\Facades\Notification::sendNow(
             $destinatarios,
-            new \Filament\Notifications\DatabaseNotification($notificacion->getDatabaseMessage()),
+            new \Filament\Notifications\DatabaseNotification($data),
         );
+    }
+
+    /** URL segura de un recurso/página Filament (null si no se puede resolver). */
+    protected static function urlSegura(callable $resolver): ?string
+    {
+        try {
+            return $resolver();
+        } catch (\Throwable) {
+            return null;
+        }
     }
     public static function evaluar(Producto $producto): void
     {
@@ -108,7 +126,8 @@ class AlertaStockService
                 ->icon('heroicon-o-exclamation-triangle')
                 ->title('Bajo stock: ' . $producto->descripcion)
                 ->body('Quedan ' . (int) $producto->cantidad . ' unidades (mínimo ' . $minimo . ')'
-                    . ($almacen ? ' en ' . $almacen : '') . '.'));
+                    . ($almacen ? ' en ' . $almacen : '') . '.'),
+                static::urlSegura(fn () => \App\Filament\Resources\ProductoResource::getUrl('index')));
         } catch (\Throwable $e) {
             // La alerta jamás debe romper el flujo que movió el stock
             report($e);

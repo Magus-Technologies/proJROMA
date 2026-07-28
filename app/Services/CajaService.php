@@ -213,7 +213,8 @@ class CajaService
                         ->icon('heroicon-o-banknotes')
                         ->title('Fondo asignado a tu caja "' . $destino->nombre . '"')
                         ->body('S/ ' . number_format($monto, 2) . ' desde "' . $origen->nombre
-                            . '". Cuenta el efectivo recibido y apertura tu caja para aplicarlo.'));
+                            . '". Cuenta el efectivo recibido y apertura tu caja para aplicarlo.'),
+                        \App\Filament\Pages\MiCaja::getUrl());
                 }
             } catch (\Throwable $e) {
                 report($e);
@@ -263,7 +264,8 @@ class CajaService
                         ->icon('heroicon-o-arrow-uturn-left')
                         ->title('Asignación de fondo ' . ($estadoFinal === 'RECHAZADA' ? 'rechazada' : 'anulada'))
                         ->body('La asignación #' . $idTransferencia . ' de S/ ' . number_format((float) $tr->monto, 2)
-                            . ' quedó sin efecto' . ($motivo ? ': ' . $motivo : '.') ));
+                            . ' quedó sin efecto' . ($motivo ? ': ' . $motivo : '.')),
+                        \App\Filament\Pages\MiCaja::getUrl());
                 }
             } catch (\Throwable $e) {
                 report($e);

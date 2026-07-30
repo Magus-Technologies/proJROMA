@@ -378,6 +378,23 @@ class CreateCompra extends CreateRecord
 
     protected function handleRecordCreation(array $data): Model
     {
+        try {
+            return $this->crearCompraConPago($data);
+        } catch (\RuntimeException $e) {
+            // Validaciones de caja (ej. saldo insuficiente): la transacción ya
+            // revirtió todo; se notifica y el formulario queda para corregir.
+            Notification::make()->danger()
+                ->title('No se pudo registrar la compra')
+                ->body($e->getMessage())
+                ->persistent()
+                ->send();
+
+            throw new \Filament\Support\Exceptions\Halt();
+        }
+    }
+
+    protected function crearCompraConPago(array $data): Compra
+    {
         return DB::transaction(function () use ($data): Compra {
             [$lineas, $total] = $this->resolverLineas($data);
 

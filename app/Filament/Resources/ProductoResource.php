@@ -60,6 +60,15 @@ class ProductoResource extends Resource
             TextInput::make('descripcion')->label('Descripción')->required()->maxLength(200)->columnSpanFull(),
             TextInput::make('precio')->label('Precio')->numeric()->prefix('S/'),
             TextInput::make('costo')->label('Costo')->numeric()->prefix('S/'),
+            TextInput::make('stock_minimo')
+                ->label('Stock mínimo')
+                ->numeric()->integer()->minValue(0)->default(5)
+                ->helperText('Alerta de Bajo Stock (por almacén): avisa cuando el stock llega o baja de este valor. 0 = sin alerta.'),
+            TextInput::make('stock_maximo')
+                ->label('Stock máximo')
+                ->numeric()->integer()->minValue(0)->nullable()
+                ->gte('stock_minimo')
+                ->helperText('Tope de referencia para compras (opcional).'),
             TextInput::make('peso_bruto')->label('Peso')->numeric()->suffix('kg')
                 ->required()->minValue(0.01)
                 ->helperText('Peso por unidad. Se usa para asignar vehículo en despachos según su capacidad de carga.'),
@@ -199,8 +208,16 @@ class ProductoResource extends Resource
                 TextColumn::make('marca.nombre')->label('Marca')->sortable()->toggleable(),
                 TextColumn::make('precio')->label('Precio')->money('PEN')->sortable(query: $sortUsing('precio')),
                 TextColumn::make('costo')->label('Costo')->money('PEN')->sortable(query: $sortUsing('costo'))->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('stock_minimo')->label('Mín.')
+                    ->sortable(query: $sortUsing('stock_minimo'))
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('stock_maximo')->label('Máx.')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('cantidad')->label('Stock')->sortable(query: $sortUsing('cantidad'))
-                    ->color(fn ($state) => $state <= 0 ? 'danger' : ($state <= 5 ? 'warning' : 'success'))
+                    ->color(fn ($state, Producto $record) => $state <= 0
+                        ? 'danger'
+                        : ($record->stock_minimo > 0 && $state <= $record->stock_minimo ? 'warning' : 'success'))
                     ->icon('heroicon-o-building-storefront')
                     ->iconPosition(IconPosition::After)
                     ->tooltip('Ver stock en todos los almacenes')
@@ -281,6 +298,8 @@ class ProductoResource extends Resource
                 DB::raw('MIN(precio) as precio'),
                 DB::raw('MIN(costo) as costo'),
                 DB::raw('SUM(cantidad) as cantidad'),
+                DB::raw('MIN(stock_minimo) as stock_minimo'),
+                DB::raw('MIN(stock_maximo) as stock_maximo'),
                 DB::raw('MIN(activo) as activo'),
                 DB::raw('MIN(imagen) as imagen'),
                 'id_empresa',

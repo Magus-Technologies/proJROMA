@@ -15,6 +15,12 @@ class ProductoVenta extends Model
 
     protected $casts = ['precio'=>'float','total'=>'float','cantidad'=>'float'];
 
+    protected static function booted(): void
+    {
+        // Alerta en la campana si la línea se vendió por debajo del costo
+        static::created(fn (ProductoVenta $pv) => \App\Services\AlertaStockService::evaluarVentaBajoCosto($pv));
+    }
+
     public function venta()    { return $this->belongsTo(Venta::class,'id_venta','id_venta'); }
     public function producto() { return $this->belongsTo(Producto::class,'id_producto','id_producto'); }
 

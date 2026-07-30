@@ -16,7 +16,7 @@ class ProductoStats extends StatsOverviewWidget
         $empresa = (int) session('id_empresa');
 
         $total       = Producto::deEmpresa($empresa)->activos()->count();
-        $bajoStock   = Producto::deEmpresa($empresa)->activos()->bajoStock(5)->count();
+        $bajoStock   = Producto::deEmpresa($empresa)->activos()->bajoStock()->count();
         $valorizado  = Producto::deEmpresa($empresa)->activos()
             ->selectRaw('SUM(cantidad * costo) as total')
             ->value('total') ?? 0;

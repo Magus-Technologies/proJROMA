@@ -15,6 +15,12 @@ class LibroMayor extends Page
     protected static string|\UnitEnum|null $navigationGroup = 'Contabilidad';
     protected static ?int $navigationSort = 3;
 
+    // Modulo de Contabilidad oculto del menu
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     protected static ?string $title = 'Libro Mayor';
     protected string $view = 'filament.pages.libro-mayor';
 

@@ -327,7 +327,47 @@ class DespachoResource extends Resource
                             Select::make('id_caja')->label('Cargar a caja (opcional)')
                                 ->options(fn () => DB::table('cajas')->where('id_empresa', (int) session('id_empresa'))
                                     ->where('estado', 'ACTIVA')->orderBy('nombre')->pluck('nombre', 'id'))
-                                ->helperText('Si eliges una caja, se registra como EGRESO real en ella.'),
+                                ->helperText('Si eliges una caja, se registra como EGRESO real en ella.')
+                                ->live()
+                                ->afterStateUpdated(function (callable $set, $state): void {
+                                    $set('instrumento_tipo', $state ? 'EFECTIVO' : null);
+                                    $set('instrumento_id', null);
+                                    $set('referencia', null);
+                                }),
+
+                            Select::make('instrumento_tipo')->label('Tipo de pago')
+                                ->options([
+                                    'EFECTIVO'          => 'Efectivo',
+                                    'TRANSFERENCIA'     => 'Transferencia',
+                                    'BILLETERA_DIGITAL' => 'Billetera digital',
+                                ])
+                                ->default('EFECTIVO')
+                                ->live()
+                                ->afterStateUpdated(function (callable $set): void {
+                                    $set('instrumento_id', null);
+                                    $set('referencia', null);
+                                })
+                                ->visible(fn (callable $get): bool => filled($get('id_caja')))
+                                ->required(fn (callable $get): bool => filled($get('id_caja'))),
+
+                            Select::make('instrumento_id')
+                                ->label(fn (callable $get): string => match ($get('instrumento_tipo')) {
+                                    'TRANSFERENCIA'     => 'Cuenta bancaria',
+                                    'BILLETERA_DIGITAL' => 'Billetera',
+                                    default             => 'Detalle',
+                                })
+                                ->options(fn (callable $get): array => static::opcionesInstrumento($get('instrumento_tipo')))
+                                ->searchable()
+                                ->visible(fn (callable $get): bool => filled($get('id_caja'))
+                                    && in_array($get('instrumento_tipo'), ['TRANSFERENCIA', 'BILLETERA_DIGITAL'], true))
+                                ->required(fn (callable $get): bool => filled($get('id_caja'))
+                                    && in_array($get('instrumento_tipo'), ['TRANSFERENCIA', 'BILLETERA_DIGITAL'], true)),
+
+                            TextInput::make('referencia')->label('Nro. de operación')
+                                ->maxLength(60)
+                                ->placeholder('Opcional')
+                                ->visible(fn (callable $get): bool => filled($get('id_caja'))
+                                    && in_array($get('instrumento_tipo'), ['TRANSFERENCIA', 'BILLETERA_DIGITAL'], true)),
                         ])
                         ->action(function (array $data, TmsDespacho $record): void {
                             $idMov = null;
@@ -340,6 +380,9 @@ class DespachoResource extends Resource
                                         'categoria'   => 'TMS',
                                         'descripcion' => 'Costo despacho ' . ($record->codigo ?? $record->id) . ': ' . $data['concepto'],
                                         'monto'       => $data['monto'],
+                                        'instrumento_tipo' => $data['instrumento_tipo'] ?: 'EFECTIVO',
+                                        'instrumento_id'   => $data['instrumento_id'] ?? null,
+                                        'referencia'       => $data['referencia'] ?? null,
                                         'id_usuario'  => (int) (auth()->user()->usuario_id ?? 0),
                                     ]);
                                 } catch (\RuntimeException $e) {
@@ -421,6 +464,35 @@ class DespachoResource extends Resource
             ->orderBy('pc.medida')
             ->pluck('pc.medida', 'pc.medida')
             ->toArray();
+    }
+
+    /**
+     * Opciones del instrumento de pago segun el tipo elegido.
+     * Mismo criterio que CompraResource\Pages\CreateCompra::opcionesInstrumento().
+     */
+    protected static function opcionesInstrumento(?string $tipo): array
+    {
+        $empresa = (int) session('id_empresa');
+
+        return match ($tipo) {
+            'TRANSFERENCIA' => DB::table('cuentas_bancarias as cb')
+                ->leftJoin('bancos as b', 'b.id_banco', '=', 'cb.id_banco')
+                ->where('cb.id_empresa', $empresa)
+                ->get(['cb.id_cuenta', 'cb.numero_cuenta', 'b.nombre as banco'])
+                ->mapWithKeys(fn ($c) => [
+                    $c->id_cuenta => ($c->banco ?? '') . ' ****' . substr((string) $c->numero_cuenta, -4),
+                ])->toArray(),
+
+            'BILLETERA_DIGITAL' => DB::table('billeteras_digitales as bd')
+                ->leftJoin('billetera_tipos as bt', 'bt.id', '=', 'bd.id_billetera_tipo')
+                ->where('bd.id_empresa', $empresa)
+                ->get(['bd.id_billetera', 'bd.titular', 'bt.nombre as tipo'])
+                ->mapWithKeys(fn ($b) => [
+                    $b->id_billetera => ($b->tipo ?? '') . ' - ' . $b->titular,
+                ])->toArray(),
+
+            default => [],
+        };
     }
 
     public static function getEloquentQuery(): Builder

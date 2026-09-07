@@ -15,6 +15,12 @@ class LibroDiario extends Page
     protected static string|\UnitEnum|null $navigationGroup = 'Contabilidad';
     protected static ?int $navigationSort = 2;
 
+    // Modulo de Contabilidad oculto del menu
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     protected static ?string $title = 'Libro Diario';
     protected string $view = 'filament.pages.libro-diario';
 

@@ -13,6 +13,12 @@ class BalanceGeneral extends Page
     protected static string|\UnitEnum|null $navigationGroup = 'Contabilidad';
     protected static ?int $navigationSort = 4;
 
+    // Módulo de Contabilidad oculto del menú
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     protected static ?string $title = 'Balance General';
     protected string $view = 'filament.pages.balance-general';
 

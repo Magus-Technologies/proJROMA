@@ -27,6 +27,12 @@ class PlanCuentaResource extends Resource
     protected static ?string $pluralModelLabel = 'Plan de Cuentas';
     protected static ?int $navigationSort = 1;
 
+    // Modulo de Contabilidad oculto del menu
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema->schema([

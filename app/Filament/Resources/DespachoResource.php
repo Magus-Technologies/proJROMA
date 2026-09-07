@@ -63,364 +63,367 @@ class DespachoResource extends Resource
                     ->formatStateUsing(fn (string $state): string => ucfirst(strtolower(str_replace('_', ' ', $state)))),
             ])
             ->actions([
-                Action::make('reporte')
-                    ->label('Reporte')
-                    ->iconButton()
-                    ->tooltip('Reporte')
-                    ->icon('heroicon-o-document-text')
-                    ->color('gray')
-                    ->modalHeading(fn (TmsDespacho $record): string => 'Reporte de despacho ' . $record->codigo)
-                    ->modalContent(fn (TmsDespacho $record) => view('filament.tms.despacho-reporte', [
-                        'despacho' => $record,
-                        'data'     => app(TmsDespachoService::class)->reporte($record->id),
-                    ]))
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Cerrar'),
-
-                Action::make('pdf')
-                    ->label('Hoja de carga')
-                    ->iconButton()
-                    ->tooltip('Hoja de carga')
-                    ->icon('heroicon-o-arrow-down-tray')
-                    ->color('gray')
-                    ->modalHeading(fn (TmsDespacho $record): string => 'Hoja de carga — ' . $record->codigo)
-                    ->modalDescription('Deja los filtros vacíos para sacar TODA la carga del despacho, o elige mercados/medidas para sacarla por partes.')
-                    ->modalSubmitActionLabel('Generar PDF')
-                    ->form([
-                        CheckboxList::make('mercados')
-                            ->label('Solo estos mercados (vacío = todos)')
-                            ->options(fn (TmsDespacho $record) => self::mercadosDelDespacho($record))
-                            ->columns(2)
-                            ->bulkToggleable(),
-                        CheckboxList::make('medidas')
-                            ->label('Solo estas unidades de medida (vacío = todas)')
-                            ->options(fn (TmsDespacho $record) => self::medidasDelDespacho($record))
-                            ->columns(3)
-                            ->bulkToggleable(),
-                    ])
-                    ->action(function (array $data, TmsDespacho $record, $livewire): void {
-                        if (self::notificarPedidosSinFacturar($record, 'la hoja de carga')) return;
-
-                        $qs = http_build_query(array_filter([
-                            'mercados' => implode(',', $data['mercados'] ?? []),
-                            'medidas'  => implode(',', $data['medidas'] ?? []),
-                        ]));
-                        $url = route('tms.despacho.pdf', $record->id) . ($qs ? "?{$qs}" : '');
-                        $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
-                    }),
-
-                Action::make('guias')
-                    ->label('Guías de reparto')
-                    ->iconButton()
-                    ->tooltip('Guías de reparto')
-                    ->icon('heroicon-o-ticket')
-                    ->color('info')
-                    ->modalHeading(fn (TmsDespacho $record): string => 'Guías de reparto — ' . $record->codigo)
-                    ->modalDescription('Deja el filtro vacío para imprimir las guías de TODOS los pedidos, o elige mercados para imprimir solo esos.')
-                    ->modalSubmitActionLabel('Generar PDF')
-                    ->form([
-                        CheckboxList::make('mercados')
-                            ->label('Solo estos mercados (vacío = todos)')
-                            ->options(fn (TmsDespacho $record) => self::mercadosDelDespacho($record))
-                            ->columns(2)
-                            ->bulkToggleable(),
-                    ])
-                    ->action(function (array $data, TmsDespacho $record, $livewire): void {
-                        if (self::notificarPedidosSinFacturar($record, 'las guías de reparto')) return;
-
-                        $qs = http_build_query(array_filter([
-                            'mercados' => implode(',', $data['mercados'] ?? []),
-                        ]));
-                        $url = route('tms.despacho.guias', $record->id) . ($qs ? "?{$qs}" : '');
-                        $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
-                    }),
-
-                Action::make('comprobantes')
-                    ->label('Boletas / Facturas')
-                    ->iconButton()
-                    ->tooltip('Boletas / Facturas (masivo)')
-                    ->icon('heroicon-o-document-duplicate')
-                    ->color('success')
-                    ->modalHeading(fn (TmsDespacho $record): string => 'Boletas / Facturas — ' . $record->codigo)
-                    ->modalDescription('Imprime en un solo PDF los comprobantes (boleta o factura) de todos los pedidos del despacho, uno por página. Deja el filtro vacío para todos, o elige mercados.')
-                    ->modalSubmitActionLabel('Generar PDF')
-                    ->form([
-                        CheckboxList::make('mercados')
-                            ->label('Solo estos mercados (vacío = todos)')
-                            ->options(fn (TmsDespacho $record) => self::mercadosDelDespacho($record))
-                            ->columns(2)
-                            ->bulkToggleable(),
-                    ])
-                    ->action(function (array $data, TmsDespacho $record, $livewire): void {
-                        if (self::notificarPedidosSinFacturar($record, 'los comprobantes')) return;
-
-                        $qs = http_build_query(array_filter([
-                            'mercados' => implode(',', $data['mercados'] ?? []),
-                        ]));
-                        $url = route('tms.despacho.comprobantes', $record->id) . ($qs ? "?{$qs}" : '');
-                        $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
-                    }),
-
-                Action::make('guias_remision')
-                    ->label('Guías de remisión')
-                    ->iconButton()
-                    ->tooltip('Guías de remisión (masivo)')
-                    ->icon('heroicon-o-truck')
-                    ->color('warning')
-                    ->modalHeading(fn (TmsDespacho $record): string => 'Guías de remisión — ' . $record->codigo)
-                    ->modalDescription('Imprime en un solo PDF las guías de remisión de las ventas del despacho, una por página. Solo se incluyen las ventas que ya tienen guía emitida. Deja el filtro vacío para todos los mercados.')
-                    ->modalSubmitActionLabel('Generar PDF')
-                    ->form([
-                        CheckboxList::make('mercados')
-                            ->label('Solo estos mercados (vacío = todos)')
-                            ->options(fn (TmsDespacho $record) => self::mercadosDelDespacho($record))
-                            ->columns(2)
-                            ->bulkToggleable(),
-                    ])
-                    ->action(function (array $data, TmsDespacho $record, $livewire): void {
-                        if (self::notificarPedidosSinFacturar($record, 'las guías de remisión')) return;
-
-                        $tieneGuias = DB::table('guia_remision')
-                            ->join('cotizaciones as c', 'c.id_venta', '=', 'guia_remision.id_venta')
-                            ->join('tms_despacho_pedidos as dp', 'dp.id_cotizacion', '=', 'c.cotizacion_id')
-                            ->where('dp.id_despacho', $record->id)
-                            ->exists();
-                        if (! $tieneGuias) {
-                            Notification::make()->warning()
-                                ->title('Sin guías de remisión')
-                                ->body('Ninguna venta de este despacho tiene guía de remisión emitida todavía.')
-                                ->send();
-                            return;
-                        }
-
-                        $qs = http_build_query(array_filter([
-                            'mercados' => implode(',', $data['mercados'] ?? []),
-                        ]));
-                        $url = route('tms.despacho.guias.remision', $record->id) . ($qs ? "?{$qs}" : '');
-                        $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
-                    }),
-
-                Action::make('agregar_pedidos')
-                    ->label('Agregar pedidos')
-                    ->iconButton()
-                    ->tooltip('Agregar pedidos de última hora')
-                    ->icon('heroicon-o-plus-circle')
-                    ->color('primary')
-                    ->visible(fn (TmsDespacho $r) => in_array($r->estado, ['PLANIFICADO', 'CARGADO'], true) && $r->id_ruta)
-                    ->modalHeading(fn (TmsDespacho $record): string => 'Agregar pedidos — ' . $record->codigo)
-                    ->modalDescription('Pedidos facturados de la ruta que aún no están en ningún despacho. El peso del despacho se recalcula.')
-                    ->modalWidth('3xl')
-                    ->form([
-                        \Filament\Forms\Components\DatePicker::make('fecha_desde')
-                            ->label('Pedidos desde')
-                            ->default(now()->subDays(7))
-                            ->live(),
-                        \Filament\Forms\Components\DatePicker::make('fecha_hasta')
-                            ->label('Hasta')
-                            ->default(now())
-                            ->live(),
-                        CheckboxList::make('pedidos')
-                            ->label('Pedidos disponibles')
-                            ->options(function (callable $get, TmsDespacho $record): array {
-                                $desde = $get('fecha_desde');
-                                $hasta = $get('fecha_hasta');
-                                if (! $desde || ! $hasta) {
-                                    return [];
-                                }
-
-                                return app(TmsDespachoService::class)
-                                    ->pedidosPendientes((int) $record->id_ruta, (string) $desde, (string) $hasta, (int) session('id_empresa'))
-                                    ->mapWithKeys(fn ($p) => [
-                                        $p->cotizacion_id => "{$p->cliente} · {$p->mercado} · " .
-                                            number_format((float) $p->peso, 1) . ' kg · S/ ' . number_format((float) $p->total, 2),
-                                    ])->toArray();
-                            })
-                            ->live()
-                            ->bulkToggleable()
-                            ->helperText(fn (TmsDespacho $record): string => 'Peso actual del despacho: ' . number_format((float) $record->peso_total, 2)
-                                . ' kg · Capacidad del vehículo: ' . number_format((float) ($record->vehiculo?->capacidad_kg ?? 0), 0) . ' kg')
-                            ->required()
-                            ->columnSpanFull(),
-                    ])
-                    ->action(function (array $data, TmsDespacho $record): void {
-                        try {
-                            $res = app(TmsDespachoService::class)->agregarPedidos(
-                                $record->id,
-                                $data['pedidos'] ?? [],
-                                (int) session('id_empresa'),
-                            );
-
-                            Notification::make()->success()
-                                ->title($res['agregados'] . ' pedido(s) agregados a ' . $record->codigo)
-                                ->body('Nuevo peso total: ' . number_format($res['peso_total'], 2) . ' kg')
-                                ->send();
-
-                            foreach ($res['advertencias'] as $adv) {
-                                Notification::make()->warning()->title('Advertencia')->body($adv)->persistent()->send();
-                            }
-                        } catch (\RuntimeException $e) {
-                            Notification::make()->danger()->title('No se pudo agregar')->body($e->getMessage())->send();
-                        }
-                    }),
-
                 ActionGroup::make([
-                    Action::make('cargar')->label('Cargar')->icon('heroicon-o-inbox-arrow-down')->color('warning')
-                        ->visible(fn (TmsDespacho $r) => $r->estado === 'PLANIFICADO')
-                        ->requiresConfirmation()
-                        ->action(fn (TmsDespacho $r) => $r->update(['estado' => 'CARGADO'])),
+                    ActionGroup::make([
+                        Action::make('reporte')
+                            ->label('Reporte')
+                            ->icon('heroicon-o-document-text')
+                            ->color('info')
+                            ->modalHeading(fn (TmsDespacho $record): string => 'Reporte de despacho ' . $record->codigo)
+                            ->modalContent(fn (TmsDespacho $record) => view('filament.tms.despacho-reporte', [
+                                'despacho' => $record,
+                                'data'     => app(TmsDespachoService::class)->reporte($record->id),
+                            ]))
+                            ->modalSubmitAction(false)
+                            ->modalCancelActionLabel('Cerrar'),
 
-                    Action::make('salir')->label('Salir a ruta')->icon('heroicon-o-truck')->color('primary')
-                        ->visible(fn (TmsDespacho $r) => $r->estado === 'CARGADO')
-                        ->requiresConfirmation()
-                        ->action(fn (TmsDespacho $r) => $r->update(['estado' => 'EN_RUTA'])),
+                        Action::make('pdf')
+                            ->label('Hoja de carga')
+                            ->icon('heroicon-o-arrow-down-tray')
+                            ->color('primary')
+                            ->modalHeading(fn (TmsDespacho $record): string => 'Hoja de carga — ' . $record->codigo)
+                            ->modalDescription('Deja los filtros vacíos para sacar TODA la carga del despacho, o elige mercados/medidas para sacarla por partes.')
+                            ->modalSubmitActionLabel('Generar PDF')
+                            ->form([
+                                CheckboxList::make('mercados')
+                                    ->label('Solo estos mercados (vacío = todos)')
+                                    ->options(fn (TmsDespacho $record) => self::mercadosDelDespacho($record))
+                                    ->columns(2)
+                                    ->bulkToggleable(),
+                                CheckboxList::make('medidas')
+                                    ->label('Solo estas unidades de medida (vacío = todas)')
+                                    ->options(fn (TmsDespacho $record) => self::medidasDelDespacho($record))
+                                    ->columns(3)
+                                    ->bulkToggleable(),
+                            ])
+                            ->action(function (array $data, TmsDespacho $record, $livewire): void {
+                                if (self::notificarPedidosSinFacturar($record, 'la hoja de carga')) return;
 
-                    Action::make('cerrar')->label('Cerrar')->icon('heroicon-o-lock-closed')->color('success')
-                        ->visible(fn (TmsDespacho $r) => $r->estado === 'EN_RUTA')
-                        ->requiresConfirmation()
-                        ->action(fn (TmsDespacho $r) => $r->update(['estado' => 'CERRADO'])),
+                                $qs = http_build_query(array_filter([
+                                    'mercados' => implode(',', $data['mercados'] ?? []),
+                                    'medidas'  => implode(',', $data['medidas'] ?? []),
+                                ]));
+                                $url = route('tms.despacho.pdf', $record->id) . ($qs ? "?{$qs}" : '');
+                                $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
+                            }),
 
-                    Action::make('entregas')->label('Registrar entregas')->icon('heroicon-o-check-circle')->color('info')
-                        ->visible(fn (TmsDespacho $r) => in_array($r->estado, ['CARGADO', 'EN_RUTA'], true))
-                        ->fillForm(fn (TmsDespacho $r): array => [
-                            'pedidos' => $r->pedidos()->get()->map(fn ($p) => [
-                                'id'             => $p->id,
-                                'cliente'        => DB::table('clientes')->where('id_cliente', $p->id_cliente)->value('datos') ?? '-',
-                                'estado_entrega' => $p->estado_entrega,
-                                'motivo_rechazo' => $p->motivo_rechazo,
-                            ])->toArray(),
-                        ])
-                        ->form([
-                            Repeater::make('pedidos')
-                                ->label('Puntos de entrega')
-                                ->addable(false)->deletable(false)->reorderable(false)
-                                ->columns(3)
-                                ->schema([
-                                    TextInput::make('cliente')->label('Cliente')->disabled()->columnSpan(1),
-                                    Select::make('estado_entrega')->label('Entrega')->columnSpan(1)
-                                        ->options([
-                                            'PENDIENTE' => 'Pendiente',
-                                            'ENTREGADO' => 'Entregado',
-                                            'RECHAZADO' => 'Rechazado',
-                                            'PARCIAL'   => 'Parcial',
-                                        ])->required(),
-                                    TextInput::make('motivo_rechazo')->label('Motivo (si rechazo)')->columnSpan(1),
-                                    TextInput::make('id')->hidden(),
-                                ]),
-                        ])
-                        ->action(function (array $data): void {
-                            foreach ($data['pedidos'] as $p) {
-                                DB::table('tms_despacho_pedidos')->where('id', $p['id'])->update([
-                                    'estado_entrega' => $p['estado_entrega'],
-                                    'motivo_rechazo' => $p['estado_entrega'] === 'RECHAZADO' ? ($p['motivo_rechazo'] ?? null) : null,
-                                    'hora_entrega'   => now(),
-                                ]);
-                            }
-                            Notification::make()->success()->title('Entregas actualizadas.')->send();
-                        }),
+                        Action::make('guias')
+                            ->label('Guías de reparto')
+                            ->icon('heroicon-o-ticket')
+                            ->color('info')
+                            ->modalHeading(fn (TmsDespacho $record): string => 'Guías de reparto — ' . $record->codigo)
+                            ->modalDescription('Deja el filtro vacío para imprimir las guías de TODOS los pedidos, o elige mercados para imprimir solo esos.')
+                            ->modalSubmitActionLabel('Generar PDF')
+                            ->form([
+                                CheckboxList::make('mercados')
+                                    ->label('Solo estos mercados (vacío = todos)')
+                                    ->options(fn (TmsDespacho $record) => self::mercadosDelDespacho($record))
+                                    ->columns(2)
+                                    ->bulkToggleable(),
+                            ])
+                            ->action(function (array $data, TmsDespacho $record, $livewire): void {
+                                if (self::notificarPedidosSinFacturar($record, 'las guías de reparto')) return;
 
-                    Action::make('agregar_costo')->label('Agregar costo')->icon('heroicon-o-banknotes')->color('gray')
-                        ->visible(fn (TmsDespacho $r) => $r->estado !== 'ANULADO')
-                        ->form([
-                            TextInput::make('concepto')->label('Concepto')->required()->maxLength(120)
-                                ->placeholder('Combustible, peaje, viáticos...'),
-                            TextInput::make('monto')->label('Monto (S/)')->required()->numeric()->minValue(0.01),
-                            Select::make('id_caja')->label('Cargar a caja (opcional)')
-                                ->options(fn () => DB::table('cajas')->where('id_empresa', (int) session('id_empresa'))
-                                    ->where('estado', 'ACTIVA')->orderBy('nombre')->pluck('nombre', 'id'))
-                                ->helperText('Si eliges una caja, se registra como EGRESO real en ella.')
-                                ->live()
-                                ->afterStateUpdated(function (callable $set, $state): void {
-                                    $set('instrumento_tipo', $state ? 'EFECTIVO' : null);
-                                    $set('instrumento_id', null);
-                                    $set('referencia', null);
-                                }),
+                                $qs = http_build_query(array_filter([
+                                    'mercados' => implode(',', $data['mercados'] ?? []),
+                                ]));
+                                $url = route('tms.despacho.guias', $record->id) . ($qs ? "?{$qs}" : '');
+                                $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
+                            }),
 
-                            Select::make('instrumento_tipo')->label('Tipo de pago')
-                                ->options([
-                                    'EFECTIVO'          => 'Efectivo',
-                                    'TRANSFERENCIA'     => 'Transferencia',
-                                    'BILLETERA_DIGITAL' => 'Billetera digital',
-                                ])
-                                ->default('EFECTIVO')
-                                ->live()
-                                ->afterStateUpdated(function (callable $set): void {
-                                    $set('instrumento_id', null);
-                                    $set('referencia', null);
-                                })
-                                ->visible(fn (callable $get): bool => filled($get('id_caja')))
-                                ->required(fn (callable $get): bool => filled($get('id_caja'))),
+                        Action::make('comprobantes')
+                            ->label('Boletas / Facturas')
+                            ->icon('heroicon-o-document-duplicate')
+                            ->color('success')
+                            ->modalHeading(fn (TmsDespacho $record): string => 'Boletas / Facturas — ' . $record->codigo)
+                            ->modalDescription('Imprime en un solo PDF los comprobantes (boleta o factura) de todos los pedidos del despacho, uno por página. Deja el filtro vacío para todos, o elige mercados.')
+                            ->modalSubmitActionLabel('Generar PDF')
+                            ->form([
+                                CheckboxList::make('mercados')
+                                    ->label('Solo estos mercados (vacío = todos)')
+                                    ->options(fn (TmsDespacho $record) => self::mercadosDelDespacho($record))
+                                    ->columns(2)
+                                    ->bulkToggleable(),
+                            ])
+                            ->action(function (array $data, TmsDespacho $record, $livewire): void {
+                                if (self::notificarPedidosSinFacturar($record, 'los comprobantes')) return;
 
-                            Select::make('instrumento_id')
-                                ->label(fn (callable $get): string => match ($get('instrumento_tipo')) {
-                                    'TRANSFERENCIA'     => 'Cuenta bancaria',
-                                    'BILLETERA_DIGITAL' => 'Billetera',
-                                    default             => 'Detalle',
-                                })
-                                ->options(fn (callable $get): array => static::opcionesInstrumento($get('instrumento_tipo')))
-                                ->searchable()
-                                ->visible(fn (callable $get): bool => filled($get('id_caja'))
-                                    && in_array($get('instrumento_tipo'), ['TRANSFERENCIA', 'BILLETERA_DIGITAL'], true))
-                                ->required(fn (callable $get): bool => filled($get('id_caja'))
-                                    && in_array($get('instrumento_tipo'), ['TRANSFERENCIA', 'BILLETERA_DIGITAL'], true)),
+                                $qs = http_build_query(array_filter([
+                                    'mercados' => implode(',', $data['mercados'] ?? []),
+                                ]));
+                                $url = route('tms.despacho.comprobantes', $record->id) . ($qs ? "?{$qs}" : '');
+                                $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
+                            }),
 
-                            TextInput::make('referencia')->label('Nro. de operación')
-                                ->maxLength(60)
-                                ->placeholder('Opcional')
-                                ->visible(fn (callable $get): bool => filled($get('id_caja'))
-                                    && in_array($get('instrumento_tipo'), ['TRANSFERENCIA', 'BILLETERA_DIGITAL'], true)),
-                        ])
-                        ->action(function (array $data, TmsDespacho $record): void {
-                            $idMov = null;
-                            if (!empty($data['id_caja'])) {
-                                try {
-                                    $idMov = app(CajaService::class)->registrarMovimiento([
-                                        'id_caja'     => $data['id_caja'],
-                                        'fecha'       => now()->toDateString(),
-                                        'tipo'        => 'EGRESO',
-                                        'categoria'   => 'TMS',
-                                        'descripcion' => 'Costo despacho ' . ($record->codigo ?? $record->id) . ': ' . $data['concepto'],
-                                        'monto'       => $data['monto'],
-                                        'instrumento_tipo' => $data['instrumento_tipo'] ?: 'EFECTIVO',
-                                        'instrumento_id'   => $data['instrumento_id'] ?? null,
-                                        'referencia'       => $data['referencia'] ?? null,
-                                        'id_usuario'  => (int) (auth()->user()->usuario_id ?? 0),
-                                    ]);
-                                } catch (\RuntimeException $e) {
-                                    Notification::make()->danger()->title($e->getMessage())->send();
+                        Action::make('guias_remision')
+                            ->label('Guías de remisión')
+                            ->icon('heroicon-o-truck')
+                            ->color('warning')
+                            ->modalHeading(fn (TmsDespacho $record): string => 'Guías de remisión — ' . $record->codigo)
+                            ->modalDescription('Imprime en un solo PDF las guías de remisión de las ventas del despacho, una por página. Solo se incluyen las ventas que ya tienen guía emitida. Deja el filtro vacío para todos los mercados.')
+                            ->modalSubmitActionLabel('Generar PDF')
+                            ->form([
+                                CheckboxList::make('mercados')
+                                    ->label('Solo estos mercados (vacío = todos)')
+                                    ->options(fn (TmsDespacho $record) => self::mercadosDelDespacho($record))
+                                    ->columns(2)
+                                    ->bulkToggleable(),
+                            ])
+                            ->action(function (array $data, TmsDespacho $record, $livewire): void {
+                                if (self::notificarPedidosSinFacturar($record, 'las guías de remisión')) return;
+
+                                $tieneGuias = DB::table('guia_remision')
+                                    ->join('cotizaciones as c', 'c.id_venta', '=', 'guia_remision.id_venta')
+                                    ->join('tms_despacho_pedidos as dp', 'dp.id_cotizacion', '=', 'c.cotizacion_id')
+                                    ->where('dp.id_despacho', $record->id)
+                                    ->exists();
+                                if (! $tieneGuias) {
+                                    Notification::make()->warning()
+                                        ->title('Sin guías de remisión')
+                                        ->body('Ninguna venta de este despacho tiene guía de remisión emitida todavía.')
+                                        ->send();
                                     return;
                                 }
-                            }
-                            DB::table('tms_despacho_costos')->insert([
-                                'id_despacho'        => $record->id,
-                                'concepto'           => $data['concepto'],
-                                'monto'              => $data['monto'],
-                                'id_caja'            => $data['id_caja'] ?? null,
-                                'id_movimiento_caja' => $idMov,
-                                'id_usuario'         => (int) (auth()->user()->usuario_id ?? 0),
-                                'created_at'         => now(),
-                                'updated_at'         => now(),
-                            ]);
-                            Notification::make()->success()->title('Costo agregado.')->send();
-                        }),
 
-                    Action::make('ver_costos')->label('Ver costos')->icon('heroicon-o-list-bullet')->color('gray')
-                        ->modalHeading(fn (TmsDespacho $r): string => 'Costos de ' . $r->codigo)
-                        ->modalContent(fn (TmsDespacho $r) => view('filament.tms.despacho-costos', [
-                            'costos' => DB::table('tms_despacho_costos as c')
-                                ->leftJoin('cajas as ca', 'ca.id', '=', 'c.id_caja')
-                                ->where('c.id_despacho', $r->id)
-                                ->orderBy('c.id')
-                                ->select('c.id', 'c.concepto', 'c.monto', DB::raw("COALESCE(ca.nombre, '—') as caja"))
-                                ->get(),
-                        ]))
-                        ->modalSubmitAction(false)->modalCancelActionLabel('Cerrar'),
+                                $qs = http_build_query(array_filter([
+                                    'mercados' => implode(',', $data['mercados'] ?? []),
+                                ]));
+                                $url = route('tms.despacho.guias.remision', $record->id) . ($qs ? "?{$qs}" : '');
+                                $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
+                            }),
 
-                    Action::make('anular')->label('Anular')->icon('heroicon-o-x-circle')->color('danger')
-                        ->visible(fn (TmsDespacho $r) => in_array($r->estado, ['PLANIFICADO', 'CARGADO'], true))
-                        ->requiresConfirmation()
-                        ->modalDescription('Los pedidos quedarán libres para otro despacho.')
-                        ->action(fn (TmsDespacho $r) => $r->update(['estado' => 'ANULADO'])),
-                ])->label('Acciones')->icon('heroicon-m-ellipsis-vertical')->button(),
+                    ])->dropdown(false),
+
+                    ActionGroup::make([
+                        Action::make('agregar_pedidos')
+                            ->label('Agregar pedidos')
+                            ->icon('heroicon-o-plus-circle')
+                            ->color('primary')
+                            ->visible(fn (TmsDespacho $r) => in_array($r->estado, ['PLANIFICADO', 'CARGADO'], true) && $r->id_ruta)
+                            ->modalHeading(fn (TmsDespacho $record): string => 'Agregar pedidos — ' . $record->codigo)
+                            ->modalDescription('Pedidos facturados de la ruta que aún no están en ningún despacho. El peso del despacho se recalcula.')
+                            ->modalWidth('3xl')
+                            ->form([
+                                \Filament\Forms\Components\DatePicker::make('fecha_desde')
+                                    ->label('Pedidos desde')
+                                    ->default(now()->subDays(7))
+                                    ->live(),
+                                \Filament\Forms\Components\DatePicker::make('fecha_hasta')
+                                    ->label('Hasta')
+                                    ->default(now())
+                                    ->live(),
+                                CheckboxList::make('pedidos')
+                                    ->label('Pedidos disponibles')
+                                    ->options(function (callable $get, TmsDespacho $record): array {
+                                        $desde = $get('fecha_desde');
+                                        $hasta = $get('fecha_hasta');
+                                        if (! $desde || ! $hasta) {
+                                            return [];
+                                        }
+
+                                        return app(TmsDespachoService::class)
+                                            ->pedidosPendientes((int) $record->id_ruta, (string) $desde, (string) $hasta, (int) session('id_empresa'))
+                                            ->mapWithKeys(fn ($p) => [
+                                                $p->cotizacion_id => "{$p->cliente} · {$p->mercado} · " .
+                                                    number_format((float) $p->peso, 1) . ' kg · S/ ' . number_format((float) $p->total, 2),
+                                            ])->toArray();
+                                    })
+                                    ->live()
+                                    ->bulkToggleable()
+                                    ->helperText(fn (TmsDespacho $record): string => 'Peso actual del despacho: ' . number_format((float) $record->peso_total, 2)
+                                        . ' kg · Capacidad del vehículo: ' . number_format((float) ($record->vehiculo?->capacidad_kg ?? 0), 0) . ' kg')
+                                    ->required()
+                                    ->columnSpanFull(),
+                            ])
+                            ->action(function (array $data, TmsDespacho $record): void {
+                                try {
+                                    $res = app(TmsDespachoService::class)->agregarPedidos(
+                                        $record->id,
+                                        $data['pedidos'] ?? [],
+                                        (int) session('id_empresa'),
+                                    );
+
+                                    Notification::make()->success()
+                                        ->title($res['agregados'] . ' pedido(s) agregados a ' . $record->codigo)
+                                        ->body('Nuevo peso total: ' . number_format($res['peso_total'], 2) . ' kg')
+                                        ->send();
+
+                                    foreach ($res['advertencias'] as $adv) {
+                                        Notification::make()->warning()->title('Advertencia')->body($adv)->persistent()->send();
+                                    }
+                                } catch (\RuntimeException $e) {
+                                    Notification::make()->danger()->title('No se pudo agregar')->body($e->getMessage())->send();
+                                }
+                            }),
+
+                        Action::make('cargar')->label('Cargar')->icon('heroicon-o-inbox-arrow-down')->color('warning')
+                            ->visible(fn (TmsDespacho $r) => $r->estado === 'PLANIFICADO')
+                            ->requiresConfirmation()
+                            ->action(fn (TmsDespacho $r) => $r->update(['estado' => 'CARGADO'])),
+
+                        Action::make('salir')->label('Salir a ruta')->icon('heroicon-o-truck')->color('primary')
+                            ->visible(fn (TmsDespacho $r) => $r->estado === 'CARGADO')
+                            ->requiresConfirmation()
+                            ->action(fn (TmsDespacho $r) => $r->update(['estado' => 'EN_RUTA'])),
+
+                        Action::make('cerrar')->label('Cerrar')->icon('heroicon-o-lock-closed')->color('success')
+                            ->visible(fn (TmsDespacho $r) => $r->estado === 'EN_RUTA')
+                            ->requiresConfirmation()
+                            ->action(fn (TmsDespacho $r) => $r->update(['estado' => 'CERRADO'])),
+
+                        Action::make('entregas')->label('Registrar entregas')->icon('heroicon-o-check-circle')->color('info')
+                            ->visible(fn (TmsDespacho $r) => in_array($r->estado, ['CARGADO', 'EN_RUTA'], true))
+                            ->fillForm(fn (TmsDespacho $r): array => [
+                                'pedidos' => $r->pedidos()->get()->map(fn ($p) => [
+                                    'id'             => $p->id,
+                                    'cliente'        => DB::table('clientes')->where('id_cliente', $p->id_cliente)->value('datos') ?? '-',
+                                    'estado_entrega' => $p->estado_entrega,
+                                    'motivo_rechazo' => $p->motivo_rechazo,
+                                ])->toArray(),
+                            ])
+                            ->form([
+                                Repeater::make('pedidos')
+                                    ->label('Puntos de entrega')
+                                    ->addable(false)->deletable(false)->reorderable(false)
+                                    ->columns(3)
+                                    ->schema([
+                                        TextInput::make('cliente')->label('Cliente')->disabled()->columnSpan(1),
+                                        Select::make('estado_entrega')->label('Entrega')->columnSpan(1)
+                                            ->options([
+                                                'PENDIENTE' => 'Pendiente',
+                                                'ENTREGADO' => 'Entregado',
+                                                'RECHAZADO' => 'Rechazado',
+                                                'PARCIAL'   => 'Parcial',
+                                            ])->required(),
+                                        TextInput::make('motivo_rechazo')->label('Motivo (si rechazo)')->columnSpan(1),
+                                        TextInput::make('id')->hidden(),
+                                    ]),
+                            ])
+                            ->action(function (array $data): void {
+                                foreach ($data['pedidos'] as $p) {
+                                    DB::table('tms_despacho_pedidos')->where('id', $p['id'])->update([
+                                        'estado_entrega' => $p['estado_entrega'],
+                                        'motivo_rechazo' => $p['estado_entrega'] === 'RECHAZADO' ? ($p['motivo_rechazo'] ?? null) : null,
+                                        'hora_entrega'   => now(),
+                                    ]);
+                                }
+                                Notification::make()->success()->title('Entregas actualizadas.')->send();
+                            }),
+
+                    ])->dropdown(false),
+
+                    ActionGroup::make([
+                        Action::make('agregar_costo')->label('Agregar costo')->icon('heroicon-o-banknotes')->color('warning')
+                            ->visible(fn (TmsDespacho $r) => $r->estado !== 'ANULADO')
+                            ->form([
+                                TextInput::make('concepto')->label('Concepto')->required()->maxLength(120)
+                                    ->placeholder('Combustible, peaje, viáticos...'),
+                                TextInput::make('monto')->label('Monto (S/)')->required()->numeric()->minValue(0.01),
+                                Select::make('id_caja')->label('Cargar a caja (opcional)')
+                                    ->options(fn () => DB::table('cajas')->where('id_empresa', (int) session('id_empresa'))
+                                        ->where('estado', 'ACTIVA')->orderBy('nombre')->pluck('nombre', 'id'))
+                                    ->helperText('Si eliges una caja, se registra como EGRESO real en ella.')
+                                    ->live()
+                                    ->afterStateUpdated(function (callable $set, $state): void {
+                                        $set('instrumento_tipo', $state ? 'EFECTIVO' : null);
+                                        $set('instrumento_id', null);
+                                        $set('referencia', null);
+                                    }),
+
+                                Select::make('instrumento_tipo')->label('Tipo de pago')
+                                    ->options([
+                                        'EFECTIVO'          => 'Efectivo',
+                                        'TRANSFERENCIA'     => 'Transferencia',
+                                        'BILLETERA_DIGITAL' => 'Billetera digital',
+                                    ])
+                                    ->default('EFECTIVO')
+                                    ->live()
+                                    ->afterStateUpdated(function (callable $set): void {
+                                        $set('instrumento_id', null);
+                                        $set('referencia', null);
+                                    })
+                                    ->visible(fn (callable $get): bool => filled($get('id_caja')))
+                                    ->required(fn (callable $get): bool => filled($get('id_caja'))),
+
+                                Select::make('instrumento_id')
+                                    ->label(fn (callable $get): string => match ($get('instrumento_tipo')) {
+                                        'TRANSFERENCIA'     => 'Cuenta bancaria',
+                                        'BILLETERA_DIGITAL' => 'Billetera',
+                                        default             => 'Detalle',
+                                    })
+                                    ->options(fn (callable $get): array => static::opcionesInstrumento($get('instrumento_tipo')))
+                                    ->searchable()
+                                    ->visible(fn (callable $get): bool => filled($get('id_caja'))
+                                        && in_array($get('instrumento_tipo'), ['TRANSFERENCIA', 'BILLETERA_DIGITAL'], true))
+                                    ->required(fn (callable $get): bool => filled($get('id_caja'))
+                                        && in_array($get('instrumento_tipo'), ['TRANSFERENCIA', 'BILLETERA_DIGITAL'], true)),
+
+                                TextInput::make('referencia')->label('Nro. de operación')
+                                    ->maxLength(60)
+                                    ->placeholder('Opcional')
+                                    ->visible(fn (callable $get): bool => filled($get('id_caja'))
+                                        && in_array($get('instrumento_tipo'), ['TRANSFERENCIA', 'BILLETERA_DIGITAL'], true)),
+                            ])
+                            ->action(function (array $data, TmsDespacho $record): void {
+                                $idMov = null;
+                                if (!empty($data['id_caja'])) {
+                                    try {
+                                        $idMov = app(CajaService::class)->registrarMovimiento([
+                                            'id_caja'     => $data['id_caja'],
+                                            'fecha'       => now()->toDateString(),
+                                            'tipo'        => 'EGRESO',
+                                            'categoria'   => 'TMS',
+                                            'descripcion' => 'Costo despacho ' . ($record->codigo ?? $record->id) . ': ' . $data['concepto'],
+                                            'monto'       => $data['monto'],
+                                            'instrumento_tipo' => $data['instrumento_tipo'] ?: 'EFECTIVO',
+                                            'instrumento_id'   => $data['instrumento_id'] ?? null,
+                                            'referencia'       => $data['referencia'] ?? null,
+                                            'id_usuario'  => (int) (auth()->user()->usuario_id ?? 0),
+                                        ]);
+                                    } catch (\RuntimeException $e) {
+                                        Notification::make()->danger()->title($e->getMessage())->send();
+                                        return;
+                                    }
+                                }
+                                DB::table('tms_despacho_costos')->insert([
+                                    'id_despacho'        => $record->id,
+                                    'concepto'           => $data['concepto'],
+                                    'monto'              => $data['monto'],
+                                    'id_caja'            => $data['id_caja'] ?? null,
+                                    'id_movimiento_caja' => $idMov,
+                                    'id_usuario'         => (int) (auth()->user()->usuario_id ?? 0),
+                                    'created_at'         => now(),
+                                    'updated_at'         => now(),
+                                ]);
+                                Notification::make()->success()->title('Costo agregado.')->send();
+                            }),
+
+                        Action::make('ver_costos')->label('Ver costos')->icon('heroicon-o-list-bullet')->color('info')
+                            ->modalHeading(fn (TmsDespacho $r): string => 'Costos de ' . $r->codigo)
+                            ->modalContent(fn (TmsDespacho $r) => view('filament.tms.despacho-costos', [
+                                'costos' => DB::table('tms_despacho_costos as c')
+                                    ->leftJoin('cajas as ca', 'ca.id', '=', 'c.id_caja')
+                                    ->where('c.id_despacho', $r->id)
+                                    ->orderBy('c.id')
+                                    ->select('c.id', 'c.concepto', 'c.monto', DB::raw("COALESCE(ca.nombre, '—') as caja"))
+                                    ->get(),
+                            ]))
+                            ->modalSubmitAction(false)->modalCancelActionLabel('Cerrar'),
+
+                    ])->dropdown(false),
+
+                    ActionGroup::make([
+                        Action::make('anular')->label('Anular')->icon('heroicon-o-x-circle')->color('danger')
+                            ->visible(fn (TmsDespacho $r) => in_array($r->estado, ['PLANIFICADO', 'CARGADO'], true))
+                            ->requiresConfirmation()
+                            ->modalDescription('Los pedidos quedarán libres para otro despacho.')
+                            ->action(fn (TmsDespacho $r) => $r->update(['estado' => 'ANULADO'])),
+                    ])->dropdown(false),
+                ])
+                    ->label('Acciones')
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->color('primary')
+                    ->button(),
             ])
             ->defaultSort('id', 'desc');
     }

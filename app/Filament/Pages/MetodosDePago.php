@@ -7,6 +7,7 @@ use App\Models\BilleteraDigital;
 use App\Models\BilleteraTipo;
 use App\Models\CuentaBancaria;
 use App\Models\Tarjeta;
+use App\Services\SaldoService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
@@ -39,6 +40,59 @@ class MetodosDePago extends Page implements HasTable
 
     public string $tab = 'bancos';
 
+    /**
+     * Saldos memorizados por request: se calculan una sola vez aunque la tabla
+     * los pida fila por fila (evita N+1 en cada render de Filament).
+     */
+    protected ?array $saldosCuenta = null;
+    protected ?array $saldosBanco = null;
+    protected ?array $movidoBilletera = null;
+
+    /** @return array<int, array{saldo_inicial: float, movido: float, saldo: float}> */
+    protected function saldosCuenta(): array
+    {
+        return $this->saldosCuenta ??= app(SaldoService::class)
+            ->saldosPorCuenta((int) session('id_empresa'));
+    }
+
+    /** @return array<int, float> */
+    protected function saldosBanco(): array
+    {
+        return $this->saldosBanco ??= app(SaldoService::class)
+            ->saldosPorBanco((int) session('id_empresa'));
+    }
+
+    /** @return array<int, float> */
+    protected function movidoBilletera(): array
+    {
+        return $this->movidoBilletera ??= app(SaldoService::class)
+            ->movidoPorBilletera((int) session('id_empresa'));
+    }
+
+    /**
+     * Saldo que un canal (billetera o tarjeta de debito) hereda de su cuenta.
+     * Devuelve null si el canal no tiene cuenta vinculada: sin cuenta no hay
+     * de donde heredar, y el canal no es contenedor de dinero por si mismo.
+     */
+    protected function saldoHeredado(?int $idCuenta): ?float
+    {
+        if ($idCuenta === null) {
+            return null;
+        }
+
+        return $this->saldosCuenta()[$idCuenta]['saldo'] ?? 0.0;
+    }
+
+    protected static function soles(float $monto): string
+    {
+        return 'S/ ' . number_format($monto, 2);
+    }
+
+    protected static function colorSaldo(float $monto): string
+    {
+        return $monto < 0 ? 'danger' : 'success';
+    }
+
     public function updatedTab(): void
     {
         $this->resetTable();
@@ -61,6 +115,13 @@ class MetodosDePago extends Page implements HasTable
             ->columns([
                 TextColumn::make('nombre')->label('Nombre')->searchable(),
                 TextColumn::make('codigo_sunat')->label('Código SUNAT')->placeholder('—'),
+                TextColumn::make('saldo')->label('Saldo')
+                    ->getStateUsing(fn (Banco $record): float => $this->saldosBanco()[$record->id_banco] ?? 0.0)
+                    ->formatStateUsing(fn ($state): string => self::soles((float) $state))
+                    ->color(fn ($state): string => self::colorSaldo((float) $state))
+                    ->weight('bold')
+                    ->alignEnd()
+                    ->tooltip('Suma del saldo de sus cuentas. El banco no guarda dinero propio.'),
                 TextColumn::make('estado')->label('Estado')
                     ->badge()
                     ->getStateUsing(fn (Banco $record): string => $record->estado === '1' ? 'Activo' : 'Inactivo')
@@ -107,6 +168,24 @@ class MetodosDePago extends Page implements HasTable
                 TextColumn::make('numero_cuenta')->label('Número')->placeholder('—'),
                 TextColumn::make('moneda')->label('Moneda'),
                 TextColumn::make('titular')->label('Titular'),
+                TextColumn::make('saldo_inicial')->label('Saldo inicial')
+                    ->formatStateUsing(fn ($state): string => self::soles((float) $state))
+                    ->alignEnd()
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->tooltip('Saldo declarado a la fecha de corte.'),
+                TextColumn::make('movido')->label('Movido')
+                    ->getStateUsing(fn (CuentaBancaria $record): float => $this->saldosCuenta()[$record->id_cuenta]['movido'] ?? 0.0)
+                    ->formatStateUsing(fn ($state): string => self::soles((float) $state))
+                    ->color(fn ($state): string => (float) $state < 0 ? 'danger' : 'gray')
+                    ->alignEnd()
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->tooltip('Neto de los movimientos posteriores a la fecha de corte.'),
+                TextColumn::make('saldo')->label('Saldo')
+                    ->getStateUsing(fn (CuentaBancaria $record): float => $this->saldosCuenta()[$record->id_cuenta]['saldo'] ?? 0.0)
+                    ->formatStateUsing(fn ($state): string => self::soles((float) $state))
+                    ->color(fn ($state): string => self::colorSaldo((float) $state))
+                    ->weight('bold')
+                    ->alignEnd(),
                 TextColumn::make('estado')->label('Estado')
                     ->badge()
                     ->getStateUsing(fn (CuentaBancaria $record): string => $record->estado === '1' ? 'Activo' : 'Inactivo')
@@ -122,10 +201,16 @@ class MetodosDePago extends Page implements HasTable
                         Select::make('tipo_cuenta')->label('Tipo')->required()
                             ->options(['CC' => 'Cuenta Corriente', 'CA' => 'Cuenta de Ahorros', 'CTS' => 'CTS', 'AHORRO' => 'Ahorro']),
                         Select::make('moneda')->label('Moneda')->required()
-                            ->options(['PEN' => 'Soles (PEN)', 'USD' => 'Dólares (USD)']),
+                            ->options(['PEN' => 'Soles (PEN)'])
+                            ->default('PEN'),
                         TextInput::make('numero_cuenta')->label('Número')->maxLength(30),
                         TextInput::make('cci')->label('CCI')->maxLength(30),
                         TextInput::make('titular')->label('Titular')->required()->maxLength(200),
+                        TextInput::make('saldo_inicial')->label('Saldo inicial (S/)')
+                            ->numeric()->required()->default(0)
+                            ->helperText('Saldo real de la cuenta a la fecha de corte, según el estado de cuenta del banco.'),
+                        DatePicker::make('fecha_corte')->label('Fecha de corte')
+                            ->helperText('Solo se suman los movimientos desde esta fecha. Vacío = se suman todos.'),
                         Toggle::make('estado')->label('Activo')->default(true),
                     ])
                     ->fillForm(fn (CuentaBancaria $record): array => [
@@ -135,6 +220,8 @@ class MetodosDePago extends Page implements HasTable
                         'numero_cuenta' => $record->numero_cuenta,
                         'cci' => $record->cci,
                         'titular' => $record->titular,
+                        'saldo_inicial' => $record->saldo_inicial,
+                        'fecha_corte' => $record->fecha_corte,
                         'estado' => $record->estado === '1',
                     ])
                     ->action(function (CuentaBancaria $record, array $data): void {
@@ -165,6 +252,15 @@ class MetodosDePago extends Page implements HasTable
                 TextColumn::make('titular')->label('Titular'),
                 TextColumn::make('fecha_vencimiento')->label('Vencimiento')->placeholder('—'),
                 TextColumn::make('cuentaBancaria.numero_cuenta')->label('Cuenta vinculada')->placeholder('—'),
+                TextColumn::make('saldo_cuenta')->label('Saldo (de la cuenta)')
+                    ->getStateUsing(fn (Tarjeta $record): ?float => $record->tipo === 'DEBITO'
+                        ? $this->saldoHeredado($record->id_cuenta_bancaria)
+                        : null)
+                    ->formatStateUsing(fn ($state): string => self::soles((float) $state))
+                    ->placeholder(fn (Tarjeta $record): string => $record->tipo === 'CREDITO' ? 'Es deuda, no saldo' : '—')
+                    ->color('gray')
+                    ->alignEnd()
+                    ->tooltip('Una tarjeta de débito solo da acceso al dinero de su cuenta; no es un saldo adicional. Una de crédito es una línea de deuda.'),
                 TextColumn::make('estado')->label('Estado')
                     ->badge()
                     ->getStateUsing(fn (Tarjeta $record): string => $record->estado === '1' ? 'Activo' : 'Inactivo')
@@ -225,6 +321,19 @@ class MetodosDePago extends Page implements HasTable
                 TextColumn::make('cuentaBancaria.numero_cuenta')->label('Cuenta vinculada')->placeholder('—'),
                 TextColumn::make('telefono')->label('Teléfono')->placeholder('—'),
                 TextColumn::make('titular')->label('Titular'),
+                TextColumn::make('saldo_cuenta')->label('Saldo (de la cuenta)')
+                    ->getStateUsing(fn (BilleteraDigital $record): ?float => $this->saldoHeredado($record->id_cuenta_bancaria))
+                    ->formatStateUsing(fn ($state): string => self::soles((float) $state))
+                    ->placeholder('—')
+                    ->color('gray')
+                    ->alignEnd()
+                    ->tooltip('El dinero pertenece a la cuenta vinculada: es el MISMO saldo, no uno adicional.'),
+                TextColumn::make('movido_canal')->label('Movido por esta billetera')
+                    ->getStateUsing(fn (BilleteraDigital $record): float => $this->movidoBilletera()[$record->id_billetera] ?? 0.0)
+                    ->formatStateUsing(fn ($state): string => self::soles((float) $state))
+                    ->color(fn ($state): string => self::colorSaldo((float) $state))
+                    ->alignEnd()
+                    ->tooltip('Neto que fluyó por este canal. Este sí es propio de la billetera y no duplica nada.'),
                 ImageColumn::make('qr')
                     ->label('QR')
                     ->size(48)
@@ -299,10 +408,16 @@ class MetodosDePago extends Page implements HasTable
                         Select::make('tipo_cuenta')->label('Tipo')->required()
                             ->options(['CC' => 'Cuenta Corriente', 'CA' => 'Cuenta de Ahorros', 'CTS' => 'CTS', 'AHORRO' => 'Ahorro']),
                         Select::make('moneda')->label('Moneda')->required()
-                            ->options(['PEN' => 'Soles (PEN)', 'USD' => 'Dólares (USD)']),
+                            ->options(['PEN' => 'Soles (PEN)'])
+                            ->default('PEN'),
                         TextInput::make('numero_cuenta')->label('Número')->maxLength(30),
                         TextInput::make('cci')->label('CCI')->maxLength(30),
                         TextInput::make('titular')->label('Titular')->required()->maxLength(200),
+                        TextInput::make('saldo_inicial')->label('Saldo inicial (S/)')
+                            ->numeric()->required()->default(0)
+                            ->helperText('Saldo real de la cuenta a la fecha de corte, según el estado de cuenta del banco.'),
+                        DatePicker::make('fecha_corte')->label('Fecha de corte')
+                            ->helperText('Solo se suman los movimientos desde esta fecha. Vacío = se suman todos.'),
                         Toggle::make('estado')->label('Activo')->default(true),
                     ],
                     'tarjetas' => [

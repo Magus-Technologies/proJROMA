@@ -619,6 +619,33 @@ class CajaService
         return [$tipo, null];
     }
 
+    /**
+     * Resuelve a QUÉ cuenta bancaria pertenece un movimiento segun su instrumento.
+     *
+     * El dinero solo vive en cuentas_bancarias: una billetera digital o una
+     * tarjeta de debito son canales de acceso a una cuenta, no contenedores
+     * propios. El efectivo no toca banco (vive en cajas.saldo_actual), por eso
+     * devuelve null.
+     *
+     * Es la inversa de mapInstrumento(): alli se traduce metodo de pago a
+     * instrumento, aqui se normaliza el instrumento a su cuenta.
+     */
+    public static function cuentaDeInstrumento(?string $tipo, ?int $id): ?int
+    {
+        if ($id === null || $id <= 0) {
+            return null;
+        }
+
+        return match ($tipo) {
+            'TRANSFERENCIA'     => $id,
+            'BILLETERA_DIGITAL' => DB::table('billeteras_digitales')
+                ->where('id_billetera', $id)->value('id_cuenta_bancaria'),
+            'TARJETA'           => DB::table('tarjetas')
+                ->where('id_tarjeta', $id)->value('id_cuenta_bancaria'),
+            default             => null,
+        };
+    }
+
     public function mapInstrumentoTipo(string $tipoPago): string
     {
         return static::mapInstrumento($tipoPago)[0];

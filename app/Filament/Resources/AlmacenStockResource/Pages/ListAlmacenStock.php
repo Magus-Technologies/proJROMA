@@ -24,6 +24,9 @@ use Illuminate\Support\Facades\DB;
 
 class ListAlmacenStock extends ListRecords
 {
+    /** Permite que AlmacenStockStats lea la tabla ya filtrada por pestaña/búsqueda. */
+    use \Filament\Pages\Concerns\ExposesTableToWidgets;
+
     protected static string $resource = AlmacenStockResource::class;
 
     // Mismo orden visual que Productos: pestañas arriba, cards debajo, tabla al final

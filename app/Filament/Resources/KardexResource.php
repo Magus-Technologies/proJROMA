@@ -34,12 +34,65 @@ class KardexResource extends Resource
 
     protected static ?array $almacenesCache = null;
 
+    /** Linea de tiempo de costos por producto, memorizada por request. */
+    protected static array $costosCache = [];
+
     public static function almacenes(): array
     {
         return static::$almacenesCache ??= DB::table('almacenes')
             ->where('id_empresa', (int) session('id_empresa'))
             ->pluck('nombre', 'codigo')
             ->toArray();
+    }
+
+    /**
+     * Costo unitario antes y despues de cada movimiento de un producto.
+     *
+     * inventario_movimientos solo guarda el costo DEL movimiento, y no todos
+     * los movimientos lo traen (una salida puede venir sin costo). Por eso se
+     * arrastra el ultimo costo conocido hacia adelante: mientras un movimiento
+     * no declare costo nuevo, el producto sigue valiendo lo mismo.
+     *
+     * Se calcula una vez por producto y por request: como maximo una consulta
+     * por producto distinto en la pagina visible.
+     *
+     * @return array<int, array{anterior: float|null, actual: float|null}>
+     *         Indexado por id_movimiento.
+     */
+    protected static function costosDeProducto(int $idProducto): array
+    {
+        if (isset(static::$costosCache[$idProducto])) {
+            return static::$costosCache[$idProducto];
+        }
+
+        $linea  = [];
+        $ultimo = null;
+
+        foreach (
+            DB::table('inventario_movimientos')
+                ->where('id_producto', $idProducto)
+                ->orderBy('id_movimiento')
+                ->get(['id_movimiento', 'costo']) as $mov
+        ) {
+            $anterior = $ultimo;
+
+            if ($mov->costo !== null) {
+                $ultimo = (float) $mov->costo;
+            }
+
+            $linea[(int) $mov->id_movimiento] = [
+                'anterior' => $anterior,
+                'actual'   => $ultimo,
+            ];
+        }
+
+        return static::$costosCache[$idProducto] = $linea;
+    }
+
+    /** @return float|null Costo 'anterior' o 'actual' del movimiento dado. */
+    protected static function costo(InventarioMovimiento $mov, string $cual): ?float
+    {
+        return static::costosDeProducto((int) $mov->id_producto)[$mov->id_movimiento][$cual] ?? null;
     }
 
     public static function form(Schema $schema): Schema
@@ -91,6 +144,34 @@ class KardexResource extends Resource
                 TextColumn::make('stock_nuevo')
                     ->label('Stock nuevo')
                     ->toggleable(),
+
+                TextColumn::make('costo_anterior')
+                    ->label('Costo ant.')
+                    ->getStateUsing(fn (InventarioMovimiento $record): ?float =>
+                        static::costo($record, 'anterior'))
+                    ->money('PEN')
+                    ->placeholder('—')
+                    ->color('gray')
+                    ->alignEnd()
+                    ->toggleable()
+                    ->tooltip('Costo unitario que tenía el producto antes de este movimiento.'),
+
+                TextColumn::make('costo_actual')
+                    ->label('Costo actual')
+                    ->getStateUsing(fn (InventarioMovimiento $record): ?float =>
+                        static::costo($record, 'actual'))
+                    ->money('PEN')
+                    ->placeholder('—')
+                    ->weight('bold')
+                    ->color(fn (InventarioMovimiento $record): string => match (true) {
+                        static::costo($record, 'anterior') === null => 'gray',
+                        static::costo($record, 'actual') > static::costo($record, 'anterior') => 'danger',
+                        static::costo($record, 'actual') < static::costo($record, 'anterior') => 'success',
+                        default => 'gray',
+                    })
+                    ->alignEnd()
+                    ->toggleable()
+                    ->tooltip('Costo unitario después del movimiento. Rojo = el producto se encareció, verde = se abarató.'),
 
                 TextColumn::make('observacion')
                     ->label('Observación')

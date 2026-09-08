@@ -10,8 +10,10 @@ use App\Models\Venta;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Forms\Components\FileUpload;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -132,6 +134,17 @@ class VentaResource extends Resource
                         '0'     => 'gray',
                         default => 'gray',
                     }),
+
+                IconColumn::make('firma')
+                    ->label('Firmada')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-badge')
+                    ->falseIcon('heroicon-o-minus-small')
+                    ->trueColor('success')
+                    ->falseColor('gray')
+                    ->getStateUsing(fn (Venta $record): bool => filled($record->firma))
+                    ->tooltip('Si tiene la foto de la boleta firmada por el cliente.')
+                    ->toggleable(),
 
                 TextColumn::make('vendedor.nombre_completo')
                     ->label('Vendedor')
@@ -349,6 +362,36 @@ class VentaResource extends Resource
                         && (auth()->user()?->can('guias.crear') ?? false))
                     ->url(fn (Venta $record): string =>
                         \App\Filament\Resources\GuiaRemisionResource::getUrl('create', ['venta' => $record->id_venta])),
+
+                Action::make('firma')
+                    ->visible(fn (): bool => auth()->user()?->can('ventas.crear') ?? false)
+                    ->label('Boleta firmada')
+                    ->icon('heroicon-o-pencil-square')
+                    ->color('info')
+                    ->modalHeading(fn (Venta $record): string =>
+                        'Boleta firmada — ' . $record->serie . '-' . str_pad((string) $record->numero, 8, '0', STR_PAD_LEFT))
+                    ->modalSubmitActionLabel('Guardar')
+                    ->fillForm(fn (Venta $record): array => ['firma' => $record->firma])
+                    ->form([
+                        FileUpload::make('firma')
+                            ->label('Foto de la boleta firmada')
+                            ->image()
+                            // Mismo disco que los comprobantes de pago, para que
+                            // la miniatura se vea sin pasar por una URL firmada.
+                            ->disk('public')
+                            ->directory('ventas/firmas')
+                            ->imagePreviewHeight('220')
+                            ->maxSize(4096)
+                            ->helperText('Subí la foto de la boleta con la firma del cliente. Si ya hay una, se reemplaza.'),
+                    ])
+                    ->action(function (Venta $record, array $data): void {
+                        $record->update(['firma' => $data['firma'] ?? null]);
+
+                        Notification::make()
+                            ->success()
+                            ->title(filled($data['firma'] ?? null) ? 'Boleta firmada guardada' : 'Boleta firmada quitada')
+                            ->send();
+                    }),
 
                 Action::make('ver_pagos')
                     ->label('Ver pagos')

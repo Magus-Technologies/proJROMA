@@ -57,6 +57,10 @@ class CreateCompra extends CreateRecord
                                 'x-on:click.outside' => 'buscadorAbierto = false',
                             ])
                             ->schema([
+                                // Envuelve al buscador y a sus resultados: el
+                                // desplegable se posiciona respecto de este grupo,
+                                // así queda justo debajo del input y flotando.
+                                Group::make([
                                 TextInput::make('buscador_producto')
                                     ->hiddenLabel()
                                     ->placeholder('🔍 Buscar producto por descripción o código…')
@@ -87,7 +91,7 @@ class CreateCompra extends CreateRecord
 
                                         if ($productos->isEmpty()) {
                                             return new HtmlString(
-                                                '<div x-show="buscadorAbierto" x-cloak'
+                                                '<div x-show="buscadorAbierto" x-cloak class="buscador-resultados"'
                                                 . ' style="padding:10px 12px;opacity:.5;font-size:.875rem">'
                                                 . ($busqueda === ''
                                                     ? 'No hay productos cargados todavia.'
@@ -110,11 +114,11 @@ class CreateCompra extends CreateRecord
                                         )->implode('');
 
                                         return new HtmlString(
-                                            '<div x-show="buscadorAbierto" x-cloak'
-                                            . ' style="border:1px solid rgba(148,163,184,.35);border-radius:12px;overflow:hidden;'
-                                            . 'box-shadow:0 4px 12px rgba(0,0,0,.06)">' . $filas . '</div>'
+                                            '<div x-show="buscadorAbierto" x-cloak class="buscador-resultados">'
+                                            . $filas . '</div>'
                                         );
                                     }),
+                                ])->extraAttributes(['class' => 'buscador-ancla']),
 
                                 Placeholder::make('tabla_vacia')
                                     ->hiddenLabel()

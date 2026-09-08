@@ -224,6 +224,41 @@ html {
    SIDEBAR — modern dark nav
    ============================================================ */
 
+/* ============================================================
+   BUSCADOR DE PRODUCTOS — desplegable flotante
+   El listado de resultados se superponía empujando el contenido
+   hacia abajo. Va anclado al input, por encima, y con scroll.
+   ============================================================ */
+.buscador-ancla { position: relative; }
+
+.buscador-resultados {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 300px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid rgba(148, 163, 184, .35);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .12);
+}
+
+.dark .buscador-resultados {
+  background: rgb(24, 24, 27);
+  border-color: rgba(148, 163, 184, .22);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .45);
+}
+
+.buscador-resultados::-webkit-scrollbar { width: 8px; }
+.buscador-resultados::-webkit-scrollbar-track { background: transparent; }
+.buscador-resultados::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, .45);
+  border-radius: 99px;
+}
+
 /* La sidebar de abajo se fuerza a z-index 45, por encima del 40 que Filament
    usa para los modales: en pantallas donde el modal es lo bastante ancho para
    llegar debajo de la barra, le tapaba el lado izquierdo (títulos y botones

@@ -149,6 +149,7 @@ class TrasladoResource extends Resource
                         ->modalCancelActionLabel('Cerrar'),
 
                     Action::make('pdf')
+                        ->visible(fn (): bool => auth()->user()?->can('almacen_traslados.ver') ?? false)
                         ->label('PDF')
                         ->icon('heroicon-m-document-arrow-down')
                         ->color('gray')
@@ -159,7 +160,8 @@ class TrasladoResource extends Resource
                         ->label('Anular')
                         ->icon('heroicon-m-no-symbol')
                         ->color('danger')
-                        ->visible(fn (Traslado $record): bool => (string) $record->estado === '1')
+                        ->visible(fn (Traslado $record): bool => ((string) $record->estado === '1')
+                        && (auth()->user()?->can('almacen_traslados.anular') ?? false))
                         ->requiresConfirmation()
                         ->modalHeading('Anular traslado')
                         ->modalDescription('Se revertirá el stock: los productos vuelven del almacén destino al origen. ¿Confirmás?')

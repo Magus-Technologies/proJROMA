@@ -277,6 +277,7 @@ class ListAlmacenStock extends ListRecords
                     }),
 
                 Action::make('editar_almacen')
+                    ->visible(fn (): bool => auth()->user()?->can('almacen_existencias.ver') ?? false)
                     ->label('Editar Almacén')
                     ->icon('heroicon-o-pencil')
                     ->form(fn (): array => [

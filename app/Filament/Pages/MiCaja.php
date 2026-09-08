@@ -556,7 +556,6 @@ class MiCaja extends Page implements HasTable
 
         return [
             Action::make('aperturar')
-                ->visible(fn (): bool => auth()->user()?->can('caja.aperturar') ?? false)
                 ->label('Aperturar Caja')
                 ->icon('heroicon-o-lock-open')
                 ->color('primary')
@@ -572,10 +571,11 @@ class MiCaja extends Page implements HasTable
                         ? '💰 Fondo asignado: S/ ' . number_format($tr->monto, 2) . ' desde "' . ($tr->origen?->nombre ?? 'bóveda') . '" (asignó ' . ($tr->asignadoPor?->nombres ?? '—') . '). Cuenta el efectivo recibido: la caja abrirá con lo que declares y cualquier diferencia quedará como discrepancia para el supervisor.'
                         : null;
                 })
-                ->visible(fn (): bool => $esHija && ! DB::table('caja_aperturas')
+                ->visible(fn (): bool => ($esHija && ! DB::table('caja_aperturas')
                     ->where('id_caja', $cajaId)
                     ->where('estado', 'ABIERTA')
                     ->exists())
+                        && (auth()->user()?->can('caja.aperturar') ?? false))
                 ->form([
                     DatePicker::make('fecha')
                         ->label('Fecha')

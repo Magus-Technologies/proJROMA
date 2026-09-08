@@ -250,7 +250,8 @@ class CierresCajaResource extends Resource
                     ->label('Cancelar deuda')
                     ->icon('heroicon-o-banknotes')
                     ->color('warning')
-                    ->visible(fn (CierreCaja $record): bool => $record->deuda?->estado === 'PENDIENTE')
+                    ->visible(fn (CierreCaja $record): bool => ($record->deuda?->estado === 'PENDIENTE')
+                        && (auth()->user()?->can('caja.cancelar_deuda') ?? false))
                     ->modalHeading(fn (CierreCaja $record): string => 'Cancelar deuda de ' . ($record->usuarioCierra?->nombres ?? 'el trabajador') . ' — S/ ' . number_format($record->deuda?->monto ?? 0, 2))
                     ->form([
                         \Filament\Forms\Components\Radio::make('modo')

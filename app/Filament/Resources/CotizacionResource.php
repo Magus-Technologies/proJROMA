@@ -136,7 +136,8 @@ class CotizacionResource extends Resource
                             ->label('Convertir a Venta')
                             ->icon('heroicon-m-arrow-path')
                             ->color('warning')
-                            ->visible(fn (Cotizacion $record): bool => $record->estado === '1' && ! $record->id_venta)
+                            ->visible(fn (Cotizacion $record): bool => ($record->estado === '1' && ! $record->id_venta)
+                        && (auth()->user()?->can('ventas.crear') ?? false))
                             ->url(fn (Cotizacion $record): string =>
                                 \App\Filament\Resources\VentaResource::getUrl('create', ['cotizacion' => $record->cotizacion_id])),
                     ],
@@ -148,7 +149,8 @@ class CotizacionResource extends Resource
                     ->icon('heroicon-m-pencil')
                     ->color('info')
                     ->url(fn (Cotizacion $record) => CotizacionResource::getUrl('edit', ['cotizacion' => $record->cotizacion_id]))
-                    ->visible(fn (Cotizacion $record) => $record->estado === '1' && ! $record->id_venta),
+                    ->visible(fn (Cotizacion $record) => ($record->estado === '1' && ! $record->id_venta)
+                        && (auth()->user()?->can('cotizaciones.editar') ?? false)),
 
                 Action::make('pdf')
                     ->visible(fn (): bool => auth()->user()?->can('cotizaciones.pdf') ?? false)
@@ -162,7 +164,8 @@ class CotizacionResource extends Resource
                     ->label('Convertir')
                     ->icon('heroicon-m-arrow-path')
                     ->color('warning')
-                    ->visible(fn (Cotizacion $record) => $record->estado === '1' && !$record->id_venta)
+                    ->visible(fn (Cotizacion $record) => ($record->estado === '1' && !$record->id_venta)
+                        && (auth()->user()?->can('ventas.crear') ?? false))
                     ->url(fn (Cotizacion $record): string =>
                         \App\Filament\Resources\VentaResource::getUrl('create', ['cotizacion' => $record->cotizacion_id])),
 
@@ -170,7 +173,8 @@ class CotizacionResource extends Resource
                     ->label('Anular')
                     ->icon('heroicon-m-x-circle')
                     ->color('danger')
-                    ->visible(fn (Cotizacion $record) => $record->estado === '1')
+                    ->visible(fn (Cotizacion $record) => ($record->estado === '1')
+                        && (auth()->user()?->can('cotizaciones.anular') ?? false))
                     ->requiresConfirmation()
                     ->modalHeading('Anular cotización')
                     ->modalDescription('¿Confirmás que querés anular esta cotización? Esta acción no se puede deshacer.')

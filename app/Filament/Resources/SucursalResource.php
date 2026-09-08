@@ -105,6 +105,7 @@ class SucursalResource extends Resource
                 EditAction::make(),
 
                 Action::make('toggle')
+                    ->visible(fn (): bool => auth()->user()?->can('sucursales.editar') ?? false)
                     ->label(fn (Sucursal $record): string => $record->estado === '1' ? 'Desactivar' : 'Activar')
                     ->icon(fn (Sucursal $record): string =>
                         $record->estado === '1' ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
@@ -115,6 +116,7 @@ class SucursalResource extends Resource
                     }),
 
                 Action::make('eliminar')
+                    ->visible(fn (): bool => auth()->user()?->can('sucursales.editar') ?? false)
                     ->label('Eliminar')
                     ->icon('heroicon-o-trash')
                     ->color('danger')

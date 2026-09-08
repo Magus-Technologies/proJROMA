@@ -273,7 +273,8 @@ class DespachoResource extends Resource
                             ->action(fn (TmsDespacho $r) => $r->update(['estado' => 'EN_RUTA'])),
 
                         Action::make('cerrar')->label('Cerrar')->icon('heroicon-o-lock-closed')->color('success')
-                            ->visible(fn (TmsDespacho $r) => $r->estado === 'EN_RUTA')
+                            ->visible(fn (TmsDespacho $r) => ($r->estado === 'EN_RUTA')
+                        && (auth()->user()?->can('tms_despachos.cerrar') ?? false))
                             ->requiresConfirmation()
                             ->action(fn (TmsDespacho $r) => $r->update(['estado' => 'CERRADO'])),
 
@@ -420,7 +421,8 @@ class DespachoResource extends Resource
 
                     ActionGroup::make([
                         Action::make('anular')->label('Anular')->icon('heroicon-o-x-circle')->color('danger')
-                            ->visible(fn (TmsDespacho $r) => in_array($r->estado, ['PLANIFICADO', 'CARGADO'], true))
+                            ->visible(fn (TmsDespacho $r) => (in_array($r->estado, ['PLANIFICADO', 'CARGADO'], true))
+                        && (auth()->user()?->can('tms_despachos.anular') ?? false))
                             ->requiresConfirmation()
                             ->modalDescription('Los pedidos quedarán libres para otro despacho.')
                             ->action(fn (TmsDespacho $r) => $r->update(['estado' => 'ANULADO'])),

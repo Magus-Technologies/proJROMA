@@ -29,6 +29,7 @@ class ViewVenta extends ViewRecord
     {
         return [
             Action::make('pdf_a4')
+                ->visible(fn (): bool => auth()->user()?->can('ventas.pdf') ?? false)
                 ->label('PDF A4')
                 ->icon('heroicon-o-document-text')
                 ->color('danger')

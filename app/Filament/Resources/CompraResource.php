@@ -134,7 +134,8 @@ class CompraResource extends Resource
                         ->label('Recepcionar')
                         ->icon('heroicon-m-archive-box-arrow-down')
                         ->color('success')
-                        ->visible(fn (Compra $record) => (int) $record->recepcionado !== 1)
+                        ->visible(fn (Compra $record) => ((int) $record->recepcionado !== 1)
+                        && (auth()->user()?->can('almacen_recepcion.crear') ?? false))
                         ->fillForm(function (Compra $record): array {
                             $lineas = DB::table('productos_compras as pc')
                                 ->join('productos as p', 'p.id_producto', '=', 'pc.id_producto')
@@ -312,7 +313,8 @@ class CompraResource extends Resource
                         ->label('Editar')
                         ->icon('heroicon-m-pencil')
                         ->color('info')
-                        ->visible(fn (Compra $record) => (int) $record->recepcionado === 0)
+                        ->visible(fn (Compra $record) => ((int) $record->recepcionado === 0)
+                        && (auth()->user()?->can('compras.editar') ?? false))
                         ->url(fn (Compra $record) => CompraResource::getUrl('edit', ['compra' => $record->id_compra])),
 
                     Action::make('pdf')
@@ -327,7 +329,8 @@ class CompraResource extends Resource
                         ->label('Eliminar')
                         ->icon('heroicon-m-trash')
                         ->color('danger')
-                        ->visible(fn (Compra $record) => (int) $record->recepcionado === 0)
+                        ->visible(fn (Compra $record) => ((int) $record->recepcionado === 0)
+                        && (auth()->user()?->can('compras.editar') ?? false))
                         ->requiresConfirmation()
                         ->modalHeading('Eliminar compra')
                         ->modalDescription('¿Confirmás que querés eliminar esta compra? Se eliminarán el documento y todos sus ítems.')

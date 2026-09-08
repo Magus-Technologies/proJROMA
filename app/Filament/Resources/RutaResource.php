@@ -106,6 +106,7 @@ class RutaResource extends Resource
             ->actions([
                 EditAction::make(),
                 Action::make('toggle')
+                    ->visible(fn (): bool => auth()->user()?->can('tms_rutas.editar') ?? false)
                     ->label(fn (TmsRuta $record): string => $record->estado ? 'Desactivar' : 'Activar')
                     ->icon(fn (TmsRuta $record): string => $record->estado ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
                     ->color(fn (TmsRuta $record): string => $record->estado ? 'danger' : 'success')

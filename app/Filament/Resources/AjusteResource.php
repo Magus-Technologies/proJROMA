@@ -109,6 +109,7 @@ class AjusteResource extends Resource
             ])
             ->actions([
                 Action::make('anular')
+                    ->visible(fn (): bool => auth()->user()?->can('almacen_ajustes.anular') ?? false)
                     ->label('Deshacer')
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->color('danger')

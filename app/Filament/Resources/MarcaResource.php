@@ -54,6 +54,7 @@ class MarcaResource extends Resource
             ->actions([
                 EditAction::make(),
                 Action::make('toggle')
+                    ->visible(fn (): bool => auth()->user()?->can('productos.editar') ?? false)
                     ->label(fn (Marca $r): string => (string) $r->estado === '1' ? 'Desactivar' : 'Activar')
                     ->icon(fn (Marca $r): string => (string) $r->estado === '1' ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
                     ->color(fn (Marca $r): string => (string) $r->estado === '1' ? 'danger' : 'success')

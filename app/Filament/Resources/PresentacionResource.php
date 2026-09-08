@@ -52,6 +52,7 @@ class PresentacionResource extends Resource
             ->actions([
                 EditAction::make(),
                 Action::make('toggle')
+                    ->visible(fn (): bool => auth()->user()?->can('productos.editar') ?? false)
                     ->label(fn (Presentacion $record): string => $record->estado ? 'Desactivar' : 'Activar')
                     ->icon(fn (Presentacion $record): string => $record->estado ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
                     ->color(fn (Presentacion $record): string => $record->estado ? 'danger' : 'success')

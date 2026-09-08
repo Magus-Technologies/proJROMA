@@ -270,18 +270,18 @@ class VentaResource extends Resource
                     ->label('Editar')
                     ->icon('heroicon-m-pencil-square')
                     ->color('primary')
-                    ->visible(fn (Venta $record): bool =>
-                        $record->estado !== '0' && $record->sunat_estado !== 'aceptado')
+                    ->visible(fn (Venta $record): bool => ($record->estado !== '0' && $record->sunat_estado !== 'aceptado')
+                        && (auth()->user()?->can('ventas.crear') ?? false))
                     ->url(fn (Venta $record): string => VentaResource::getUrl('edit', ['venta' => $record->id_venta])),
 
                 Action::make('regenerar_xml')
                     ->label('Regenerar XML')
                     ->icon('heroicon-m-arrow-path')
                     ->color('warning')
-                    ->visible(fn (Venta $record): bool =>
-                        $record->estado !== '0'
+                    ->visible(fn (Venta $record): bool => ($record->estado !== '0'
                         && in_array((int) $record->id_tido, [1, 2], true)
                         && $record->sunat_estado !== 'aceptado')
+                        && (auth()->user()?->can('ventas.sunat') ?? false))
                     ->requiresConfirmation()
                     ->modalHeading('¿Regenerar el XML del comprobante?')
                     ->modalDescription('Vuelve a generar el XML con los datos actuales. Útil tras corregir datos o cambios en el sistema.')
@@ -295,10 +295,10 @@ class VentaResource extends Resource
                     ->label('Enviar a SUNAT')
                     ->icon('heroicon-m-paper-airplane')
                     ->color('success')
-                    ->visible(fn (Venta $record): bool =>
-                        $record->estado !== '0'
+                    ->visible(fn (Venta $record): bool => ($record->estado !== '0'
                         && in_array((int) $record->id_tido, [1, 2], true)
                         && $record->sunat_estado !== 'aceptado')
+                        && (auth()->user()?->can('ventas.sunat') ?? false))
                     ->requiresConfirmation()
                     ->modalHeading('¿Enviar este comprobante a SUNAT?')
                     ->modalDescription('Se generará el XML, se guardará y se enviará. Verás el resultado (CDR) al instante.')
@@ -323,7 +323,8 @@ class VentaResource extends Resource
                     ->label('Descargar CDR')
                     ->icon('heroicon-m-document-check')
                     ->color('gray')
-                    ->visible(fn (Venta $record): bool => filled($record->cdr_ruta))
+                    ->visible(fn (Venta $record): bool => (filled($record->cdr_ruta))
+                        && (auth()->user()?->can('ventas.sunat') ?? false))
                     ->action(fn (Venta $record) =>
                         response()->download(storage_path('app/private/' . $record->cdr_ruta))),
 
@@ -331,7 +332,8 @@ class VentaResource extends Resource
                     ->label('Crear nota de crédito')
                     ->icon('heroicon-m-receipt-refund')
                     ->color('danger')
-                    ->visible(fn (Venta $record): bool => $record->sunat_estado === 'aceptado')
+                    ->visible(fn (Venta $record): bool => ($record->sunat_estado === 'aceptado')
+                        && (auth()->user()?->can('notas.crear') ?? false))
                     ->url(fn (Venta $record): string =>
                         \App\Filament\Resources\NotaElectronicaResource::getUrl('create', [
                             'venta' => $record->id_venta,
@@ -342,7 +344,8 @@ class VentaResource extends Resource
                     ->label('Crear guía de remisión')
                     ->icon('heroicon-m-truck')
                     ->color('info')
-                    ->visible(fn (Venta $record): bool => $record->estado !== '0')
+                    ->visible(fn (Venta $record): bool => ($record->estado !== '0')
+                        && (auth()->user()?->can('guias.crear') ?? false))
                     ->url(fn (Venta $record): string =>
                         \App\Filament\Resources\GuiaRemisionResource::getUrl('create', ['venta' => $record->id_venta])),
 

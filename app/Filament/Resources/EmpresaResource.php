@@ -111,6 +111,7 @@ class EmpresaResource extends Resource
                         ->modalWidth('5xl')
                         ->modalHeading(fn (Empresa $record): string => 'Editar — ' . $record->razon_social),
                     Action::make('toggle')
+                        ->visible(fn (): bool => auth()->user()?->can('empresas.editar') ?? false)
                         ->label('Activar/Desactivar')
                         ->icon('heroicon-o-power')
                         ->color('warning')

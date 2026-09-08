@@ -101,6 +101,7 @@ class MercadoResource extends Resource
                     })
                     ->mutateDataUsing(fn (array $data): array => static::completarDistrito($data)),
                 Action::make('toggle')
+                    ->visible(fn (): bool => auth()->user()?->can('tms_mercados.editar') ?? false)
                     ->label(fn (TmsMercado $record): string => $record->estado ? 'Desactivar' : 'Activar')
                     ->icon(fn (TmsMercado $record): string => $record->estado ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
                     ->color(fn (TmsMercado $record): string => $record->estado ? 'danger' : 'success')

@@ -55,6 +55,7 @@ class UnidadMedidaResource extends Resource
             ->actions([
                 EditAction::make(),
                 Action::make('toggle')
+                    ->visible(fn (): bool => auth()->user()?->can('productos.editar') ?? false)
                     ->label(fn (UnidadMedida $record): string => $record->estado ? 'Desactivar' : 'Activar')
                     ->icon(fn (UnidadMedida $record): string => $record->estado ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
                     ->color(fn (UnidadMedida $record): string => $record->estado ? 'danger' : 'success')

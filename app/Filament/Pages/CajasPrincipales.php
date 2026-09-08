@@ -124,6 +124,7 @@ class CajasPrincipales extends Page implements HasTable
                     ->modalCancelActionLabel('Cerrar'),
 
                 Action::make('editar')
+                    ->visible(fn (): bool => auth()->user()?->can('caja.principales') ?? false)
                     ->label('Editar')
                     ->iconButton()
                     ->tooltip('Editar caja hija')
@@ -155,6 +156,7 @@ class CajasPrincipales extends Page implements HasTable
                     }),
 
                 Action::make('toggle_estado')
+                    ->visible(fn (): bool => auth()->user()?->can('caja.principales') ?? false)
                     ->label(fn (Caja $record): string => $record->estado === 'ACTIVA' ? 'Desactivar' : 'Activar')
                     ->iconButton()
                     ->tooltip(fn (Caja $record): string => $record->estado === 'ACTIVA' ? 'Desactivar caja' : 'Activar caja')

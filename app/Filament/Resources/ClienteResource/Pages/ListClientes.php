@@ -24,12 +24,14 @@ class ListClientes extends ListRecords
                     return $data;
                 }),
             Actions\Action::make('plantilla')
+                ->visible(fn (): bool => auth()->user()?->can('clientes.importar') ?? false)
                 ->label('Descargar Plantilla')
                 ->icon('heroicon-o-document-arrow-down')
                 ->color('gray')
                 ->url(route('reporte.clientes.plantilla'))
                 ->openUrlInNewTab(),
             Actions\Action::make('importar')
+                ->visible(fn (): bool => auth()->user()?->can('clientes.importar') ?? false)
                 ->label('Importar Excel')
                 ->icon('heroicon-o-arrow-up-tray')
                 ->color('success')

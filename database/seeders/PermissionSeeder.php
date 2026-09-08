@@ -15,6 +15,7 @@ class PermissionSeeder extends Seeder
                 'ventas.crear'  => 'Crear ventas',
                 'ventas.anular' => 'Anular ventas',
                 'ventas.pdf'    => 'Generar PDF / comprobante',
+                'ventas.sunat'  => 'Enviar a SUNAT, regenerar XML y descargar CDR',
             ],
             'Compras' => [
                 'compras.ver'    => 'Ver listado de compras',
@@ -28,16 +29,21 @@ class PermissionSeeder extends Seeder
                 'cotizaciones.editar' => 'Editar cotizaciones',
                 'cotizaciones.pdf'    => 'Generar PDF',
                 'cotizaciones.cuotas' => 'Gestionar cuotas',
+                'cotizaciones.anular' => 'Anular cotizaciones',
             ],
             'Notas Electrónicas' => [
                 'notas.ver'    => 'Ver listado',
                 'notas.crear'  => 'Crear notas',
                 'notas.pdf'    => 'Generar PDF',
+                'notas.sunat'  => 'Enviar a SUNAT, regenerar XML y descargar CDR',
+                'notas.anular' => 'Anular notas electrónicas',
             ],
             'Guías Remisión' => [
                 'guias.ver'    => 'Ver listado',
                 'guias.crear'  => 'Crear guías',
                 'guias.pdf'    => 'Generar PDF',
+                'guias.sunat'  => 'Enviar a SUNAT, regenerar XML y descargar CDR',
+                'guias.anular' => 'Anular guías de remisión',
             ],
             'Clientes' => [
                 'clientes.ver'     => 'Ver listado',
@@ -45,6 +51,7 @@ class PermissionSeeder extends Seeder
                 'clientes.editar'  => 'Editar clientes',
                 'clientes.borrar'  => 'Eliminar clientes',
                 'clientes.exportar'=> 'Exportar Excel',
+                'clientes.importar'=> 'Importar clientes desde Excel',
             ],
             'Proveedores' => [
                 'proveedores.ver'     => 'Ver listado',
@@ -57,6 +64,7 @@ class PermissionSeeder extends Seeder
                 'productos.crear'   => 'Crear productos',
                 'productos.editar'  => 'Editar productos',
                 'productos.kardex'  => 'Ver kardex',
+                'productos.importar'=> 'Importar productos desde Excel',
             ],
             'Recepción' => [
                 'almacen_recepcion.ver'   => 'Ver recepciones',
@@ -68,10 +76,12 @@ class PermissionSeeder extends Seeder
             'Ajustes / Cuadres' => [
                 'almacen_ajustes.ver'   => 'Ver ajustes',
                 'almacen_ajustes.crear' => 'Crear ajustes',
+                'almacen_ajustes.anular' => 'Anular ajustes',
             ],
             'Traslados' => [
                 'almacen_traslados.ver'   => 'Ver traslados',
                 'almacen_traslados.crear' => 'Crear traslados',
+                'almacen_traslados.anular' => 'Anular traslados',
             ],
             'Préstamos' => [
                 'almacen_prestamos.ver'   => 'Ver préstamos',
@@ -85,12 +95,14 @@ class PermissionSeeder extends Seeder
                 'caja.cierres'         => 'Ver cierres de caja',
                 'caja.transferencias'  => 'Ver transferencias de fondos',
                 'caja.metodos_pago'    => 'Gestionar bancos, cuentas, tarjetas y billeteras',
+                'qr.ver'               => 'Ver códigos QR de cobro',
                 // Acciones que mueven dinero
                 'caja.aperturar'       => 'Aperturar la caja',
                 'caja.cerrar'          => 'Cerrar la caja',
                 'caja.movimiento_registrar' => 'Registrar ingresos y egresos manuales',
                 'caja.movimiento_anular'    => 'Anular un movimiento de caja',
                 'caja.cierre_aprobar'  => 'Aprobar o rechazar un cierre',
+                'caja.cancelar_deuda'  => 'Cancelar (perdonar) una deuda de cierre',
                 // Apertura del día
                 'caja.apertura_ver'    => 'Ver detalle de la apertura',
                 'caja.apertura_editar' => 'Editar la apertura del día',
@@ -133,6 +145,8 @@ class PermissionSeeder extends Seeder
                 'tms_despachos.crear'  => 'Armar despachos',
                 'tms_despachos.editar' => 'Editar despachos',
                 'tms_despachos.pdf'    => 'Hoja de carga / guías PDF',
+                'tms_despachos.cerrar' => 'Cerrar despachos',
+                'tms_despachos.anular' => 'Anular despachos',
             ],
 
             'Finanzas' => [

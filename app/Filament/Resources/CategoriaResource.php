@@ -54,6 +54,7 @@ class CategoriaResource extends Resource
             ->actions([
                 EditAction::make(),
                 Action::make('toggle')
+                    ->visible(fn (): bool => auth()->user()?->can('productos.editar') ?? false)
                     ->label(fn (Categoria $r): string => (string) $r->estado === '1' ? 'Desactivar' : 'Activar')
                     ->icon(fn (Categoria $r): string => (string) $r->estado === '1' ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
                     ->color(fn (Categoria $r): string => (string) $r->estado === '1' ? 'danger' : 'success')

@@ -154,8 +154,8 @@ class NotaElectronicaResource extends Resource
                     ->label('Regenerar XML')
                     ->icon('heroicon-m-arrow-path')
                     ->color('warning')
-                    ->visible(fn (NotaElectronica $record): bool =>
-                        $record->estado === '1' && $record->sunat_estado !== 'aceptado')
+                    ->visible(fn (NotaElectronica $record): bool => ($record->estado === '1' && $record->sunat_estado !== 'aceptado')
+                        && (auth()->user()?->can('notas.sunat') ?? false))
                     ->requiresConfirmation()
                     ->modalHeading('¿Regenerar el XML de la nota?')
                     ->modalDescription('Vuelve a generar el XML con los datos actuales.')
@@ -169,8 +169,8 @@ class NotaElectronicaResource extends Resource
                     ->label('Enviar a SUNAT')
                     ->icon('heroicon-o-paper-airplane')
                     ->color('success')
-                    ->visible(fn (NotaElectronica $record): bool =>
-                        $record->estado === '1' && $record->sunat_estado !== 'aceptado')
+                    ->visible(fn (NotaElectronica $record): bool => ($record->estado === '1' && $record->sunat_estado !== 'aceptado')
+                        && (auth()->user()?->can('notas.sunat') ?? false))
                     ->requiresConfirmation()
                     ->modalHeading('¿Enviar esta nota a SUNAT?')
                     ->modalDescription('Se enviará el XML generado. Verás el resultado (CDR) al instante.')
@@ -184,7 +184,8 @@ class NotaElectronicaResource extends Resource
                     ->label('Descargar CDR')
                     ->icon('heroicon-m-document-check')
                     ->color('gray')
-                    ->visible(fn (NotaElectronica $record): bool => filled($record->cdr_ruta))
+                    ->visible(fn (NotaElectronica $record): bool => (filled($record->cdr_ruta))
+                        && (auth()->user()?->can('notas.sunat') ?? false))
                     ->action(fn (NotaElectronica $record) =>
                         response()->download(storage_path('app/private/' . $record->cdr_ruta))),
 
@@ -192,8 +193,8 @@ class NotaElectronicaResource extends Resource
                     ->label('Anular')
                     ->icon('heroicon-o-trash')
                     ->color('danger')
-                    ->visible(fn (NotaElectronica $record): bool =>
-                        $record->enviado_sunat !== '1' && $record->estado === '1')
+                    ->visible(fn (NotaElectronica $record): bool => ($record->enviado_sunat !== '1' && $record->estado === '1')
+                        && (auth()->user()?->can('notas.anular') ?? false))
                     ->requiresConfirmation()
                     ->action(function (NotaElectronica $record): void {
                         $record->update(['estado' => '0']);

@@ -151,8 +151,8 @@ class GuiaRemisionResource extends Resource
                     ->label('Regenerar XML')
                     ->icon('heroicon-m-arrow-path')
                     ->color('warning')
-                    ->visible(fn (GuiaRemision $record): bool =>
-                        $record->estado === '1' && $record->estado_gre !== 'aceptado')
+                    ->visible(fn (GuiaRemision $record): bool => ($record->estado === '1' && $record->estado_gre !== 'aceptado')
+                        && (auth()->user()?->can('guias.sunat') ?? false))
                     ->requiresConfirmation()
                     ->modalHeading('¿Regenerar el XML de la guía?')
                     ->modalDescription('Vuelve a generar el XML con los datos actuales.')
@@ -166,7 +166,8 @@ class GuiaRemisionResource extends Resource
                     ->label('Descargar CDR')
                     ->icon('heroicon-m-document-check')
                     ->color('gray')
-                    ->visible(fn (GuiaRemision $record): bool => filled($record->cdr_ruta))
+                    ->visible(fn (GuiaRemision $record): bool => (filled($record->cdr_ruta))
+                        && (auth()->user()?->can('guias.sunat') ?? false))
                     ->action(fn (GuiaRemision $record) =>
                         response()->download(storage_path('app/private/' . $record->cdr_ruta))),
 
@@ -174,8 +175,8 @@ class GuiaRemisionResource extends Resource
                     ->label('Enviar a SUNAT')
                     ->icon('heroicon-o-paper-airplane')
                     ->color('success')
-                    ->visible(fn (GuiaRemision $record): bool =>
-                        $record->estado === '1' && ! in_array($record->estado_gre, ['aceptado', 'enviado'], true))
+                    ->visible(fn (GuiaRemision $record): bool => ($record->estado === '1' && ! in_array($record->estado_gre, ['aceptado', 'enviado'], true))
+                        && (auth()->user()?->can('guias.sunat') ?? false))
                     ->requiresConfirmation()
                     ->modalHeading('¿Enviar esta guía a SUNAT?')
                     ->modalDescription('Se generará el XML y se enviará. Luego consultá el ticket para ver el resultado.')
@@ -201,7 +202,8 @@ class GuiaRemisionResource extends Resource
                     ->label('Anular')
                     ->icon('heroicon-o-no-symbol')
                     ->color('danger')
-                    ->visible(fn (GuiaRemision $record): bool => $record->estado === '1')
+                    ->visible(fn (GuiaRemision $record): bool => ($record->estado === '1')
+                        && (auth()->user()?->can('guias.anular') ?? false))
                     ->requiresConfirmation()
                     ->modalHeading('¿Anular esta guía de remisión?')
                     ->action(function (GuiaRemision $record): void {

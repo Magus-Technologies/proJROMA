@@ -115,6 +115,7 @@ class TransferenciaFondoResource extends Resource
             ])
             ->headerActions([
                 Action::make('asignar')
+                    ->visible(fn (): bool => auth()->user()?->can('caja.transferencias') ?? false)
                     ->label('Asignar Fondo')
                     ->icon('heroicon-o-plus-circle')
                     ->color('primary')
@@ -177,7 +178,8 @@ class TransferenciaFondoResource extends Resource
                     ->label('Anular')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->visible(fn (TransferenciaFondo $record): bool => $record->estado === 'ASIGNADA')
+                    ->visible(fn (TransferenciaFondo $record): bool => ($record->estado === 'ASIGNADA')
+                        && (auth()->user()?->can('caja.transferencias') ?? false))
                     ->requiresConfirmation()
                     ->modalHeading('Anular asignación')
                     ->modalDescription(fn (TransferenciaFondo $record): string => 'S/ ' . number_format($record->monto, 2) . ' regresarán a la bóveda "' . ($record->origen?->nombre ?? '') . '".')
@@ -212,7 +214,8 @@ class TransferenciaFondoResource extends Resource
                     ->label('Reasignar')
                     ->icon('heroicon-o-arrow-path')
                     ->color('info')
-                    ->visible(fn (TransferenciaFondo $record): bool => $record->estado === 'ASIGNADA')
+                    ->visible(fn (TransferenciaFondo $record): bool => ($record->estado === 'ASIGNADA')
+                        && (auth()->user()?->can('caja.transferencias') ?? false))
                     ->modalHeading('Reasignar fondo')
                     ->modalDescription(fn (TransferenciaFondo $record): string => 'La asignación actual (S/ ' . number_format($record->monto, 2) . ' → ' . ($record->destino?->nombre ?? '') . ') se anulará y su efectivo regresará a la bóveda; en el mismo paso se creará la nueva asignación.')
                     ->fillForm(fn (TransferenciaFondo $record): array => [
@@ -286,7 +289,8 @@ class TransferenciaFondoResource extends Resource
                     ->label('Rechazar')
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->color('gray')
-                    ->visible(fn (TransferenciaFondo $record): bool => $record->estado === 'ASIGNADA')
+                    ->visible(fn (TransferenciaFondo $record): bool => ($record->estado === 'ASIGNADA')
+                        && (auth()->user()?->can('caja.transferencias') ?? false))
                     ->requiresConfirmation()
                     ->modalHeading('Rechazar asignación')
                     ->modalDescription(fn (TransferenciaFondo $record): string => 'El cajero no acepta el fondo: S/ ' . number_format($record->monto, 2) . ' regresarán a la bóveda "' . ($record->origen?->nombre ?? '') . '".')
@@ -322,7 +326,8 @@ class TransferenciaFondoResource extends Resource
                     ->label('Resolver discrepancia')
                     ->icon('heroicon-o-scale')
                     ->color('warning')
-                    ->visible(fn (TransferenciaFondo $record): bool => $record->discrepancia_estado === 'PENDIENTE')
+                    ->visible(fn (TransferenciaFondo $record): bool => ($record->discrepancia_estado === 'PENDIENTE')
+                        && (auth()->user()?->can('caja.transferencias') ?? false))
                     ->modalHeading(fn (TransferenciaFondo $record): string => 'Resolver discrepancia — ' .
                         ($record->diferencia < 0
                             ? 'faltante de S/ ' . number_format(abs($record->diferencia), 2)

@@ -113,6 +113,7 @@ class VehiculoResource extends Resource
             ->actions([
                 EditAction::make(),
                 Action::make('toggle')
+                    ->visible(fn (): bool => auth()->user()?->can('tms_vehiculos.editar') ?? false)
                     ->label(fn (TmsVehiculo $record): string => $record->estado ? 'Desactivar' : 'Activar')
                     ->icon(fn (TmsVehiculo $record): string => $record->estado ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
                     ->color(fn (TmsVehiculo $record): string => $record->estado ? 'danger' : 'success')

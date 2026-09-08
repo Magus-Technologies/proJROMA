@@ -60,6 +60,7 @@ class SubcategoriaResource extends Resource
             ->actions([
                 EditAction::make(),
                 Action::make('toggle')
+                    ->visible(fn (): bool => auth()->user()?->can('productos.editar') ?? false)
                     ->label(fn (Subcategoria $r): string => (string) $r->estado === '1' ? 'Desactivar' : 'Activar')
                     ->icon(fn (Subcategoria $r): string => (string) $r->estado === '1' ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
                     ->color(fn (Subcategoria $r): string => (string) $r->estado === '1' ? 'danger' : 'success')

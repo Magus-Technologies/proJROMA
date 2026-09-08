@@ -23,7 +23,7 @@ class CierresCajaResource extends Resource
 {
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
-    public const PERMISO_ACCESO = 'caja.gestionar';
+    public const PERMISO_ACCESO = 'caja.cierres';
 
     protected static ?string $model = CierreCaja::class;
 
@@ -189,6 +189,7 @@ class CierresCajaResource extends Resource
                     ->modalCancelActionLabel('Cerrar'),
 
                 Action::make('aprobar')
+                    ->visible(fn (): bool => auth()->user()?->can('caja.cierre_aprobar') ?? false)
                     ->label('Aprobar')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
@@ -204,7 +205,8 @@ class CierresCajaResource extends Resource
 
                         return 'El cierre cuadra exacto.';
                     })
-                    ->visible(fn (CierreCaja $record): bool => $record->estado === 'PENDIENTE')
+                    ->visible(fn (CierreCaja $record): bool => $record->estado === 'PENDIENTE'
+                        && (auth()->user()?->can('caja.cierre_aprobar') ?? false))
                     ->action(function (CierreCaja $record): void {
                         app(CajaService::class)->aprobarCierre(
                             $record->id,

@@ -209,7 +209,8 @@ class MovimientosCajaResource extends Resource
                         ->label('Anular')
                         ->icon('heroicon-o-x-circle')
                         ->color('danger')
-                        ->visible(fn (CajaMovimiento $record): bool => $record->estado === 'CONFIRMADO')
+                        ->visible(fn (CajaMovimiento $record): bool => $record->estado === 'CONFIRMADO'
+                            && (auth()->user()?->can('caja.movimiento_anular') ?? false))
                         ->requiresConfirmation()
                         ->action(function (CajaMovimiento $record): void {
                             try {

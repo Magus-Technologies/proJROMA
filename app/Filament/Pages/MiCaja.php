@@ -556,6 +556,7 @@ class MiCaja extends Page implements HasTable
 
         return [
             Action::make('aperturar')
+                ->visible(fn (): bool => auth()->user()?->can('caja.aperturar') ?? false)
                 ->label('Aperturar Caja')
                 ->icon('heroicon-o-lock-open')
                 ->color('primary')
@@ -699,6 +700,7 @@ class MiCaja extends Page implements HasTable
                 }),
 
             Action::make('ingreso')
+                ->visible(fn (): bool => auth()->user()?->can('caja.movimiento_registrar') ?? false)
                 ->label('Ingreso')
                 ->color('success')
                 ->icon('heroicon-o-arrow-down-circle')
@@ -719,6 +721,7 @@ class MiCaja extends Page implements HasTable
                 }),
 
             Action::make('egreso')
+                ->visible(fn (): bool => auth()->user()?->can('caja.movimiento_registrar') ?? false)
                 ->label('Egreso')
                 ->color('danger')
                 ->icon('heroicon-o-arrow-up-circle')
@@ -742,7 +745,7 @@ class MiCaja extends Page implements HasTable
                 ->label('Cerrar Caja')
                 ->color('warning')
                 ->icon('heroicon-o-lock-closed')
-                ->visible(fn (): bool => $esHija)
+                ->visible(fn (): bool => $esHija && (auth()->user()?->can('caja.cerrar') ?? false))
                 ->modalWidth('3xl')
                 ->modalDescription(function (): string {
                     $saldos = $this->saldosPorInstrumento();

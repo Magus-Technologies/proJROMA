@@ -23,7 +23,7 @@ class TransferenciaFondoResource extends Resource
 {
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
-    public const PERMISO_ACCESO = 'caja.gestionar';
+    public const PERMISO_ACCESO = 'caja.transferencias';
 
     protected static ?string $model = TransferenciaFondo::class;
 

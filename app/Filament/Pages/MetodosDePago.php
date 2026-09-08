@@ -28,7 +28,7 @@ class MetodosDePago extends Page implements HasTable
 {
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
-    public const PERMISO_ACCESO = 'caja.gestionar';
+    public const PERMISO_ACCESO = 'caja.metodos_pago';
 
     use InteractsWithTable;
 

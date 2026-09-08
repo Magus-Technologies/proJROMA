@@ -22,6 +22,10 @@ use Illuminate\Support\Collection;
  */
 class CajasPrincipales extends Page implements HasTable
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'caja.principales';
+
     use InteractsWithTable;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-building-library';
@@ -33,11 +37,11 @@ class CajasPrincipales extends Page implements HasTable
 
     public Collection $principales;
 
-    /** Solo responsables de al menos una caja principal (además de caja.ver). */
+    /** Solo responsables de al menos una caja principal, y con el permiso. */
     public static function canAccess(): bool
     {
         $user = auth()->user();
-        if (! $user || ! $user->can('caja.ver')) {
+        if (! $user || ! $user->can(self::PERMISO_ACCESO)) {
             return false;
         }
 

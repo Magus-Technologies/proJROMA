@@ -78,8 +78,20 @@ class PermissionSeeder extends Seeder
                 'almacen_prestamos.crear' => 'Registrar préstamos',
             ],
             'Caja' => [
-                'caja.ver'             => 'Ver movimientos de caja',
-                'caja.gestionar'       => 'Aperturar / cerrar caja',
+                // Pantallas
+                'caja.ver'             => 'Ver mi caja y sus movimientos',
+                'caja.principales'     => 'Ver cajas principales',
+                'caja.gestionar'       => 'Gestionar cajas (crear, editar, instrumentos)',
+                'caja.cierres'         => 'Ver cierres de caja',
+                'caja.transferencias'  => 'Ver transferencias de fondos',
+                'caja.metodos_pago'    => 'Gestionar bancos, cuentas, tarjetas y billeteras',
+                // Acciones que mueven dinero
+                'caja.aperturar'       => 'Aperturar la caja',
+                'caja.cerrar'          => 'Cerrar la caja',
+                'caja.movimiento_registrar' => 'Registrar ingresos y egresos manuales',
+                'caja.movimiento_anular'    => 'Anular un movimiento de caja',
+                'caja.cierre_aprobar'  => 'Aprobar o rechazar un cierre',
+                // Apertura del día
                 'caja.apertura_ver'    => 'Ver detalle de la apertura',
                 'caja.apertura_editar' => 'Editar la apertura del día',
             ],

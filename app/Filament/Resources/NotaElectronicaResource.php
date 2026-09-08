@@ -22,6 +22,7 @@ class NotaElectronicaResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'notas.ver';
+    public const PERMISO_CREAR = 'notas.crear';
 
     protected static ?string $model = NotaElectronica::class;
 
@@ -130,6 +131,7 @@ class NotaElectronicaResource extends Resource
             ->actions([
                 ActionGroup::make([
                 Action::make('pdf')
+                    ->visible(fn (): bool => auth()->user()?->can('notas.pdf') ?? false)
                     ->label('PDF')
                     ->icon('heroicon-o-document-text')
                     ->color('danger')

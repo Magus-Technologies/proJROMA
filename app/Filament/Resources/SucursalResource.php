@@ -22,6 +22,8 @@ class SucursalResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'sucursales.ver';
+    public const PERMISO_CREAR = 'sucursales.crear';
+    public const PERMISO_EDITAR = 'sucursales.editar';
 
     protected static ?string $model = Sucursal::class;
 

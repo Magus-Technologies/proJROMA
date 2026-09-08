@@ -26,6 +26,8 @@ class CotizacionResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'cotizaciones.ver';
+    public const PERMISO_CREAR = 'cotizaciones.crear';
+    public const PERMISO_EDITAR = 'cotizaciones.editar';
 
     protected static ?string $model = Cotizacion::class;
 
@@ -149,6 +151,7 @@ class CotizacionResource extends Resource
                     ->visible(fn (Cotizacion $record) => $record->estado === '1' && ! $record->id_venta),
 
                 Action::make('pdf')
+                    ->visible(fn (): bool => auth()->user()?->can('cotizaciones.pdf') ?? false)
                     ->label('PDF')
                     ->icon('heroicon-m-document-arrow-down')
                     ->color('gray')

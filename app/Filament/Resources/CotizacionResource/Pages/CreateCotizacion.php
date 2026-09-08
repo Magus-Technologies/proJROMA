@@ -184,6 +184,7 @@ class CreateCotizacion extends CreateRecord
 
                                 Actions::make([
                                     Action::make('configurar_cuotas')
+                                        ->visible(fn (): bool => auth()->user()?->can('cotizaciones.cuotas') ?? false)
                                         ->label(fn (callable $get): string =>
                                             filled($get('cuotas')) ? 'Editar cuotas' : 'Programar cuotas')
                                         ->icon('heroicon-m-calendar-days')

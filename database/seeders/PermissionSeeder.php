@@ -126,13 +126,7 @@ class PermissionSeeder extends Seeder
                 'tms_despachos.editar' => 'Editar despachos',
                 'tms_despachos.pdf'    => 'Hoja de carga / guías PDF',
             ],
-            'Reportes' => [
-                'reportes.ver'      => 'Ver reportes',
-                'reportes.exportar' => 'Exportar Excel',
-                'reportes_ventas.pdf'   => 'Reporte de ventas PDF',
-                'reportes_compras.pdf'  => 'Reporte de compras PDF',
-                'reportes_clientes.pdf' => 'Reporte de clientes PDF',
-            ],
+
             'Finanzas' => [
                 'finanzas.utilidades'        => 'Ver utilidades',
                 'finanzas.flujo_caja'        => 'Ver flujo de caja',
@@ -164,10 +158,9 @@ class PermissionSeeder extends Seeder
                 'roles.borrar' => 'Eliminar roles',
             ],
             'Permisos' => [
-                'permisos.ver'    => 'Ver listado',
-                'permisos.crear'  => 'Crear permisos',
-                'permisos.editar' => 'Editar permisos',
-                'permisos.borrar' => 'Eliminar permisos',
+                // El catálogo de permisos es de solo lectura por diseño: los
+                // permisos los define el código, no la interfaz.
+                'permisos.ver' => 'Ver catálogo de permisos',
             ],
             'Auditoría' => [
                 'auditoria.ver' => 'Ver registro de auditoría',

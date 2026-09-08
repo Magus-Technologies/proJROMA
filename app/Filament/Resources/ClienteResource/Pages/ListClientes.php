@@ -81,6 +81,7 @@ class ListClientes extends ListRecords
                     }
                 }),
             Actions\Action::make('excel')
+                ->visible(fn (): bool => auth()->user()?->can('clientes.exportar') ?? false)
                 ->label('Excel')
                 ->icon('heroicon-o-table-cells')
                 ->color('success')

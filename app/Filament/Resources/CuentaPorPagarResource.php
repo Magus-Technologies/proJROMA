@@ -25,6 +25,7 @@ class CuentaPorPagarResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'pagos.ver';
+    public const PERMISO_REGISTRAR = 'pagos.registrar';
 
     protected static ?string $model = Compra::class;
 
@@ -162,7 +163,9 @@ class CuentaPorPagarResource extends Resource
                     ->modalHeading(fn (Compra $record): string =>
                         trim("{$record->serie}-{$record->numero}", '-') ?: "Compra #{$record->id_compra}")
                     ->modalWidth('lg')
-                    ->modalSubmitAction(fn (Compra $record) => static::saldoPendiente($record) > 0 ? null : false)
+                    // Ver el historial no requiere permiso; registrar el pago sí.
+                    ->modalSubmitAction(fn (Compra $record) => static::saldoPendiente($record) > 0
+                        && static::puede(self::PERMISO_REGISTRAR) ? null : false)
                     ->modalSubmitActionLabel('Pagar')
                     ->modalContent(fn (Compra $record) => view('filament.modals.pagos-historial', [
                         'pagos'   => $record->pagos()->orderByDesc('fecha')->orderByDesc('dias_compra_id')->get(),
@@ -171,6 +174,7 @@ class CuentaPorPagarResource extends Resource
                     ]))
                     ->form(function (Compra $record): array {
                         if (static::saldoPendiente($record) <= 0) return [];
+                        if (! static::puede(self::PERMISO_REGISTRAR)) return [];
 
                         return [
                             TextInput::make('monto')

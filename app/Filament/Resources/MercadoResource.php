@@ -24,6 +24,8 @@ class MercadoResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'tms_mercados.ver';
+    public const PERMISO_CREAR = 'tms_mercados.crear';
+    public const PERMISO_EDITAR = 'tms_mercados.editar';
 
     protected static ?string $model = TmsMercado::class;
 

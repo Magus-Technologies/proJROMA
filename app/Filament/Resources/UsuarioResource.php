@@ -32,6 +32,9 @@ class UsuarioResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'usuarios.ver';
+    public const PERMISO_CREAR = 'usuarios.crear';
+    public const PERMISO_EDITAR = 'usuarios.editar';
+    public const PERMISO_BORRAR = 'usuarios.borrar';
 
     protected static ?string $model = User::class;
 

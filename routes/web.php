@@ -139,21 +139,21 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
 
     // ── Reportes / Exports (enlazados desde Filament) ─────────────────────
     Route::prefix('reporte')->name('reporte.')->group(function () {
-        Route::get('/ventas',           [ReportesController::class, 'ventasPdf'])->name('ventas');
-        Route::get('/ventas/avanzado',  [ReportesController::class, 'reporteVentasAvanzado'])->name('ventas.avanzado');
-        Route::get('/excel/{fecha}',    [ReportesController::class, 'exportarExcel'])->name('excel');
-        Route::get('/compras/pdf/{id}', [ReportesController::class, 'reporteCompra'])->name('compra.pdf');
-        Route::get('/clientes/{id}',    [ReportesController::class, 'reporteCliente'])->whereNumber('id')->name('cliente');
-        Route::get('/clientes/xls',     [ClientesController::class, 'exportarExcel'])->name('clientes.xls');
-        Route::get('/clientes/plantilla', [ClientesController::class, 'descargarPlantilla'])->name('clientes.plantilla');
-        Route::get('/productos/plantilla', [ProductosController::class, 'descargarPlantilla'])->name('productos.plantilla');
-        Route::get('/cotizaciones',     [ReportesController::class, 'reporteCotizaciones'])->name('cotizaciones');
-        Route::get('/cuentas-por-cobrar', [ReportesController::class, 'reporteCuentasPorCobrar'])->name('cuentas.cobrar');
-        Route::get('/proveedores/xls',  [ProveedoresController::class, 'exportarExcel'])->name('proveedores.xls');
-        Route::get('/ingresos/egresos/{id}', [ReportesController::class, 'ingresosEgresos'])->name('ingresos.egresos');
-        Route::get('/utilidades/pdf',   [ReportesController::class, 'utilidadesPdf'])->name('utilidades.pdf');
-        Route::get('/utilidades/xls',   [ReportesController::class, 'utilidadesExcel'])->name('utilidades.xls');
-        Route::get('/indicadores/pdf',  [ReportesController::class, 'indicadoresPdf'])->name('indicadores.pdf');
-        Route::get('/indicadores/xls',  [ReportesController::class, 'indicadoresExcel'])->name('indicadores.xls');
+        Route::get('/ventas',           [ReportesController::class, 'ventasPdf'])->name('ventas')->middleware('can:reportes_ventas.pdf');
+        Route::get('/ventas/avanzado',  [ReportesController::class, 'reporteVentasAvanzado'])->name('ventas.avanzado')->middleware('can:reportes_ventas.pdf');
+        Route::get('/excel/{fecha}',    [ReportesController::class, 'exportarExcel'])->name('excel')->middleware('can:reportes.exportar');
+        Route::get('/compras/pdf/{id}', [ReportesController::class, 'reporteCompra'])->name('compra.pdf')->middleware('can:compras.pdf');
+        Route::get('/clientes/{id}',    [ReportesController::class, 'reporteCliente'])->whereNumber('id')->name('cliente')->middleware('can:reportes_clientes.pdf');
+        Route::get('/clientes/xls',     [ClientesController::class, 'exportarExcel'])->name('clientes.xls')->middleware('can:clientes.exportar');
+        Route::get('/clientes/plantilla', [ClientesController::class, 'descargarPlantilla'])->name('clientes.plantilla')->middleware('can:clientes.crear');
+        Route::get('/productos/plantilla', [ProductosController::class, 'descargarPlantilla'])->name('productos.plantilla')->middleware('can:productos.crear');
+        Route::get('/cotizaciones',     [ReportesController::class, 'reporteCotizaciones'])->name('cotizaciones')->middleware('can:cotizaciones.pdf');
+        Route::get('/cuentas-por-cobrar', [ReportesController::class, 'reporteCuentasPorCobrar'])->name('cuentas.cobrar')->middleware('can:cobranzas.ver');
+        Route::get('/proveedores/xls',  [ProveedoresController::class, 'exportarExcel'])->name('proveedores.xls')->middleware('can:proveedores.exportar');
+        Route::get('/ingresos/egresos/{id}', [ReportesController::class, 'ingresosEgresos'])->name('ingresos.egresos')->middleware('can:caja.ver');
+        Route::get('/utilidades/pdf',   [ReportesController::class, 'utilidadesPdf'])->name('utilidades.pdf')->middleware('can:finanzas.utilidades');
+        Route::get('/utilidades/xls',   [ReportesController::class, 'utilidadesExcel'])->name('utilidades.xls')->middleware('can:finanzas.utilidades');
+        Route::get('/indicadores/pdf',  [ReportesController::class, 'indicadoresPdf'])->name('indicadores.pdf')->middleware('can:finanzas.indicadores');
+        Route::get('/indicadores/xls',  [ReportesController::class, 'indicadoresExcel'])->name('indicadores.xls')->middleware('can:finanzas.indicadores');
     });
 });

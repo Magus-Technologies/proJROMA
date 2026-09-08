@@ -32,6 +32,8 @@ class CompraResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'compras.ver';
+    public const PERMISO_CREAR = 'compras.crear';
+    public const PERMISO_EDITAR = 'compras.editar';
 
     protected static ?string $model = Compra::class;
 
@@ -314,6 +316,7 @@ class CompraResource extends Resource
                         ->url(fn (Compra $record) => CompraResource::getUrl('edit', ['compra' => $record->id_compra])),
 
                     Action::make('pdf')
+                        ->visible(fn (): bool => auth()->user()?->can('compras.pdf') ?? false)
                         ->label('PDF')
                         ->icon('heroicon-m-document-arrow-down')
                         ->color('gray')

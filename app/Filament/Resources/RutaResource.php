@@ -24,6 +24,8 @@ class RutaResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'tms_rutas.ver';
+    public const PERMISO_CREAR = 'tms_rutas.crear';
+    public const PERMISO_EDITAR = 'tms_rutas.editar';
 
     protected static ?string $model = TmsRuta::class;
 

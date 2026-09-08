@@ -23,6 +23,9 @@ class RoleResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'roles.ver';
+    public const PERMISO_CREAR = 'roles.crear';
+    public const PERMISO_EDITAR = 'roles.editar';
+    public const PERMISO_BORRAR = 'roles.borrar';
 
     protected static ?string $model = Rol::class;
 

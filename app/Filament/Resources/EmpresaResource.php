@@ -31,6 +31,8 @@ class EmpresaResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'empresas.ver';
+    public const PERMISO_CREAR = 'empresas.crear';
+    public const PERMISO_EDITAR = 'empresas.editar';
 
     protected static ?string $model = Empresa::class;
 
@@ -50,7 +52,8 @@ class EmpresaResource extends Resource
      */
     public static function canCreate(): bool
     {
-        return Empresa::count() === 0;
+        // Solo se crea la primera empresa, y además hace falta el permiso.
+        return Empresa::count() === 0 && static::permiteAccion('PERMISO_CREAR');
     }
 
     public static function table(Table $table): Table

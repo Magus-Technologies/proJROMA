@@ -21,6 +21,7 @@ class GuiaRemisionResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'guias.ver';
+    public const PERMISO_CREAR = 'guias.crear';
 
     protected static ?string $model = GuiaRemision::class;
 
@@ -127,6 +128,7 @@ class GuiaRemisionResource extends Resource
                     ->modalCancelActionLabel('Cerrar'),
 
                 Action::make('pdf')
+                    ->visible(fn (): bool => auth()->user()?->can('guias.pdf') ?? false)
                     ->label('PDF')
                     ->icon('heroicon-o-document-text')
                     ->color('danger')

@@ -27,6 +27,7 @@ class TrasladoResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'almacen_traslados.ver';
+    public const PERMISO_CREAR = 'almacen_traslados.crear';
 
     protected static ?string $model = Traslado::class;
 

@@ -25,6 +25,8 @@ class DespachoResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'tms_despachos.ver';
+    public const PERMISO_CREAR = 'tms_despachos.crear';
+    public const PERMISO_EDITAR = 'tms_despachos.editar';
 
     protected static ?string $model = TmsDespacho::class;
 
@@ -78,6 +80,7 @@ class DespachoResource extends Resource
                             ->modalCancelActionLabel('Cerrar'),
 
                         Action::make('pdf')
+                            ->visible(fn (): bool => auth()->user()?->can('tms_despachos.pdf') ?? false)
                             ->label('Hoja de carga')
                             ->icon('heroicon-o-arrow-down-tray')
                             ->color('primary')
@@ -108,6 +111,7 @@ class DespachoResource extends Resource
                             }),
 
                         Action::make('guias')
+                            ->visible(fn (): bool => auth()->user()?->can('tms_despachos.pdf') ?? false)
                             ->label('Guías de reparto')
                             ->icon('heroicon-o-ticket')
                             ->color('info')
@@ -132,6 +136,7 @@ class DespachoResource extends Resource
                             }),
 
                         Action::make('comprobantes')
+                            ->visible(fn (): bool => auth()->user()?->can('tms_despachos.pdf') ?? false)
                             ->label('Boletas / Facturas')
                             ->icon('heroicon-o-document-duplicate')
                             ->color('success')
@@ -156,6 +161,7 @@ class DespachoResource extends Resource
                             }),
 
                         Action::make('guias_remision')
+                            ->visible(fn (): bool => auth()->user()?->can('tms_despachos.pdf') ?? false)
                             ->label('Guías de remisión')
                             ->icon('heroicon-o-truck')
                             ->color('warning')

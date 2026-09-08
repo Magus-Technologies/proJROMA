@@ -26,6 +26,9 @@ class ClienteResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'clientes.ver';
+    public const PERMISO_CREAR = 'clientes.crear';
+    public const PERMISO_EDITAR = 'clientes.editar';
+    public const PERMISO_BORRAR = 'clientes.borrar';
 
     protected static ?string $model = Cliente::class;
 

@@ -24,6 +24,7 @@ class RecepcionResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'almacen_recepcion.ver';
+    public const PERMISO_CREAR = 'almacen_recepcion.crear';
 
     protected static ?string $model = Recepcion::class;
 

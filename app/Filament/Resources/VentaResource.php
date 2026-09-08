@@ -25,6 +25,7 @@ class VentaResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'ventas.ver';
+    public const PERMISO_CREAR = 'ventas.crear';
 
     protected static ?string $model = Venta::class;
 
@@ -255,6 +256,7 @@ class VentaResource extends Resource
                     },
                     accionesExtra: [
                         Action::make('voucher_8cm')
+                            ->visible(fn (): bool => auth()->user()?->can('ventas.pdf') ?? false)
                             ->label('Voucher 8cm')
                             ->icon('heroicon-m-printer')
                             ->color('gray')
@@ -359,7 +361,9 @@ class VentaResource extends Resource
                     ->label('Anular')
                     ->icon('heroicon-o-no-symbol')
                     ->color('danger')
-                    ->visible(fn (Venta $record): bool => $record->estado !== '0')
+                    // Una sola condición: un segundo ->visible() reemplazaría al primero.
+                    ->visible(fn (Venta $record): bool => (auth()->user()?->can('ventas.anular') ?? false)
+                        && $record->estado !== '0')
                     ->requiresConfirmation()
                     ->modalHeading('¿Anular esta venta?')
                     ->modalDescription('Se repondrá el stock de los productos.')

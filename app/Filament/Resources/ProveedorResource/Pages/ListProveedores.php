@@ -30,6 +30,7 @@ class ListProveedores extends ListRecords
                 }),
 
             Action::make('excel')
+                ->visible(fn (): bool => auth()->user()?->can('proveedores.exportar') ?? false)
                 ->label('Excel')
                 ->icon('heroicon-o-table-cells')
                 ->color('success')

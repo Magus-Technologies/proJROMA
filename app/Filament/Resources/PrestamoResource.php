@@ -26,6 +26,7 @@ class PrestamoResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'almacen_prestamos.ver';
+    public const PERMISO_CREAR = 'almacen_prestamos.crear';
 
     protected static ?string $model = Prestamo::class;
 

@@ -21,6 +21,8 @@ class TipoVehiculoResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'tms_vehiculos.ver';
+    public const PERMISO_CREAR = 'tms_vehiculos.crear';
+    public const PERMISO_EDITAR = 'tms_vehiculos.editar';
 
     protected static ?string $model = TmsTipoVehiculo::class;
 

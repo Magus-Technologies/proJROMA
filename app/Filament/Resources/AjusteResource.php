@@ -22,6 +22,7 @@ class AjusteResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'almacen_ajustes.ver';
+    public const PERMISO_CREAR = 'almacen_ajustes.crear';
 
     protected static ?string $model = InventarioMovimiento::class;
 

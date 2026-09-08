@@ -24,6 +24,8 @@ class ProveedorResource extends Resource
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
     public const PERMISO_ACCESO = 'proveedores.ver';
+    public const PERMISO_CREAR = 'proveedores.crear';
+    public const PERMISO_EDITAR = 'proveedores.editar';
 
     protected static ?string $model = Proveedor::class;
 

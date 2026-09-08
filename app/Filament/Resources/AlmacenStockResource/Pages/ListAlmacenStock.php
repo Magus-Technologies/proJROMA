@@ -24,6 +24,8 @@ use Illuminate\Support\Facades\DB;
 
 class ListAlmacenStock extends ListRecords
 {
+    use \App\Filament\Concerns\ExportaTabla;
+
     /** Permite que AlmacenStockStats lea la tabla ya filtrada por pestaña/búsqueda. */
     use \Filament\Pages\Concerns\ExposesTableToWidgets;
 
@@ -341,6 +343,76 @@ class ListAlmacenStock extends ListRecords
                 ->icon('heroicon-o-building-storefront')
                 ->button()
                 ->color('gray'),
+
+            ...$this->accionesDeDescarga(),
         ];
+    }
+
+    /**
+     * Valorización de existencias. Cada producto aporta dos importes: lo que
+     * costó (cantidad x costo) y lo que se espera cobrar (cantidad x precio).
+     * La fila de total es lo que se compara contra el inventario físico.
+     */
+    protected function datosParaExportar(): array
+    {
+        $ultimos = AlmacenStockResource::ultimoMovimiento();
+
+        $productos = $this->getFilteredSortedTableQuery()->with('categoria')->get();
+
+        $filas = $productos->map(function (Producto $p) use ($ultimos): array {
+            $cantidad = (int) $p->cantidad;
+            $costo    = (float) $p->costo;
+            $precio   = (float) $p->precio;
+            $movimiento = $ultimos[$p->id_producto] ?? null;
+
+            return [
+                $p->codigo ?: '—',
+                $p->descripcion,
+                $p->categoria->nombre ?? '—',
+                $movimiento['anterior'] ?? '—',
+                $cantidad,
+                isset($movimiento['fecha'])
+                    ? \Illuminate\Support\Carbon::parse($movimiento['fecha'])->format('d/m/Y H:i')
+                    : 'Sin movimientos',
+                $costo,
+                $cantidad * $costo,
+                $precio,
+                $cantidad * $precio,
+            ];
+        })->toArray();
+
+        $filas[] = [
+            'TOTAL', '', '', '',
+            $productos->sum(fn (Producto $p): int => (int) $p->cantidad),
+            '', '',
+            $productos->sum(fn (Producto $p): float => (float) $p->cantidad * (float) $p->costo),
+            '',
+            $productos->sum(fn (Producto $p): float => (float) $p->cantidad * (float) $p->precio),
+        ];
+
+        return [
+            'titulo'    => 'Valorización de Almacén',
+            'periodo'   => $this->almacenExportado(),
+            'slug'      => 'valorizacion-almacen',
+            'cabeceras' => [
+                'Código', 'Descripción', 'Categoría', 'Stock ant.', 'Stock actual',
+                'Últ. movimiento', 'Costo unit.', 'Valorizado', 'Precio unit.', 'Valor venta',
+            ],
+            'filas'             => $filas,
+            'columnasMoneda'    => [6, 7, 8, 9],
+            'ultimaFilaEsTotal' => true,
+        ];
+    }
+
+    /** Deja claro en el reporte de qué almacén se sacó, no solo la fecha. */
+    private function almacenExportado(): string
+    {
+        if (blank($this->activeTab) || $this->activeTab === 'todos') {
+            return 'Todos los almacenes';
+        }
+
+        $codigo = str_replace('alm-', '', $this->activeTab);
+
+        return $this->almacenes()->firstWhere('codigo', $codigo)?->nombre ?? 'Almacén ' . $codigo;
     }
 }

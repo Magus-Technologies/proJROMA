@@ -59,7 +59,7 @@ class KardexResource extends Resource
      * @return array<int, array{anterior: float|null, actual: float|null}>
      *         Indexado por id_movimiento.
      */
-    protected static function costosDeProducto(int $idProducto): array
+    public static function costosDeProducto(int $idProducto): array
     {
         if (isset(static::$costosCache[$idProducto])) {
             return static::$costosCache[$idProducto];
@@ -90,7 +90,7 @@ class KardexResource extends Resource
     }
 
     /** @return float|null Costo 'anterior' o 'actual' del movimiento dado. */
-    protected static function costo(InventarioMovimiento $mov, string $cual): ?float
+    public static function costo(InventarioMovimiento $mov, string $cual): ?float
     {
         return static::costosDeProducto((int) $mov->id_producto)[$mov->id_movimiento][$cual] ?? null;
     }

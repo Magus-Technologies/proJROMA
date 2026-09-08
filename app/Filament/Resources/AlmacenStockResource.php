@@ -40,7 +40,7 @@ class AlmacenStockResource extends Resource
      *
      * @return array<int, array{anterior: int, nuevo: int, fecha: string}>
      */
-    protected static function ultimoMovimiento(): array
+    public static function ultimoMovimiento(): array
     {
         if (static::$ultimoMovimientoCache !== null) {
             return static::$ultimoMovimientoCache;

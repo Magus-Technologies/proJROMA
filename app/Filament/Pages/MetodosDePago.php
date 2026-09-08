@@ -367,6 +367,10 @@ class MetodosDePago extends Page implements HasTable
                         FileUpload::make('qr')
                             ->label('Código QR')
                             ->image()
+                            // Sin disk() iría al disco por defecto (local =
+                            // storage/app/private) y la vista, que arma la URL
+                            // como /storage/qrs/..., nunca encontraría el archivo.
+                            ->disk('public')
                             ->directory('qrs')
                             ->visibility('public')
                             ->maxSize(1024)
@@ -460,6 +464,10 @@ class MetodosDePago extends Page implements HasTable
                         FileUpload::make('qr')
                             ->label('Código QR')
                             ->image()
+                            // Sin disk() iría al disco por defecto (local =
+                            // storage/app/private) y la vista, que arma la URL
+                            // como /storage/qrs/..., nunca encontraría el archivo.
+                            ->disk('public')
                             ->directory('qrs')
                             ->visibility('public')
                             ->maxSize(1024)

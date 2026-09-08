@@ -7,6 +7,10 @@ use Filament\Pages\Page;
 
 class VerQrs extends Page
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'qr.ver';
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-qr-code';
     protected static ?string $navigationLabel = 'Códigos QR';
     protected static string|\UnitEnum|null $navigationGroup = 'Caja';

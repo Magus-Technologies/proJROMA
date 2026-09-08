@@ -40,23 +40,23 @@ Route::get('/login', \App\Filament\Pages\Auth\Login::class)
 
 // ── PDFs / Comprobantes (con auth pero sin empresa check) ─────────────────────
 Route::middleware('auth')->group(function () {
-    Route::get('/venta/comprobante/pdf/{venta}',        [ReportesController::class, 'comprobanteVenta'])->name('venta.comprobante');
-    Route::get('/venta/comprobante/pdf/ma4/{venta}',    [ReportesController::class, 'comprobanteVentaMa4'])->name('venta.comprobante.ma4');
-    Route::get('/venta/pdf/voucher/8cm/{voucher}',      [ReportesController::class, 'voucher8cm'])->name('venta.voucher.8cm');
-    Route::get('/venta/pdf/voucher/5.6cm/{voucher}',    [ReportesController::class, 'voucher56cm'])->name('venta.voucher.56cm');
-    Route::get('/guia/remision/pdf/{guia}',             [ReportesController::class, 'guiaRemisionPdf'])->name('guia.pdf');
-    Route::get('/traslado/pdf/{traslado}',              [ReportesController::class, 'trasladoPdf'])->name('traslado.pdf');
-    Route::get('/nota/electronica/pdf/{nota}',          [ReportesController::class, 'notaElectronicaPdf'])->name('nota.pdf');
-    Route::get('/files/facturacion/xml/{ruc}/{archivo}', [ReportesController::class, 'verXml'])->name('facturacion.xml');
-    Route::get('/r/cotizaciones/reporte/{coti}',        [ReportesController::class, 'comprobanteCotizacion'])->name('cotizacion.reporte');
-    Route::get('/r/cotizaciones/reporteA4/{coti}',      [ReportesController::class, 'comprobanteCotizacionA4'])->name('cotizacion.reporte.a4');
-    Route::get('/r/pedidos/reporte/{coti}',             [ReportesController::class, 'comprobantePedidos'])->name('pedidos.reporte');
-    Route::get('/tms/despacho/pdf/{despacho}',          [ReportesController::class, 'despachoReportePdf'])->name('tms.despacho.pdf');
-    Route::get('/tms/despacho/pdf/{despacho}/mercado/{mercado}', [ReportesController::class, 'despachoReportePdf'])->name('tms.despacho.pdf.mercado');
-    Route::get('/tms/despacho/guias/{despacho}',        [ReportesController::class, 'despachoGuiasPdf'])->name('tms.despacho.guias');
-    Route::get('/tms/despacho/comprobantes/{despacho}', [ReportesController::class, 'despachoComprobantesPdf'])->name('tms.despacho.comprobantes');
-    Route::get('/tms/despacho/guias-remision/{despacho}', [ReportesController::class, 'despachoGuiasRemisionPdf'])->name('tms.despacho.guias.remision');
-    Route::get('/escanear/codigobarra/{empresa}/{sucursal}', [ProductosController::class, 'escanearBarra'])->name('scanner.barra');
+    Route::get('/venta/comprobante/pdf/{venta}',        [ReportesController::class, 'comprobanteVenta'])->name('venta.comprobante')->middleware('can:ventas.pdf');
+    Route::get('/venta/comprobante/pdf/ma4/{venta}',    [ReportesController::class, 'comprobanteVentaMa4'])->name('venta.comprobante.ma4')->middleware('can:ventas.pdf');
+    Route::get('/venta/pdf/voucher/8cm/{voucher}',      [ReportesController::class, 'voucher8cm'])->name('venta.voucher.8cm')->middleware('can:ventas.pdf');
+    Route::get('/venta/pdf/voucher/5.6cm/{voucher}',    [ReportesController::class, 'voucher56cm'])->name('venta.voucher.56cm')->middleware('can:ventas.pdf');
+    Route::get('/guia/remision/pdf/{guia}',             [ReportesController::class, 'guiaRemisionPdf'])->name('guia.pdf')->middleware('can:guias.pdf');
+    Route::get('/traslado/pdf/{traslado}',              [ReportesController::class, 'trasladoPdf'])->name('traslado.pdf')->middleware('can:almacen_traslados.ver');
+    Route::get('/nota/electronica/pdf/{nota}',          [ReportesController::class, 'notaElectronicaPdf'])->name('nota.pdf')->middleware('can:notas.pdf');
+    Route::get('/files/facturacion/xml/{ruc}/{archivo}', [ReportesController::class, 'verXml'])->name('facturacion.xml')->middleware('can:ventas.sunat');
+    Route::get('/r/cotizaciones/reporte/{coti}',        [ReportesController::class, 'comprobanteCotizacion'])->name('cotizacion.reporte')->middleware('can:cotizaciones.pdf');
+    Route::get('/r/cotizaciones/reporteA4/{coti}',      [ReportesController::class, 'comprobanteCotizacionA4'])->name('cotizacion.reporte.a4')->middleware('can:cotizaciones.pdf');
+    Route::get('/r/pedidos/reporte/{coti}',             [ReportesController::class, 'comprobantePedidos'])->name('pedidos.reporte')->middleware('can:cotizaciones.pdf');
+    Route::get('/tms/despacho/pdf/{despacho}',          [ReportesController::class, 'despachoReportePdf'])->name('tms.despacho.pdf')->middleware('can:tms_despachos.pdf');
+    Route::get('/tms/despacho/pdf/{despacho}/mercado/{mercado}', [ReportesController::class, 'despachoReportePdf'])->name('tms.despacho.pdf.mercado')->middleware('can:tms_despachos.pdf');
+    Route::get('/tms/despacho/guias/{despacho}',        [ReportesController::class, 'despachoGuiasPdf'])->name('tms.despacho.guias')->middleware('can:tms_despachos.pdf');
+    Route::get('/tms/despacho/comprobantes/{despacho}', [ReportesController::class, 'despachoComprobantesPdf'])->name('tms.despacho.comprobantes')->middleware('can:tms_despachos.pdf');
+    Route::get('/tms/despacho/guias-remision/{despacho}', [ReportesController::class, 'despachoGuiasRemisionPdf'])->name('tms.despacho.guias.remision')->middleware('can:tms_despachos.pdf');
+    Route::get('/escanear/codigobarra/{empresa}/{sucursal}', [ProductosController::class, 'escanearBarra'])->name('scanner.barra')->middleware('can:productos.ver');
 });
 
 // ── Compatibilidad: rutas nombradas del layout Blade viejo ────────────────────
@@ -88,49 +88,49 @@ Route::middleware('auth')->group(function () {
 // ── Blade aún activo (POS enlazados desde Filament + módulo TMS) ───────────────
 Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function () {
 
-    Route::get('/nota/electronica',         [VentasController::class, 'notaElectronica'])->name('nota.electronica');
-    Route::get('/cotizaciones/editar/{id}', [CotizacionesController::class, 'edit'])->name('cotizaciones.edit');
-    Route::get('/compras/add',              [ComprasController::class, 'create'])->name('compras.create');
+    Route::get('/nota/electronica',         [VentasController::class, 'notaElectronica'])->name('nota.electronica')->middleware('can:notas.crear');
+    Route::get('/cotizaciones/editar/{id}', [CotizacionesController::class, 'edit'])->name('cotizaciones.edit')->middleware('can:cotizaciones.editar');
+    Route::get('/compras/add',              [ComprasController::class, 'create'])->name('compras.create')->middleware('can:compras.crear');
 
     // ── TMS (Transporte / Despacho) ────────────────────────────────────────
     Route::prefix('tms')->name('tms.')->group(function () {
-        Route::get('/mercados',       [TmsController::class, 'mercados'])->name('mercados');
-        Route::get('/vehiculos',      [TmsController::class, 'vehiculos'])->name('vehiculos');
-        Route::get('/conductores',    [TmsController::class, 'conductores'])->name('conductores');
-        Route::get('/rutas',          [TmsController::class, 'rutas'])->name('rutas');
-        Route::get('/armar-despacho', [TmsController::class, 'armarDespacho'])->name('armar');
-        Route::get('/despachos',      [TmsController::class, 'despachos'])->name('despachos');
+        Route::get('/mercados',       [TmsController::class, 'mercados'])->name('mercados')->middleware('can:tms_mercados.ver');
+        Route::get('/vehiculos',      [TmsController::class, 'vehiculos'])->name('vehiculos')->middleware('can:tms_vehiculos.ver');
+        Route::get('/conductores',    [TmsController::class, 'conductores'])->name('conductores')->middleware('can:tms_conductores.ver');
+        Route::get('/rutas',          [TmsController::class, 'rutas'])->name('rutas')->middleware('can:tms_rutas.ver');
+        Route::get('/armar-despacho', [TmsController::class, 'armarDespacho'])->name('armar')->middleware('can:tms_despachos.crear');
+        Route::get('/despachos',      [TmsController::class, 'despachos'])->name('despachos')->middleware('can:tms_despachos.ver');
     });
 
     // ── Compras ───────────────────────────────────────────────────────────
     Route::prefix('compras')->name('compras.')->group(function () {
-        Route::get('/',     [ComprasController::class, 'index'])->name('index');
-        Route::get('/add',  [ComprasController::class, 'create'])->name('create');
+        Route::get('/',     [ComprasController::class, 'index'])->name('index')->middleware('can:productos.ver');
+        Route::get('/add',  [ComprasController::class, 'create'])->name('create')->middleware('can:productos.crear');
     });
 
     // ── Inventario ────────────────────────────────────────────────────────
     Route::prefix('almacen')->name('almacen.')->group(function () {
-        Route::get('/productos',     [ProductosController::class, 'index'])->name('index');      // Registro de Productos
-        Route::get('/productos/add', [ProductosController::class, 'create'])->name('create');
-        Route::get('/recepcion',     [ProductosController::class, 'recepcion'])->name('recepcion');// Recepción
-        Route::get('/existencias',   [ProductosController::class, 'almacen'])->name('almacen');   // Almacén
-        Route::get('/kardex',        [ProductosController::class, 'kardex'])->name('kardex');     // Kardex
-        Route::get('/ajustes',       [ProductosController::class, 'ajustes'])->name('ajustes');   // Cuadres / Ajustes
-        Route::get('/traslado',      [ProductosController::class, 'traslado'])->name('traslado'); // Traslado de Stock
-        Route::get('/prestamos',     [ProductosController::class, 'prestamos'])->name('prestamos');// Préstamos de Productos
+        Route::get('/productos',     [ProductosController::class, 'index'])->name('index')->middleware('can:productos.ver');      // Registro de Productos
+        Route::get('/productos/add', [ProductosController::class, 'create'])->name('create')->middleware('can:productos.crear');
+        Route::get('/recepcion',     [ProductosController::class, 'recepcion'])->name('recepcion')->middleware('can:almacen_recepcion.ver');// Recepción
+        Route::get('/existencias',   [ProductosController::class, 'almacen'])->name('almacen')->middleware('can:almacen_existencias.ver');   // Almacén
+        Route::get('/kardex',        [ProductosController::class, 'kardex'])->name('kardex')->middleware('can:productos.kardex');     // Kardex
+        Route::get('/ajustes',       [ProductosController::class, 'ajustes'])->name('ajustes')->middleware('can:almacen_ajustes.ver');   // Cuadres / Ajustes
+        Route::get('/traslado',      [ProductosController::class, 'traslado'])->name('traslado')->middleware('can:almacen_traslados.ver'); // Traslado de Stock
+        Route::get('/prestamos',     [ProductosController::class, 'prestamos'])->name('prestamos')->middleware('can:almacen_prestamos.ver');// Préstamos de Productos
     });
 
     // ── Maestros ──────────────────────────────────────────────────────────
-    Route::get('/clientes',     [ClientesController::class,   'index'])->name('clientes.index');
-    Route::get('/proveedores',  [ProveedoresController::class, 'index'])->name('proveedores.index');
+    Route::get('/clientes',     [ClientesController::class,   'index'])->name('clientes.index')->middleware('can:clientes.ver');
+    Route::get('/proveedores',  [ProveedoresController::class, 'index'])->name('proveedores.index')->middleware('can:proveedores.ver');
 
     // ── Admin ─────────────────────────────────────────────────────────────
     // UsuariosController/SucursalController ya no existen (módulos migrados a
     // Filament); se conservan los nombres de ruta para el layout Blade viejo.
     Route::middleware('auth')->group(function () {
-        Route::get('/usuarios',             fn () => redirect(url('/panel/usuarios')))->name('usuarios.index');
-        Route::get('/sucursales',           fn () => redirect(url('/panel/sucursales')))->name('admin.sucursales');
-        Route::get('/administrarempresas',  fn () => redirect(url('/panel/empresas')))->name('admin.empresas');
+        Route::get('/usuarios',             fn () => redirect(url('/panel/usuarios')))->name('usuarios.index')->middleware('can:usuarios.ver');
+        Route::get('/sucursales',           fn () => redirect(url('/panel/sucursales')))->name('admin.sucursales')->middleware('can:sucursales.ver');
+        Route::get('/administrarempresas',  fn () => redirect(url('/panel/empresas')))->name('admin.empresas')->middleware('can:empresas.ver');
     });
 
     // ── Reportes ──────────────────────────────────────────────────────────

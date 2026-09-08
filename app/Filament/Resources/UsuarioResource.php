@@ -9,7 +9,8 @@ use BackedEnum;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
-use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -48,7 +49,14 @@ class UsuarioResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
-            Section::make('Datos personales')->columns(2)->schema([
+            Tabs::make('usuario')
+                ->columnSpanFull()
+                ->schema([
+
+            Tab::make('Datos personales')
+                ->icon('heroicon-o-identification')
+                ->columns(2)
+                ->schema([
                 TextInput::make('num_doc')
                     ->label('DNI / Doc.')
                     ->maxLength(20)
@@ -103,9 +111,22 @@ class UsuarioResource extends Resource
                     ->label('Apellidos')->required()->maxLength(100),
                 TextInput::make('telefono')
                     ->label('Teléfono')->maxLength(20),
+
+                FileUpload::make('foto')
+                    ->label('Foto de perfil')
+                    ->image()
+                    ->disk('public')
+                    ->directory('usuarios/fotos')
+                    ->imagePreviewHeight('100')
+                    ->circleCropper()
+                    ->maxSize(2048)
+                    ->columnSpanFull(),
             ]),
 
-            Section::make('Acceso')->columns(2)->schema([
+            Tab::make('Acceso')
+                ->icon('heroicon-o-key')
+                ->columns(2)
+                ->schema([
                 TextInput::make('usuario')
                     ->label('Usuario')->required()->maxLength(60)
                     ->unique(table: 'usuarios', column: 'usuario', ignoreRecord: true)
@@ -146,19 +167,10 @@ class UsuarioResource extends Resource
                     ->searchable(),
             ]),
 
-            Section::make('Foto de perfil')->schema([
-                FileUpload::make('foto')
-                    ->label('Foto')
-                    ->image()
-                    ->disk('public')
-                    ->directory('usuarios/fotos')
-                    ->imagePreviewHeight('100')
-                    ->circleCropper()
-                    ->maxSize(2048)
-                    ->columnSpanFull(),
-            ]),
-
-            Section::make('Estado')->columns(2)->schema([
+            Tab::make('Estado')
+                ->icon('heroicon-o-power')
+                ->columns(2)
+                ->schema([
                 Toggle::make('estado')
                     ->label('Activo')
                     ->onColor('success')
@@ -169,8 +181,11 @@ class UsuarioResource extends Resource
                 Toggle::make('available_status')
                     ->label('Disponible')
                     ->onColor('success')
-                    ->default(true),
+                    ->default(true)
+                    ->helperText('Si se desactiva, el usuario no puede entrar al panel aunque esté activo.'),
             ]),
+
+                ]),
         ]);
     }
 

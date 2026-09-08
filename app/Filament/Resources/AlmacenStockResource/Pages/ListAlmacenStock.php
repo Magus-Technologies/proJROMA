@@ -45,6 +45,28 @@ class ListAlmacenStock extends ListRecords
             ]);
     }
 
+    /**
+     * Qué tiene un almacén dentro: [stock total, movimientos de kardex, filas de producto].
+     * Decide si se puede eliminar y qué se lleva por delante.
+     *
+     * @return array{0: float, 1: int, 2: int}
+     */
+    protected function usoDelAlmacen(Almacen $almacen): array
+    {
+        $empresa = (int) session('id_empresa');
+
+        $productos = Producto::where('id_empresa', $empresa)->where('almacen', $almacen->codigo);
+
+        return [
+            (float) (clone $productos)->sum('cantidad'),
+            (int) DB::table('inventario_movimientos')
+                ->where('id_empresa', $empresa)
+                ->where('almacen', $almacen->codigo)
+                ->count(),
+            (int) (clone $productos)->count(),
+        ];
+    }
+
     protected function almacenes()
     {
         return Almacen::where('id_empresa', (int) session('id_empresa'))
@@ -309,6 +331,82 @@ class ListAlmacenStock extends ListRecords
                             'descripcion' => $data['descripcion'],
                         ]);
                         Notification::make()->success()->title('Almacén actualizado')->send();
+                    }),
+
+                Action::make('eliminar_almacen')
+                    ->visible(fn (): bool => auth()->user()?->can('inventario.gestionar') ?? false)
+                    ->label('Eliminar Almacén')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->form(fn (): array => [
+                        Select::make('id_almacen')
+                            ->label('Almacén')
+                            ->helperText('Solo se pueden eliminar los almacenes sin stock ni movimientos de kardex.')
+                            ->options(fn (): array => $this->almacenes()
+                                ->mapWithKeys(function (Almacen $a): array {
+                                    [$stock, $movimientos, $productos] = $this->usoDelAlmacen($a);
+
+                                    $detalle = $movimientos > 0
+                                        ? "{$movimientos} movimiento(s) — no se puede eliminar"
+                                        : ($stock > 0
+                                            ? 'con stock — no se puede eliminar'
+                                            : ($productos > 0 ? "{$productos} producto(s) en cero" : 'vacío'));
+
+                                    return [$a->id_almacen => "{$a->nombre} · {$detalle}"];
+                                })
+                                ->toArray())
+                            ->required(),
+                    ])
+                    ->requiresConfirmation()
+                    ->modalHeading('Eliminar almacén')
+                    ->modalDescription('Se borra definitivamente y no se puede deshacer. Si solo querés dejar de usarlo, desactivalo en vez de eliminarlo.')
+                    ->modalSubmitActionLabel('Eliminar')
+                    ->action(function (array $data): void {
+                        $almacen = Almacen::findOrFail($data['id_almacen']);
+                        [$stock, $movimientos, $productos] = $this->usoDelAlmacen($almacen);
+
+                        // El kardex es historial: borrar el almacén dejaría los
+                        // movimientos apuntando a un código que ya no existe.
+                        if ($movimientos > 0) {
+                            Notification::make()->danger()
+                                ->title('No se puede eliminar')
+                                ->body("Tiene {$movimientos} movimiento(s) en el kardex. Desactivalo para dejar de usarlo sin perder el historial.")
+                                ->persistent()
+                                ->send();
+
+                            return;
+                        }
+
+                        if ($stock > 0) {
+                            Notification::make()->danger()
+                                ->title('No se puede eliminar')
+                                ->body('Todavía tiene mercadería. Trasladá el stock a otro almacén primero.')
+                                ->persistent()
+                                ->send();
+
+                            return;
+                        }
+
+                        DB::transaction(function () use ($almacen, $productos): void {
+                            // Las filas de productos en cero son copias por almacén
+                            // sin historial detrás: se van con él.
+                            if ($productos > 0) {
+                                Producto::where('id_empresa', (int) session('id_empresa'))
+                                    ->where('almacen', $almacen->codigo)
+                                    ->delete();
+                            }
+
+                            $almacen->delete();
+                        });
+
+                        Notification::make()->success()
+                            ->title('Almacén eliminado')
+                            ->body($productos > 0
+                                ? "Se eliminó junto con {$productos} fila(s) de producto en cero."
+                                : 'Estaba vacío.')
+                            ->send();
+
+                        $this->resetTable();
                     }),
 
                 Action::make('desactivar_almacen')

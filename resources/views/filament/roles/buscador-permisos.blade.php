@@ -125,6 +125,41 @@
         box-shadow: 0 2px 10px rgba(0, 0, 0, .25);
         cursor: pointer;
     }
+    /* Barra de marcar / desmarcar */
+    .permisos-barra-toggle {
+        display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+        padding: .5rem .25rem;
+    }
+    .permisos-barra-ambito {
+        font-size: .75rem; color: #6b7280; margin-right: .25rem;
+    }
+    .dark .permisos-barra-ambito { color: #9ca3af; }
+
+    .permisos-btn {
+        display: inline-flex; align-items: center; gap: .3rem;
+        padding: .3rem .7rem;
+        border-radius: .5rem;
+        border: 1px solid transparent;
+        font-size: .75rem; font-weight: 600;
+        cursor: pointer;
+        transition: background-color .12s ease, border-color .12s ease;
+    }
+    .permisos-btn-marcar {
+        color: #047857; background: #ecfdf5; border-color: #a7f3d0;
+    }
+    .permisos-btn-marcar:hover { background: #d1fae5; }
+    .permisos-btn-desmarcar {
+        color: #b91c1c; background: #fef2f2; border-color: #fecaca;
+    }
+    .permisos-btn-desmarcar:hover { background: #fee2e2; }
+
+    .dark .permisos-btn-marcar {
+        color: #6ee7b7; background: rgba(6, 78, 59, .35); border-color: rgba(16, 185, 129, .35);
+    }
+    .dark .permisos-btn-desmarcar {
+        color: #fca5a5; background: rgba(127, 29, 29, .35); border-color: rgba(239, 68, 68, .35);
+    }
+
     body.permisos-modal-activa .permisos-modal-cerrar { display: block; }
     body.permisos-modal-activa { overflow: hidden; }
 </style>
@@ -133,6 +168,40 @@
     (function () {
         if (window.__permisosCardsInit) return;
         window.__permisosCardsInit = true;
+
+        /**
+         * Marca o desmarca los checkboxes del contenedor donde vive el botón.
+         *
+         * Se hace en el navegador a propósito. Una acción de Filament haría una
+         * petición a Livewire, el schema se re-renderizaría y la card perdería
+         * la clase .abierta, cerrando el modal a media edición. Emitiendo el
+         * evento change, wire:model se entera igual sin re-render.
+         */
+        window.marcarPermisos = function (boton, valor) {
+            // El ámbito es el grupo si el botón está dentro de uno; si no, la card entera.
+            const ambito = boton.closest('[data-grupo-permisos]')
+                ?? boton.closest('[data-card-modulo]');
+            if (! ambito) return;
+
+            let cambiados = 0;
+
+            ambito.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+                // Solo permisos visibles: respeta el filtro del buscador.
+                const opcion = cb.closest('.fi-fo-checkbox-list-option-ctn');
+                if (opcion && opcion.style.display === 'none') return;
+                if (cb.disabled || cb.checked === valor) return;
+
+                cb.checked = valor;
+                cb.dispatchEvent(new Event('input', { bubbles: true }));
+                cb.dispatchEvent(new Event('change', { bubbles: true }));
+                cambiados++;
+            });
+
+            // Feedback: sin esto no se nota que pasó algo si todo ya estaba igual.
+            const original = boton.textContent;
+            boton.textContent = cambiados ? `${cambiados} cambiados` : 'Ya estaban así';
+            setTimeout(() => { boton.textContent = original; }, 1100);
+        };
 
         window.cerrarCardPermisos = function () {
             document.querySelectorAll('.permisos-card.abierta')
@@ -148,6 +217,9 @@
                 if (e.target === abierta) window.cerrarCardPermisos();
                 return;
             }
+
+            // Un clic en los botones de marcar/desmarcar no debe abrir ni cerrar nada.
+            if (e.target.closest('.permisos-barra-toggle')) return;
 
             const card = e.target.closest('.permisos-card');
             if (card) {

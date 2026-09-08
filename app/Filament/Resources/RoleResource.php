@@ -10,6 +10,7 @@ use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Html;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
@@ -83,6 +84,8 @@ class RoleResource extends Resource
                 continue;
             }
 
+            array_unshift($subSchemas, static::barraMarcarTodo('todo el módulo'));
+
             $cards[] = Section::make($modulo)
                 ->icon($config['icono'])
                 ->description("{$totalPermisos} permisos · clic para configurar")
@@ -133,14 +136,45 @@ class RoleResource extends Resource
             ->compact()
             ->extraAttributes(['class' => 'permisos-subcard', 'data-grupo-permisos' => $groupLabel])
             ->schema([
+                static::barraMarcarTodo('este grupo'),
+
                 CheckboxList::make(static::sanitizeKey($groupLabel))
                     ->hiddenLabel()
                     ->options(array_combine($permissionNames, $permissionNames))
                     ->descriptions($permissions)
                     ->columnSpanFull()
-                    ->bulkToggleable()
                     ->default(fn () => $permissionNames),
             ]);
+    }
+
+    /**
+     * Barra con "Marcar todos" y "Desmarcar todos".
+     *
+     * Los botones actúan sobre los checkboxes del contenedor donde se
+     * renderizan: dentro de un grupo afectan solo a ese grupo, y al principio
+     * de la card afectan a todo el módulo.
+     *
+     * Son botones de navegador a propósito, no acciones de Filament: una
+     * acción haría una petición a Livewire, el schema se re-renderizaría y la
+     * card perdería la clase .abierta que la mantiene abierta como modal. Al
+     * marcar los checkboxes en el DOM y emitir el evento change, wire:model se
+     * entera igual y el modal no se mueve.
+     */
+    private static function barraMarcarTodo(string $ambito): Html
+    {
+        return Html::make(<<<HTML
+            <div class="permisos-barra-toggle">
+                <span class="permisos-barra-ambito">Aplicar a {$ambito}:</span>
+                <button type="button" class="permisos-btn permisos-btn-marcar"
+                        onclick="window.marcarPermisos(this, true)">
+                    Marcar todos
+                </button>
+                <button type="button" class="permisos-btn permisos-btn-desmarcar"
+                        onclick="window.marcarPermisos(this, false)">
+                    Desmarcar todos
+                </button>
+            </div>
+            HTML)->columnSpanFull();
     }
 
     public static function table(Table $table): Table

@@ -48,12 +48,23 @@ class CreateCompra extends CreateRecord
                     Group::make([
                         Section::make('Productos')
                             ->compact()
+                            // El desplegable de resultados se abre al enfocar el
+                            // buscador y se cierra al hacer clic fuera. El estado
+                            // va acá y no en el Placeholder porque ese sí lo
+                            // reemplaza Livewire en cada búsqueda.
+                            ->extraAttributes([
+                                'x-data' => '{ buscadorAbierto: false }',
+                                'x-on:click.outside' => 'buscadorAbierto = false',
+                            ])
                             ->schema([
                                 TextInput::make('buscador_producto')
                                     ->hiddenLabel()
                                     ->placeholder('🔍 Buscar producto por descripción o código…')
                                     ->autocomplete(false)
                                     ->dehydrated(false)
+                                    ->extraInputAttributes([
+                                        'x-on:focus' => 'buscadorAbierto = true',
+                                    ])
                                     ->live(debounce: 300),
 
                                 Placeholder::make('resultados_busqueda')
@@ -76,7 +87,8 @@ class CreateCompra extends CreateRecord
 
                                         if ($productos->isEmpty()) {
                                             return new HtmlString(
-                                                '<div style="padding:10px 12px;opacity:.5;font-size:.875rem">'
+                                                '<div x-show="buscadorAbierto" x-cloak'
+                                                . ' style="padding:10px 12px;opacity:.5;font-size:.875rem">'
                                                 . ($busqueda === ''
                                                     ? 'No hay productos cargados todavia.'
                                                     : 'Sin coincidencias para "' . e($busqueda) . '"')
@@ -98,7 +110,8 @@ class CreateCompra extends CreateRecord
                                         )->implode('');
 
                                         return new HtmlString(
-                                            '<div style="border:1px solid rgba(148,163,184,.35);border-radius:12px;overflow:hidden;'
+                                            '<div x-show="buscadorAbierto" x-cloak'
+                                            . ' style="border:1px solid rgba(148,163,184,.35);border-radius:12px;overflow:hidden;'
                                             . 'box-shadow:0 4px 12px rgba(0,0,0,.06)">' . $filas . '</div>'
                                         );
                                     }),

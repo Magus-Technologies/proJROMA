@@ -35,7 +35,10 @@ class ListAlmacenStock extends ListRecords
         return $schema
             ->components([
                 $this->getTabsContentComponent(),
-                Livewire::make(AlmacenStockStats::class),
+                // Se le pasa getWidgetData() para que el widget reciba la pestaña
+                // activa, filtros y búsqueda. Sin esto, al cambiar de almacén
+                // Livewire refresca las props reactivas con null y revienta.
+                Livewire::make(AlmacenStockStats::class, fn (): array => $this->getWidgetData()),
                 EmbeddedTable::make(),
             ]);
     }

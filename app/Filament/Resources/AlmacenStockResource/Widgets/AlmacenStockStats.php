@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\AlmacenStockResource\Widgets;
 
 use App\Filament\Resources\AlmacenStockResource\Pages\ListAlmacenStock;
-use App\Models\Almacen;
 use Filament\Widgets\Concerns\InteractsWithPageTable;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -18,7 +17,7 @@ class AlmacenStockStats extends StatsOverviewWidget
     use InteractsWithPageTable;
 
     protected ?string $pollingInterval = null;
-    protected int | array | null $columns = 3;
+    protected int | array | null $columns = 4;
 
     protected function getTablePage(): string
     {
@@ -29,18 +28,15 @@ class AlmacenStockStats extends StatsOverviewWidget
     {
         $d = $this->agregados();
 
+        $productos  = (int) $d->productos;
         $valorCosto = (float) $d->valor_costo;
         $valorVenta = (float) $d->valor_venta;
         $margen     = $valorVenta - $valorCosto;
 
-        $almacenes = Almacen::where('id_empresa', (int) session('id_empresa'))
-            ->where('estado', 1)
-            ->count();
-
         return [
             Stat::make('Valorización del Almacén', self::soles($valorCosto))
                 ->description(number_format((float) $d->unidades) . ' unidades en '
-                    . number_format((int) $d->productos) . ' productos')
+                    . number_format($productos) . ' productos')
                 ->descriptionIcon('heroicon-m-cube')
                 ->icon('heroicon-o-scale')
                 ->color('primary'),
@@ -51,23 +47,16 @@ class AlmacenStockStats extends StatsOverviewWidget
                 ->icon('heroicon-o-tag')
                 ->color($margen < 0 ? 'danger' : 'success'),
 
-            Stat::make('Almacenes Activos', number_format($almacenes))
-                ->description('Registrados en el sistema')
-                ->icon('heroicon-o-building-storefront')
-                ->color('info'),
-
-            Stat::make('Productos con Stock', number_format((int) $d->con_stock))
-                ->description('Con cantidad mayor a 0')
-                ->icon('heroicon-o-archive-box')
-                ->color('info'),
-
             Stat::make('Stock Bajo', number_format((int) $d->bajo_stock))
                 ->description('En o por debajo de su mínimo configurado')
+                ->descriptionIcon('heroicon-m-exclamation-triangle')
                 ->icon('heroicon-o-exclamation-triangle')
                 ->color('danger'),
 
             Stat::make('Sin Stock', number_format((int) $d->sin_stock))
-                ->description('Agotados: no se pueden vender')
+                ->description(number_format((int) $d->con_stock) . ' de ' . number_format($productos)
+                    . ' productos sí tienen stock')
+                ->descriptionIcon('heroicon-m-archive-box')
                 ->icon('heroicon-o-x-circle')
                 ->color('gray'),
         ];

@@ -118,6 +118,20 @@ class EmpresaResource extends Resource
                         ->requiresConfirmation()
                         ->modalHeading(fn (Empresa $record): string => $record->estado === '1' ? '¿Desactivar empresa?' : '¿Activar empresa?')
                         ->action(function (Empresa $record) {
+                            // Desactivar la unica empresa deja a TODOS sin poder
+                            // entrar: el login exige una empresa activa. Ya pasó
+                            // una vez y tumbó el sistema entero.
+                            if ($record->estado === '1' && Empresa::count() === 1) {
+                                Notification::make()
+                                    ->danger()
+                                    ->title('No se puede desactivar')
+                                    ->body('Es la única empresa del sistema. Si la desactivas, ningún usuario podrá iniciar sesión.')
+                                    ->persistent()
+                                    ->send();
+
+                                return;
+                            }
+
                             $record->update(['estado' => $record->estado === '1' ? '0' : '1']);
                             Notification::make()
                                 ->title($record->estado === '1' ? 'Empresa activada' : 'Empresa desactivada')

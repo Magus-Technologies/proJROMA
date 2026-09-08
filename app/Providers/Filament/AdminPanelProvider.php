@@ -136,6 +136,10 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                // Si la sesión pierde id_empresa, todas las consultas del panel
+                // filtrarían por id_empresa = 0: pantallas vacías y registros
+                // nuevos naciendo huérfanos. Mejor cortar y pedir login.
+                \App\Http\Middleware\CheckEmpresa::class,
             ]);
     }
 }

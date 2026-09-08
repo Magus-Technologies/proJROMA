@@ -5,6 +5,7 @@ namespace App\Providers;
 use BladeUI\Icons\Factory as IconFactory;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
@@ -37,6 +38,14 @@ class AppServiceProvider extends ServiceProvider
                 'prefix' => 'custom',
             ]);
         });
+
+        // ── Empresa y sucursal en sesión, venga de donde venga el login ──────────
+        // Se registra explícitamente para no depender del autodescubrimiento de
+        // eventos: si esto no corre, el panel entero se ve vacío.
+        Event::listen(
+            \Illuminate\Auth\Events\Login::class,
+            \App\Listeners\EstablecerEmpresaEnSesion::class,
+        );
 
         // ── El rol ADMIN pasa todos los chequeos de permisos ─────────────────────
         Gate::before(fn ($user, $ability) => method_exists($user, 'esAdmin') && $user->esAdmin() ? true : null);

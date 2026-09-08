@@ -2,11 +2,11 @@
 
 namespace App\Filament\Pages\Auth;
 
-use App\Models\Empresa;
 use Filament\Auth\Pages\Login as BaseLogin;
 use Filament\Auth\Http\Responses\Contracts\LoginResponse;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Component;
+use Illuminate\Validation\ValidationException;
 use SensitiveParameter;
 
 class Login extends BaseLogin
@@ -19,22 +19,27 @@ class Login extends BaseLogin
     {
         $response = parent::authenticate();
 
-        if ($response !== null) {
-            $user    = auth()->user();
-            $empresa = Empresa::where('id_empresa', $user->id_empresa)
-                ->where('estado', '1')
-                ->first();
+        // La empresa y la sucursal las deja en sesión el listener del evento
+        // Login (App\Listeners\EstablecerEmpresaEnSesion), que también cubre el
+        // acceso por cookie de "Recordarme". Aquí solo se comprueba el
+        // resultado para poder dar un mensaje entendible.
+        //
+        // Sin esta comprobación el usuario entraba igual con la sesión vacía:
+        // session('id_empresa') daba null, todo el panel filtraba por
+        // id_empresa = 0 y se veía sin datos, mientras lo que creara nacía
+        // huérfano e invisible para el resto de la empresa.
+        if ($response !== null && ! session()->has('id_empresa')) {
+            $user = auth()->user();
 
-            if ($empresa) {
-                session()->put([
-                    'id_empresa'     => (int) $empresa->id_empresa,
-                    'sucursal'       => (int) ($user->sucursal ?: 1),
-                    'nombre_empresa' => $empresa->razon_social,
-                    'logo_empresa'   => $empresa->logo,
-                    'ruc_empr'       => $empresa->ruc,
-                    'last_activity'  => time(),
-                ]);
-            }
+            auth()->logout();
+            session()->invalidate();
+            session()->regenerateToken();
+
+            throw ValidationException::withMessages([
+                'data.login' => $user?->id_empresa
+                    ? 'Tu empresa está inactiva. Contacta al administrador.'
+                    : 'Tu usuario no tiene una empresa asignada. Contacta al administrador.',
+            ]);
         }
 
         return $response;

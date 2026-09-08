@@ -51,7 +51,7 @@ class RoleResource extends Resource
         'Cotizaciones'     => ['icono' => 'heroicon-o-clipboard-document-list', 'grupos' => ['Cotizaciones']],
         'Cobranzas'        => ['icono' => 'heroicon-o-banknotes',               'grupos' => ['Cuentas por Cobrar', 'Reporte Deudas', 'Mis Cobros']],
         'Pagos'            => ['icono' => 'heroicon-o-credit-card',             'grupos' => ['Pagos']],
-        'Caja'             => ['icono' => 'heroicon-o-calculator',              'grupos' => ['Caja']],
+        'Caja'             => ['icono' => 'heroicon-o-calculator',              'grupos' => ['Mi Caja', 'Movimientos de Caja', 'Administración de Cajas', 'Cierres de Caja', 'Transferencias de Fondos', 'Métodos de Pago']],
         'Inventario'       => ['icono' => 'heroicon-o-cube',                    'grupos' => ['Productos', 'Compras', 'Recepción', 'Existencias', 'Ajustes / Cuadres', 'Traslados', 'Préstamos']],
         'Transporte (TMS)' => ['icono' => 'heroicon-o-truck',                   'grupos' => ['Mercados', 'Vehículos', 'Conductores', 'Rutas', 'Despachos']],
         'Maestros'         => ['icono' => 'heroicon-o-users',                   'grupos' => ['Clientes', 'Proveedores']],

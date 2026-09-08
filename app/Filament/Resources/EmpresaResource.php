@@ -248,19 +248,13 @@ class EmpresaResource extends Resource
                                     ]),
                                 FileUpload::make('certificado')
                                     ->label('Certificado Digital (.pem / .pfx / .p12)')
-                                    // acceptedFileTypes valida por tipo MIME, no por extensión:
-                                    // pasarle '.pem' no coincidía con nada y rechazaba todo.
-                                    // Los navegadores reportan estos archivos de forma dispar
-                                    // (octet-stream, x-pkcs12 o text/plain según el sistema),
-                                    // así que se acepta el rango y la extensión real se valida
-                                    // en el servidor con la regla extensions.
-                                    ->acceptedFileTypes([
-                                        'application/x-pkcs12',
-                                        'application/x-x509-ca-cert',
-                                        'application/pkix-cert',
-                                        'application/octet-stream',
-                                        'text/plain',
-                                    ])
+                                    // Sin acceptedFileTypes a propósito. Filament lo traduce a
+                                    // una regla mimetypes: y a un atributo accept, y ambos fallan
+                                    // acá: un .pem se detecta como application/x-x509-user-cert
+                                    // por extensión pero como text/plain por contenido, según el
+                                    // servidor; y el accept hacía que el selector de Windows ni
+                                    // siquiera mostrara los .pem. La extensión es lo único estable,
+                                    // y se valida abajo, que además es lo que de verdad importa.
                                     ->rules(['extensions:pem,pfx,p12'])
                                     ->validationMessages([
                                         'extensions' => 'El certificado debe ser un archivo .pem, .pfx o .p12.',

@@ -262,7 +262,7 @@ class EmpresaResource extends Resource
                                     ->helperText('Se guarda en almacenamiento privado, nunca accesible por URL.')
                                     ->directory('certificados')
                                     ->maxSize(512)
-                                    ->visible(fn ($record) => $record !== null),
+                                    ,
                             ]),
 
                         Tab::make('Configuración')

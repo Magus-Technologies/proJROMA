@@ -21,7 +21,7 @@ class ListCierresCaja extends ListRecords
         // esta vista solo lista, revisa y aprueba esos cierres.
         return [
             Action::make('cuadre_consolidado')
-                ->visible(fn (): bool => auth()->user()?->can('caja.cierres') ?? false)
+                ->visible(fn (): bool => auth()->user()?->can('caja.cierres_consolidado') ?? false)
                 ->label('Cuadre Consolidado')
                 ->icon('heroicon-o-scale')
                 ->color('primary')

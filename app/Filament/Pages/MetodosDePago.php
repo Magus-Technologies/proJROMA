@@ -129,7 +129,7 @@ class MetodosDePago extends Page implements HasTable
             ])
             ->actions([
                 EditAction::make('editar')
-    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_gestionar') ?? false)
+    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_editar') ?? false)
                     ->icon('heroicon-o-pencil')
                     ->color('primary')
                     ->form([
@@ -148,7 +148,7 @@ class MetodosDePago extends Page implements HasTable
                         Notification::make()->success()->title('Banco actualizado')->send();
                     }),
                 \Filament\Actions\Action::make('toggle')
-    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_gestionar') ?? false)
+    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_estado') ?? false)
                     ->icon('heroicon-o-arrows-right-left')
                     ->color('warning')
                     ->action(function (Banco $record): void {
@@ -195,7 +195,7 @@ class MetodosDePago extends Page implements HasTable
             ])
             ->actions([
                 EditAction::make('editar')
-                    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_gestionar') ?? false)
+                    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_editar') ?? false)
                     ->icon('heroicon-o-pencil')->color('primary')
                     ->form([
                         Select::make('id_banco')->label('Banco')->required()
@@ -233,7 +233,7 @@ class MetodosDePago extends Page implements HasTable
                         Notification::make()->success()->title('Cuenta actualizada')->send();
                     }),
                 \Filament\Actions\Action::make('toggle')
-    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_gestionar') ?? false)
+    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_estado') ?? false)
                     ->icon('heroicon-o-arrows-right-left')->color('warning')
                     ->action(function (CuentaBancaria $record): void {
                         $nuevo = $record->estado === '1' ? '0' : '1';
@@ -272,7 +272,7 @@ class MetodosDePago extends Page implements HasTable
             ])
             ->actions([
                 EditAction::make('editar')
-                    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_gestionar') ?? false)
+                    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_editar') ?? false)
                     ->icon('heroicon-o-pencil')->color('primary')
                     ->form([
                         Select::make('id_banco')->label('Banco')->required()
@@ -307,7 +307,7 @@ class MetodosDePago extends Page implements HasTable
                         Notification::make()->success()->title('Tarjeta actualizada')->send();
                     }),
                 \Filament\Actions\Action::make('toggle')
-    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_gestionar') ?? false)
+    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_estado') ?? false)
                     ->icon('heroicon-o-arrows-right-left')->color('warning')
                     ->action(function (Tarjeta $record): void {
                         $nuevo = $record->estado === '1' ? '0' : '1';
@@ -351,7 +351,7 @@ class MetodosDePago extends Page implements HasTable
             ])
             ->actions([
                 EditAction::make('editar')
-                    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_gestionar') ?? false)
+                    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_editar') ?? false)
                     ->icon('heroicon-o-pencil')->color('primary')
                     ->form([
                         Select::make('id_billetera_tipo')->label('Tipo de billetera')->required()
@@ -391,7 +391,7 @@ class MetodosDePago extends Page implements HasTable
                         Notification::make()->success()->title('Billetera actualizada')->send();
                     }),
                 \Filament\Actions\Action::make('toggle')
-    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_gestionar') ?? false)
+    ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_estado') ?? false)
                     ->icon('heroicon-o-arrows-right-left')->color('warning')
                     ->action(function (BilleteraDigital $record): void {
                         $nuevo = $record->estado === '1' ? '0' : '1';
@@ -405,7 +405,7 @@ class MetodosDePago extends Page implements HasTable
     {
         return [
             Action::make('crear')
-                ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_gestionar') ?? false)
+                ->visible(fn (): bool => auth()->user()?->can('caja.metodos_pago_crear') ?? false)
                 ->label(fn (): string => match ($this->tab) {
                     'cuentas' => 'Nueva Cuenta',
                     'tarjetas' => 'Nueva Tarjeta',

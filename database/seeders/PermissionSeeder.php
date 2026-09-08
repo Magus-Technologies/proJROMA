@@ -96,17 +96,23 @@ class PermissionSeeder extends Seeder
                 'caja.gestionar_instrumentos' => 'Asignar métodos de pago a una caja',
             ],
             'Movimientos' => [
-                'caja.movimientos_ver'   => 'Ver movimientos de todas las cajas',
-                'caja.movimiento_anular' => 'Anular un movimiento',
+                'caja.movimientos_ver'       => 'Ver movimientos de todas las cajas',
+                'caja.movimientos_registrar' => 'Registrar ingresos y egresos desde esta pantalla',
+                'caja.movimiento_anular'     => 'Anular un movimiento',
             ],
             'Cierres y Cuadre' => [
-                'caja.cierres'        => 'Ver cierres y cuadres',
-                'caja.cierre_aprobar' => 'Aprobar o rechazar un cierre',
-                'caja.cancelar_deuda' => 'Cancelar (perdonar) una deuda de cierre',
+                'caja.cierres'            => 'Ver cierres y cuadres',
+                'caja.cierres_consolidado' => 'Generar el cuadre consolidado',
+                'caja.cierre_aprobar'     => 'Aprobar o rechazar un cierre',
+                'caja.cancelar_deuda'     => 'Cancelar (perdonar) una deuda de cierre',
             ],
             'Asignaciones de Fondo' => [
-                'caja.transferencias'           => 'Ver asignaciones de fondo',
-                'caja.transferencias_gestionar' => 'Asignar, reasignar, anular y resolver discrepancias',
+                'caja.transferencias'             => 'Ver asignaciones de fondo',
+                'caja.transferencias_asignar'     => 'Asignar fondos a una caja',
+                'caja.transferencias_reasignar'   => 'Reasignar una asignación',
+                'caja.transferencias_anular'      => 'Anular una asignación',
+                'caja.transferencias_rechazar'    => 'Rechazar una asignación',
+                'caja.transferencias_discrepancia' => 'Resolver una discrepancia',
             ],
             'Mi Caja' => [
                 'caja.ver'                  => 'Ver mi caja y sus movimientos',
@@ -122,8 +128,10 @@ class PermissionSeeder extends Seeder
                 'caja.principales_estado' => 'Activar o desactivar una caja principal',
             ],
             'Métodos de Pago' => [
-                'caja.metodos_pago'           => 'Ver bancos, cuentas, tarjetas y billeteras',
-                'caja.metodos_pago_gestionar' => 'Crear, editar y activar métodos de pago',
+                'caja.metodos_pago'        => 'Ver bancos, cuentas, tarjetas y billeteras',
+                'caja.metodos_pago_crear'  => 'Crear métodos de pago',
+                'caja.metodos_pago_editar' => 'Editar métodos de pago',
+                'caja.metodos_pago_estado' => 'Activar o desactivar un método de pago',
             ],
             'Códigos QR' => [
                 'qr.ver' => 'Ver códigos QR de cobro',

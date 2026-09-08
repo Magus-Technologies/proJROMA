@@ -251,7 +251,6 @@ class MiCaja extends Page implements HasTable
             ->where('id_empresa', (int) session('id_empresa'))
             ->where('id_usuario_responsable', auth()->user()->usuario_id)
             ->where('estado', 'ACTIVA')
-            ->orderByRaw('CASE WHEN id_caja_padre IS NOT NULL THEN 0 ELSE 1 END')
             ->first();
     }
 
@@ -522,7 +521,6 @@ class MiCaja extends Page implements HasTable
         }
 
         $cajaId = (int) $this->caja->id;
-        $esHija = $this->caja->id_caja_padre !== null;
 
         $movimientoForm = [
             TextInput::make('descripcion')
@@ -571,10 +569,10 @@ class MiCaja extends Page implements HasTable
                         ? '💰 Fondo asignado: S/ ' . number_format($tr->monto, 2) . ' desde "' . ($tr->origen?->nombre ?? 'bóveda') . '" (asignó ' . ($tr->asignadoPor?->nombres ?? '—') . '). Cuenta el efectivo recibido: la caja abrirá con lo que declares y cualquier diferencia quedará como discrepancia para el supervisor.'
                         : null;
                 })
-                ->visible(fn (): bool => ($esHija && ! DB::table('caja_aperturas')
+                ->visible(fn (): bool => ! DB::table('caja_aperturas')
                     ->where('id_caja', $cajaId)
                     ->where('estado', 'ABIERTA')
-                    ->exists())
+                    ->exists()
                         && (auth()->user()?->can('caja.aperturar') ?? false))
                 ->form([
                     DatePicker::make('fecha')
@@ -745,7 +743,7 @@ class MiCaja extends Page implements HasTable
                 ->label('Cerrar Caja')
                 ->color('warning')
                 ->icon('heroicon-o-lock-closed')
-                ->visible(fn (): bool => $esHija && (auth()->user()?->can('caja.cerrar') ?? false))
+                ->visible(fn (): bool => auth()->user()?->can('caja.cerrar') ?? false)
                 ->modalWidth('3xl')
                 ->modalDescription(function (): string {
                     $saldos = $this->saldosPorInstrumento();

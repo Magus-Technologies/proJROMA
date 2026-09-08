@@ -16,7 +16,6 @@ class Caja extends Model
         'id_empresa',
         'sucursal',
         'id_usuario_responsable',
-        'id_caja_padre',
         'saldo_actual',
         'moneda',
         'estado',
@@ -29,16 +28,6 @@ class Caja extends Model
     public function responsable()
     {
         return $this->belongsTo(User::class, 'id_usuario_responsable', 'usuario_id');
-    }
-
-    public function padre()
-    {
-        return $this->belongsTo(Caja::class, 'id_caja_padre', 'id');
-    }
-
-    public function hijas()
-    {
-        return $this->hasMany(Caja::class, 'id_caja_padre', 'id');
     }
 
     public function movimientos()

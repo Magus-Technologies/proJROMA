@@ -257,7 +257,7 @@ class CierresCajaResource extends Resource
                         \Filament\Forms\Components\Radio::make('modo')
                             ->label('¿Cómo se cancela?')
                             ->options([
-                                'EFECTIVO'  => 'El trabajador devuelve el dinero (ingresa a la caja principal)',
+                                'EFECTIVO'  => 'El trabajador devuelve el dinero (ingresa a la caja)',
                                 'DESCUENTO' => 'Se descuenta de su sueldo / planilla (no ingresa dinero a caja)',
                             ])
                             ->default('EFECTIVO')
@@ -272,12 +272,8 @@ class CierresCajaResource extends Resource
 
                         \Illuminate\Support\Facades\DB::transaction(function () use ($record, $deuda, $data): void {
                             if ($data['modo'] === 'EFECTIVO') {
-                                // El dinero devuelto entra a la caja principal
-                                // (o a la propia caja si no tiene padre).
-                                $idCajaDestino = $record->caja?->id_caja_padre ?: $record->id_caja;
-
                                 app(CajaService::class)->registrarMovimiento([
-                                    'id_caja'          => $idCajaDestino,
+                                    'id_caja'          => $record->id_caja,
                                     'tipo'             => 'INGRESO',
                                     'categoria'        => 'REPOSICION',
                                     'descripcion'      => 'Pago de deuda por faltante en cierre #' . $record->id . ' — ' . ($record->usuarioCierra?->nombres ?? 'trabajador'),
@@ -299,7 +295,7 @@ class CierresCajaResource extends Resource
                         Notification::make()->success()
                             ->title('Deuda cancelada')
                             ->body($data['modo'] === 'EFECTIVO'
-                                ? 'S/ ' . number_format($deuda->monto, 2) . ' ingresó a la caja principal como reposición.'
+                                ? 'S/ ' . number_format($deuda->monto, 2) . ' ingresó a la caja como reposición.'
                                 : 'Marcada para descuento en planilla — no ingresó dinero a caja.')
                             ->send();
                     }),

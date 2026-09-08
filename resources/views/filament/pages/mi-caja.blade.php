@@ -11,7 +11,6 @@
             <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
                 <p class="text-sm text-gray-500 dark:text-gray-400">Caja</p>
                 <p class="text-xl font-bold text-gray-900 dark:text-white">{{ $this->caja->nombre }}</p>
-                <p class="text-xs text-gray-400 mt-1">{{ $this->caja->id_caja_padre ? 'Caja hija' : 'Caja principal' }}</p>
             </div>
             <div class="rounded-xl border border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20 p-5">
                 <p class="text-sm text-green-600 dark:text-green-400">Saldo Actual</p>

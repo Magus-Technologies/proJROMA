@@ -498,7 +498,6 @@ class CreateCompra extends CreateRecord
             ->where('id_empresa', (int) session('id_empresa'))
             ->where('id_usuario_responsable', auth()->id())
             ->where('estado', 'ACTIVA')
-            ->orderByRaw('CASE WHEN id_caja_padre IS NOT NULL THEN 0 ELSE 1 END')
             ->first();
 
         $documento = trim(($compra->serie ?? '') . '-' . ($compra->numero ?? ''), '-');

@@ -6,10 +6,8 @@ use App\Filament\Resources\CierresCajaResource;
 use App\Services\CajaService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
-use Illuminate\Support\Facades\DB;
 
 class ListCierresCaja extends ListRecords
 {
@@ -25,24 +23,16 @@ class ListCierresCaja extends ListRecords
                 ->label('Cuadre Consolidado')
                 ->icon('heroicon-o-scale')
                 ->color('primary')
+                ->modalDescription('Suma los cierres de todas las cajas de la empresa en la fecha elegida.')
                 ->form([
-                    Select::make('id_caja_padre')
-                        ->label('Caja principal')
-                        ->options(fn () => DB::table('cajas')
-                            ->where('id_empresa', (int) session('id_empresa'))
-                            ->whereNull('id_caja_padre')
-                            ->pluck('nombre', 'id')
-                            ->toArray())
-                        ->required(),
-
                     DatePicker::make('fecha')
                         ->label('Fecha')
                         ->default(now())
                         ->required(),
                 ])
                 ->action(function (array $data): void {
-                    $consolidado = app(CajaService::class)->consolidadoCajasHijas(
-                        (int) $data['id_caja_padre'],
+                    $consolidado = app(CajaService::class)->consolidadoCajas(
+                        (int) session('id_empresa'),
                         $data['fecha']
                     );
 

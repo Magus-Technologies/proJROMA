@@ -75,42 +75,23 @@ class PruebaIntegralSeeder extends Seeder
             $this->command?->warn("Usuario VICTOR ya existe (id {$victorId}).");
         }
 
-        // ── 2. Caja hija de VICTOR (bajo la primera caja principal) ──────
+        // ── 2. Caja de VICTOR ────────────────────────────────────────────
         $tieneCaja = DB::table('cajas')
             ->where('id_empresa', self::EMPRESA)
             ->where('id_usuario_responsable', $victorId)
-            ->whereNotNull('id_caja_padre')
             ->exists();
 
         if (! $tieneCaja) {
-            $idPadre = DB::table('cajas')
-                ->where('id_empresa', self::EMPRESA)
-                ->whereNull('id_caja_padre')
-                ->where('estado', 'ACTIVA')
-                ->value('id');
-
-            if (! $idPadre) {
-                $idPadre = DB::table('cajas')->insertGetId([
-                    'id_empresa'   => self::EMPRESA,
-                    'sucursal'     => self::SUCURSAL,
-                    'nombre'       => 'Caja Principal',
-                    'saldo_actual' => 0,
-                    'moneda'       => 'PEN',
-                    'estado'       => 'ACTIVA',
-                ]);
-            }
-
             DB::table('cajas')->insert([
                 'id_empresa'             => self::EMPRESA,
                 'sucursal'               => self::SUCURSAL,
                 'nombre'                 => 'CAJA VICTOR (PRUEBA)',
-                'id_caja_padre'          => $idPadre,
                 'id_usuario_responsable' => $victorId,
                 'saldo_actual'           => 0,
                 'moneda'                 => 'PEN',
                 'estado'                 => 'ACTIVA',
             ]);
-            $this->command?->info('Caja hija de VICTOR creada.');
+            $this->command?->info('Caja de VICTOR creada.');
         }
 
         // ── 3. Productos con peso ────────────────────────────────────────

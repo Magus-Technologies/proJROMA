@@ -50,7 +50,7 @@ class TransferenciaFondoResource extends Resource
                     ->sortable(),
 
                 TextColumn::make('origen.nombre')
-                    ->label('Desde (bóveda)'),
+                    ->label('Desde'),
 
                 TextColumn::make('destino.nombre')
                     ->label('Caja destino')
@@ -120,19 +120,18 @@ class TransferenciaFondoResource extends Resource
                     ->icon('heroicon-o-plus-circle')
                     ->color('primary')
                     ->modalHeading('Asignar fondo a una caja')
-                    ->modalDescription('El monto saldrá de la bóveda en este momento (el sobre ya se preparó). El cajero deberá contar el efectivo y aperturar su caja para aplicarlo.')
+                    ->modalDescription('El monto saldrá de la caja de origen en este momento (el sobre ya se preparó). El cajero deberá contar el efectivo y aperturar su caja para aplicarlo.')
                     ->form([
                         Select::make('id_caja_origen')
-                            ->label('Desde (bóveda / caja principal)')
+                            ->label('Desde (caja de origen)')
                             ->options(fn () => Caja::where('id_empresa', (int) session('id_empresa'))
-                                ->whereNull('id_caja_padre')
                                 ->pluck('nombre', 'id'))
+                            ->searchable()
                             ->required(),
                         Select::make('id_caja_destino')
-                            ->label('Caja destino (hija)')
+                            ->label('Caja destino')
                             ->options(fn () => Caja::with('responsable')
                                 ->where('id_empresa', (int) session('id_empresa'))
-                                ->whereNotNull('id_caja_padre')
                                 ->get()
                                 ->mapWithKeys(fn (Caja $c) => [
                                     $c->id => $c->nombre . ' — responsable: ' . ($c->responsable?->nombres ?? '⚠ sin asignar'),
@@ -169,7 +168,7 @@ class TransferenciaFondoResource extends Resource
 
                         Notification::make()->success()
                             ->title('Fondo asignado (#' . $id . ')')
-                            ->body('S/ ' . number_format((float) $data['monto'], 2) . ' salieron de la bóveda. El cajero debe contar y aperturar su caja para aplicarlo.')
+                            ->body('S/ ' . number_format((float) $data['monto'], 2) . ' salieron de la caja de origen. El cajero debe contar y aperturar su caja para aplicarlo.')
                             ->send();
                     }),
             ])
@@ -182,7 +181,7 @@ class TransferenciaFondoResource extends Resource
                         && (auth()->user()?->can('caja.transferencias_anular') ?? false))
                     ->requiresConfirmation()
                     ->modalHeading('Anular asignación')
-                    ->modalDescription(fn (TransferenciaFondo $record): string => 'S/ ' . number_format($record->monto, 2) . ' regresarán a la bóveda "' . ($record->origen?->nombre ?? '') . '".')
+                    ->modalDescription(fn (TransferenciaFondo $record): string => 'S/ ' . number_format($record->monto, 2) . ' regresarán a la caja "' . ($record->origen?->nombre ?? '') . '".')
                     ->form([
                         Textarea::make('motivo')
                             ->label('Motivo')
@@ -206,7 +205,7 @@ class TransferenciaFondoResource extends Resource
 
                         Notification::make()->success()
                             ->title('Asignación anulada')
-                            ->body('El efectivo regresó a la bóveda.')
+                            ->body('El efectivo regresó a la caja de origen.')
                             ->send();
                     }),
 
@@ -217,7 +216,7 @@ class TransferenciaFondoResource extends Resource
                     ->visible(fn (TransferenciaFondo $record): bool => ($record->estado === 'ASIGNADA')
                         && (auth()->user()?->can('caja.transferencias_reasignar') ?? false))
                     ->modalHeading('Reasignar fondo')
-                    ->modalDescription(fn (TransferenciaFondo $record): string => 'La asignación actual (S/ ' . number_format($record->monto, 2) . ' → ' . ($record->destino?->nombre ?? '') . ') se anulará y su efectivo regresará a la bóveda; en el mismo paso se creará la nueva asignación.')
+                    ->modalDescription(fn (TransferenciaFondo $record): string => 'La asignación actual (S/ ' . number_format($record->monto, 2) . ' → ' . ($record->destino?->nombre ?? '') . ') se anulará y su efectivo regresará a la caja de origen; en el mismo paso se creará la nueva asignación.')
                     ->fillForm(fn (TransferenciaFondo $record): array => [
                         'id_caja_origen' => $record->id_caja_origen,
                         'id_caja_destino' => $record->id_caja_destino,
@@ -226,16 +225,15 @@ class TransferenciaFondoResource extends Resource
                     ])
                     ->form([
                         Select::make('id_caja_origen')
-                            ->label('Desde (bóveda / caja principal)')
+                            ->label('Desde (caja de origen)')
                             ->options(fn () => Caja::where('id_empresa', (int) session('id_empresa'))
-                                ->whereNull('id_caja_padre')
                                 ->pluck('nombre', 'id'))
+                            ->searchable()
                             ->required(),
                         Select::make('id_caja_destino')
-                            ->label('Caja destino (hija)')
+                            ->label('Caja destino')
                             ->options(fn () => Caja::with('responsable')
                                 ->where('id_empresa', (int) session('id_empresa'))
-                                ->whereNotNull('id_caja_padre')
                                 ->get()
                                 ->mapWithKeys(fn (Caja $c) => [
                                     $c->id => $c->nombre . ' — responsable: ' . ($c->responsable?->nombres ?? '⚠ sin asignar'),
@@ -293,7 +291,7 @@ class TransferenciaFondoResource extends Resource
                         && (auth()->user()?->can('caja.transferencias_rechazar') ?? false))
                     ->requiresConfirmation()
                     ->modalHeading('Rechazar asignación')
-                    ->modalDescription(fn (TransferenciaFondo $record): string => 'El cajero no acepta el fondo: S/ ' . number_format($record->monto, 2) . ' regresarán a la bóveda "' . ($record->origen?->nombre ?? '') . '".')
+                    ->modalDescription(fn (TransferenciaFondo $record): string => 'El cajero no acepta el fondo: S/ ' . number_format($record->monto, 2) . ' regresarán a la caja "' . ($record->origen?->nombre ?? '') . '".')
                     ->form([
                         Textarea::make('motivo')
                             ->label('Motivo del rechazo')
@@ -318,7 +316,7 @@ class TransferenciaFondoResource extends Resource
 
                         Notification::make()->success()
                             ->title('Asignación rechazada')
-                            ->body('El efectivo regresó a la bóveda.')
+                            ->body('El efectivo regresó a la caja de origen.')
                             ->send();
                     }),
 
@@ -337,7 +335,7 @@ class TransferenciaFondoResource extends Resource
                         Radio::make('resolucion')
                             ->label('¿Qué pasó con la diferencia?')
                             ->options([
-                                'AJUSTE_BOVEDA' => 'El sobre se preparó mal: ajustar la bóveda (el dinero sigue/salió de ahí)',
+                                'AJUSTE_BOVEDA' => 'El sobre se preparó mal: ajustar la caja de origen (el dinero sigue/salió de ahí)',
                                 'PERDIDA' => 'Se perdió en el traslado: registrar como pérdida (sin ajuste de cajas)',
                             ])
                             ->default('AJUSTE_BOVEDA')

@@ -122,11 +122,6 @@ class PermissionSeeder extends Seeder
                 'caja.apertura_ver'         => 'Ver detalle de la apertura',
                 'caja.apertura_editar'      => 'Editar la apertura del día',
             ],
-            'Cajas Principales' => [
-                'caja.principales'        => 'Ver cajas principales',
-                'caja.principales_editar' => 'Editar y crear cajas hijas',
-                'caja.principales_estado' => 'Activar o desactivar una caja principal',
-            ],
             'Métodos de Pago' => [
                 'caja.metodos_pago'        => 'Ver bancos, cuentas, tarjetas y billeteras',
                 'caja.metodos_pago_crear'  => 'Crear métodos de pago',

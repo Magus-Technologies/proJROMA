@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Asignación de fondo desde una caja principal (bóveda) hacia una caja hija.
+ * Asignación de fondo de una caja a otra.
  * El cajero la confirma al aperturar contando el efectivo recibido.
  */
 class TransferenciaFondo extends Model

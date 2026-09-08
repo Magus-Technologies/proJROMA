@@ -50,31 +50,6 @@ class GestionCajasResource extends Resource
                     ->toArray())
                 ->searchable(),
 
-            Select::make('tipo_caja')
-                ->label('Tipo de caja')
-                ->options([
-                    'PRINCIPAL' => 'Caja Principal',
-                    'HIJA'      => 'Caja Hija (de un trabajador)',
-                ])
-                ->live()
-                ->required()
-                ->default('PRINCIPAL')
-                ->formatStateUsing(fn ($state, ?Caja $record) => $state
-                    ?? ($record?->id_caja_padre ? 'HIJA' : 'PRINCIPAL'))
-                ->helperText('La caja principal administra el dinero; cada trabajador (vendedor, cajero) reporta a su propia caja hija.'),
-
-            Select::make('id_caja_padre')
-                ->label('Caja Padre')
-                ->options(fn (?Caja $record) => Caja::where('id_empresa', (int) session('id_empresa'))
-                    ->whereNull('id_caja_padre')
-                    ->when($record, fn ($q) => $q->where('id', '<>', $record->id))
-                    ->pluck('nombre', 'id')
-                    ->toArray())
-                ->searchable()
-                ->visible(fn (callable $get) => $get('tipo_caja') === 'HIJA')
-                ->required(fn (callable $get) => $get('tipo_caja') === 'HIJA')
-                ->helperText('Caja principal de la que depende esta caja hija.'),
-
             Select::make('estado')
                 ->label('Estado')
                 ->options([
@@ -94,16 +69,6 @@ class GestionCajasResource extends Resource
                     ->label('Nombre')
                     ->searchable()
                     ->sortable(),
-
-                TextColumn::make('jerarquia')
-                    ->label('Tipo')
-                    ->badge()
-                    ->getStateUsing(fn (Caja $record): string =>
-                        $record->id_caja_padre ? 'HIJA' : 'PRINCIPAL'
-                    )
-                    ->color(fn (string $state): string =>
-                        $state === 'PRINCIPAL' ? 'primary' : 'warning'
-                    ),
 
                 TextColumn::make('responsable.nombres')
                     ->label('Responsable')
@@ -129,15 +94,7 @@ class GestionCajasResource extends Resource
                     ]),
             ])
             ->actions([
-                EditAction::make()
-                    ->mutateDataUsing(function (array $data): array {
-                        if (empty($data['id_caja_padre'])) {
-                            $data['id_caja_padre'] = null;
-                        }
-                        unset($data['tipo_caja']);
-
-                        return $data;
-                    }),
+                EditAction::make(),
 
                 Action::make('toggle_estado')
                     ->visible(fn (): bool => auth()->user()?->can('caja.gestionar_estado') ?? false)
@@ -154,8 +111,7 @@ class GestionCajasResource extends Resource
                     ->label('Instrumentos')
                     ->icon('heroicon-o-credit-card')
                     ->color('info')
-                    ->visible(fn (Caja $record): bool => ($record->id_caja_padre !== null)
-                        && (auth()->user()?->can('caja.gestionar_instrumentos') ?? false))
+                    ->visible(fn (): bool => auth()->user()?->can('caja.gestionar_instrumentos') ?? false)
                     ->modalHeading('Asignar Métodos de Pago')
                     ->modalDescription(fn (Caja $record): string => "Caja: {$record->nombre}")
                     ->fillForm(fn (Caja $record): array => [

@@ -95,7 +95,7 @@ class CajaService
     }
 
     /**
-     * Crear caja por defecto para una empresa/sucursal (GENERAL + CHICA).
+     * Crear la caja por defecto de una empresa/sucursal.
      */
     public function crearCajasDefault(int $idEmpresa, int $sucursal): void
     {
@@ -106,20 +106,10 @@ class CajaService
 
         if ($existe) return;
 
-        $idPadre = DB::table('cajas')->insertGetId([
-            'id_empresa' => $idEmpresa,
-            'sucursal'   => $sucursal,
-            'nombre'     => 'Caja Principal',
-            'saldo_actual' => 0,
-            'moneda'     => 'PEN',
-            'estado'     => 'ACTIVA',
-        ]);
-
         DB::table('cajas')->insert([
             'id_empresa' => $idEmpresa,
             'sucursal'   => $sucursal,
-            'nombre'     => 'Caja Chica',
-            'id_caja_padre' => $idPadre,
+            'nombre'     => 'Caja General',
             'saldo_actual' => 0,
             'moneda'     => 'PEN',
             'estado'     => 'ACTIVA',
@@ -127,7 +117,7 @@ class CajaService
     }
 
     /**
-     * Asignar fondo desde una caja principal (bóveda) hacia una caja hija.
+     * Asignar fondo de una caja a otra.
      * El dinero sale de la bóveda EN ESTE MOMENTO (el sobre ya se preparó):
      * así nadie puede asignar dos veces el mismo efectivo — la validación de
      * saldo insuficiente lo impide sola.
@@ -141,7 +131,7 @@ class CajaService
             $origen = DB::table('cajas')->where('id', $idCajaOrigen)->first();
             $destino = DB::table('cajas')->where('id', $idCajaDestino)->first();
             if (!$origen || !$destino) throw new \RuntimeException('Caja no encontrada.');
-            if ($destino->id_caja_padre === null) throw new \RuntimeException('El destino debe ser una caja hija (las principales no aperturan turno).');
+            // Ya no hay cajas principales: los fondos se mueven entre cualquier par.
 
             // El cajero responsable es el de la caja destino: no se elige a mano
             $idCajero = (int) ($destino->id_usuario_responsable ?? 0);
@@ -391,12 +381,6 @@ class CajaService
         return DB::transaction(function () use ($idCaja, $saldoDeclarado, $desglose, $idUsuario) {
             $caja = DB::table('cajas')->where('id', $idCaja)->lockForUpdate()->first();
             if (!$caja) throw new \RuntimeException('Caja no encontrada.');
-
-            // El cierre de turno es solo de cajas hijas: la caja principal
-            // consolida, no cierra turnos.
-            if (!$caja->id_caja_padre) {
-                throw new \RuntimeException('Solo las cajas hijas realizan cierre de turno.');
-            }
 
             $apertura = DB::table('caja_aperturas')
                 ->where('id_caja', $idCaja)
@@ -670,7 +654,6 @@ class CajaService
             ->where('id_empresa', (int) session('id_empresa'))
             ->where('id_usuario_responsable', $idUsuario)
             ->where('estado', 'ACTIVA')
-            ->orderByRaw('CASE WHEN id_caja_padre IS NOT NULL THEN 0 ELSE 1 END')
             ->first();
 
         if (!$caja) return null;
@@ -696,15 +679,17 @@ class CajaService
     }
 
     /**
-     * Consolidar el estado de las cajas hijas de una caja principal.
+     * Consolidar el estado de todas las cajas de la empresa en una fecha.
+     *
+     * Antes se consolidaba por caja principal. Al desaparecer la jerarquía el
+     * corte natural pasa a ser la empresa: entran todas sus cajas.
      */
-    public function consolidadoCajasHijas(int $idCajaPadre, string $fecha): array
+    public function consolidadoCajas(int $idEmpresa, string $fecha): array
     {
-        $hijas = DB::table('cajas')->where('id_caja_padre', $idCajaPadre)->get();
-        $idsHijas = $hijas->pluck('id')->toArray();
-
-        // Incluir también la propia caja padre en la consulta
-        $ids = empty($idsHijas) ? [$idCajaPadre] : $idsHijas;
+        $ids = DB::table('cajas')
+            ->where('id_empresa', $idEmpresa)
+            ->pluck('id')
+            ->toArray();
 
         $cierres = DB::table('cierre_caja as cc')
             ->join('cajas as c', 'c.id', '=', 'cc.id_caja')

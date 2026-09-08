@@ -30,6 +30,10 @@ use Illuminate\Support\HtmlString;
  */
 class CreateCompra extends CreateRecord
 {
+    // Mismo repetidor de métodos de pago que usa Ventas: un método por línea,
+    // con su monto, su N° de operación y sus comprobantes.
+    use \App\Filament\Concerns\ArmaPagosVenta;
+
     protected static string $resource = CompraResource::class;
 
     protected static ?string $title = 'Nueva Compra';
@@ -54,25 +58,29 @@ class CreateCompra extends CreateRecord
 
                                 Placeholder::make('resultados_busqueda')
                                     ->hiddenLabel()
-                                    ->visible(fn (callable $get): bool => filled($get('buscador_producto')))
                                     ->content(function (callable $get): HtmlString {
                                         $busqueda = trim((string) $get('buscador_producto'));
-                                        if ($busqueda === '') {
-                                            return new HtmlString('');
-                                        }
 
+                                        // Con el buscador vacío se muestran igual los primeros
+                                        // productos: antes no salía nada hasta escribir y no había
+                                        // forma de ver qué hay disponible.
                                         // En compras NO se filtra por stock: se compra lo que falta.
                                         $productos = Producto::where('id_empresa', (int) session('id_empresa'))
-                                            ->where(fn ($q) => $q
-                                                ->where('descripcion', 'like', "%{$busqueda}%")
-                                                ->orWhere('codigo', 'like', "%{$busqueda}%"))
+                                            ->when($busqueda !== '', fn ($q) => $q
+                                                ->where(fn ($w) => $w
+                                                    ->where('descripcion', 'like', "%{$busqueda}%")
+                                                    ->orWhere('codigo', 'like', "%{$busqueda}%")))
+                                            ->orderBy('descripcion')
                                             ->limit(8)
                                             ->get();
 
                                         if ($productos->isEmpty()) {
                                             return new HtmlString(
-                                                '<div style="padding:10px 12px;opacity:.5;font-size:.875rem">Sin coincidencias para "'
-                                                . e($busqueda) . '"</div>'
+                                                '<div style="padding:10px 12px;opacity:.5;font-size:.875rem">'
+                                                . ($busqueda === ''
+                                                    ? 'No hay productos cargados todavia.'
+                                                    : 'Sin coincidencias para "' . e($busqueda) . '"')
+                                                . '</div>'
                                             );
                                         }
 
@@ -161,10 +169,23 @@ class CreateCompra extends CreateRecord
                             ->schema([
                                 Select::make('id_proveedor')
                                     ->label('Proveedor')
-                                    ->placeholder('Buscar por razón social o RUC…')
+                                    ->placeholder('Elegí un proveedor o buscá por razón social / RUC')
                                     ->searchable()
                                     ->required()
                                     ->columnSpanFull()
+                                    // Con solo getSearchResultsUsing el desplegable salía vacío
+                                    // hasta escribir algo. Estas opciones se muestran al abrirlo;
+                                    // al escribir toma el mando la búsqueda de abajo, que además
+                                    // busca por RUC y no se limita a estos primeros.
+                                    ->options(fn (): array => DB::table('proveedores')
+                                        ->where('id_empresa', (int) session('id_empresa'))
+                                        ->orderBy('razon_social')
+                                        ->limit(50)
+                                        ->get(['proveedor_id', 'razon_social', 'ruc'])
+                                        ->mapWithKeys(fn ($p) => [
+                                            $p->proveedor_id => $p->razon_social . ($p->ruc ? " — {$p->ruc}" : ''),
+                                        ])
+                                        ->toArray())
                                     ->getSearchResultsUsing(fn (string $search): array => DB::table('proveedores')
                                         ->where('id_empresa', (int) session('id_empresa'))
                                         ->where(fn ($q) => $q
@@ -213,29 +234,15 @@ class CreateCompra extends CreateRecord
                                         ->pluck('nombre', 'tipo_pago_id')
                                         ->toArray())
                                     ->default(1)
+                                    // live() para que el bloque de métodos de pago
+                                    // aparezca o se oculte al cambiar contado/crédito.
+                                    ->live()
                                     ->required(),
 
-                                Select::make('instrumento_tipo')
-                                    ->label('Instrumento de pago')
-                                    ->options([
-                                        'EFECTIVO'          => 'Efectivo',
-                                        'TRANSFERENCIA'     => 'Transferencia',
-                                        'BILLETERA_DIGITAL' => 'Billetera digital',
-                                    ])
-                                    ->live()
-                                    ->afterStateUpdated(fn (callable $set) => $set('instrumento_id', null))
-                                    ->nullable(),
-
-                                Select::make('instrumento_id')
-                                    ->label(fn (callable $get): string => match ($get('instrumento_tipo')) {
-                                        'TRANSFERENCIA'     => 'Cuenta bancaria',
-                                        'BILLETERA_DIGITAL' => 'Billetera',
-                                        default             => 'Detalle',
-                                    })
-                                    ->visible(fn (callable $get): bool =>
-                                        in_array($get('instrumento_tipo'), ['TRANSFERENCIA', 'BILLETERA_DIGITAL'], true))
-                                    ->options(fn (callable $get): array => static::opcionesInstrumento($get('instrumento_tipo')))
-                                    ->searchable()
+                                // Solo el contado se paga ahora; el crédito se paga
+                                // después, cuando venza cada cuota.
+                                static::repetidorPagos('pagos', 'Cómo se paga')
+                                    ->visible(fn (callable $get): bool => (int) $get('id_tipo_pago') === 1)
                                     ->columnSpanFull(),
 
                                 TextInput::make('observacion')
@@ -398,12 +405,25 @@ class CreateCompra extends CreateRecord
         return DB::transaction(function () use ($data): Compra {
             [$lineas, $total] = $this->resolverLineas($data);
 
+            $esContado = (int) ($data['id_tipo_pago'] ?? 1) === 1;
+            $pagos     = $esContado ? array_values($data['pagos'] ?? []) : [];
+
+            if ($esContado) {
+                $this->validarPagos($pagos, $total);
+            }
+
+            // El primer método queda en la compra por compatibilidad con lo que
+            // ya leía compras.instrumento_tipo; el detalle vive en compra_pagos.
+            [$instrumentoTipo, $instrumentoId] = $pagos
+                ? CajaService::mapInstrumento($pagos[0]['metodo_pago'])
+                : [null, null];
+
             $compra = Compra::create([
                 'id_proveedor'      => $data['id_proveedor'],
                 'id_tido'           => $data['id_tido'],
                 'id_tipo_pago'      => $data['id_tipo_pago'] ?? 1,
-                'instrumento_tipo'  => $data['instrumento_tipo'] ?? null,
-                'instrumento_id'    => $data['instrumento_id'] ?? null,
+                'instrumento_tipo'  => $instrumentoTipo,
+                'instrumento_id'    => $instrumentoId,
                 'fecha_emision'     => $data['fecha'],
                 'fecha_vencimiento' => $data['fecha'],
                 'direccion'         => $data['observacion'] ?? '',
@@ -418,52 +438,95 @@ class CreateCompra extends CreateRecord
 
             $this->guardarLineas($compra->id_compra, $lineas);
 
-            // ── Registrar egreso en caja si es contado + efectivo ────────
-            $esContado  = (int) ($data['id_tipo_pago'] ?? 1) === 1;
-            $esEfectivo = ($data['instrumento_tipo'] ?? null) === 'EFECTIVO';
-
-            if ($esContado && $esEfectivo) {
-                $caja = DB::table('cajas')
-                    ->where('id_empresa', (int) session('id_empresa'))
-                    ->where('id_usuario_responsable', auth()->id())
-                    ->where('estado', 'ACTIVA')
-                    ->orderByRaw('CASE WHEN id_caja_padre IS NOT NULL THEN 0 ELSE 1 END')
-                    ->first();
-
-                if ($caja) {
-                    $documento = trim(($data['serie'] ?? '') . '-' . ($data['numero'] ?? ''), '-');
-
-                    app(CajaService::class)->registrarMovimiento([
-                        'id_caja'          => $caja->id,
-                        'fecha'            => $data['fecha'],
-                        'tipo'             => 'EGRESO',
-                        'categoria'        => 'COMPRA',
-                        'descripcion'      => $documento
-                            ? "Pago compra {$documento}"
-                            : "Pago compra #{$compra->id_compra}",
-                        'monto'            => $total,
-                        'instrumento_tipo' => 'EFECTIVO',
-                        'instrumento_id'   => null,
-                        'referencia'       => "Compra #{$compra->id_compra}",
-                        'origen_tipo'      => 'Compra',
-                        'origen_id'        => $compra->id_compra,
-                        'id_usuario'       => auth()->id(),
-                    ]);
-                }
-            }
-
-            $mensajeCaja = '';
-            if (isset($caja) && $caja) {
-                $mensajeCaja = ' Se descontaron S/ ' . number_format($total, 2) . ' de tu caja.';
-            }
+            $descontado = $esContado
+                ? $this->registrarPagos($compra, $pagos, $data['fecha'])
+                : 0.0;
 
             Notification::make()->success()
                 ->title('Compra registrada')
-                ->body('Total: S/ ' . number_format($total, 2) . '. El stock ingresa al procesarla en Recepción.' . $mensajeCaja)
+                ->body('Total: S/ ' . number_format($total, 2)
+                    . '. El stock ingresa al procesarla en Recepción.'
+                    . ($descontado > 0 ? ' Se descontaron S/ ' . number_format($descontado, 2) . ' de tu caja.' : ''))
                 ->send();
 
             return $compra;
         });
+    }
+
+    /** La suma de los métodos tiene que dar exactamente el total de la compra. */
+    protected function validarPagos(array $pagos, float $total): void
+    {
+        if (! $pagos) {
+            $this->fallo('Indicá al menos un método de pago.');
+        }
+
+        $suma = static::sumaPagos($pagos);
+
+        if (abs($suma - $total) >= 0.01) {
+            $this->fallo(
+                'Los métodos de pago suman S/ ' . number_format($suma, 2)
+                . ' y la compra es de S/ ' . number_format($total, 2) . '. Tienen que coincidir.'
+            );
+        }
+    }
+
+    /**
+     * Una fila en compra_pagos por método, y su egreso en la caja del usuario.
+     *
+     * @return float lo efectivamente descontado de caja
+     */
+    protected function registrarPagos(Compra $compra, array $pagos, string $fecha): float
+    {
+        $caja = DB::table('cajas')
+            ->where('id_empresa', (int) session('id_empresa'))
+            ->where('id_usuario_responsable', auth()->id())
+            ->where('estado', 'ACTIVA')
+            ->orderByRaw('CASE WHEN id_caja_padre IS NOT NULL THEN 0 ELSE 1 END')
+            ->first();
+
+        $documento = trim(($compra->serie ?? '') . '-' . ($compra->numero ?? ''), '-');
+        $detalle   = $documento ? "Pago compra {$documento}" : "Pago compra #{$compra->id_compra}";
+        $descontado = 0.0;
+
+        foreach ($pagos as $pago) {
+            $monto  = round((float) $pago['monto'], 2);
+            $metodo = $pago['metodo_pago'];
+
+            $idMovimiento = null;
+
+            if ($caja) {
+                [$instrumentoTipo, $instrumentoId] = CajaService::mapInstrumento($metodo);
+
+                $idMovimiento = app(CajaService::class)->registrarMovimiento([
+                    'id_caja'          => $caja->id,
+                    'fecha'            => $fecha,
+                    'tipo'             => 'EGRESO',
+                    'categoria'        => 'COMPRA',
+                    'descripcion'      => $detalle,
+                    'monto'            => $monto,
+                    'instrumento_tipo' => $instrumentoTipo,
+                    'instrumento_id'   => $instrumentoId,
+                    'referencia'       => $pago['referencia'] ?? "Compra #{$compra->id_compra}",
+                    'origen_tipo'      => 'Compra',
+                    'origen_id'        => $compra->id_compra,
+                    'id_usuario'       => auth()->id(),
+                ]);
+
+                $descontado += $monto;
+            }
+
+            \App\Models\CompraPago::create([
+                'id_compra'          => $compra->id_compra,
+                'metodo_pago'        => $metodo,
+                'monto'              => $monto,
+                'referencia'         => $pago['referencia'] ?? null,
+                'comprobantes'       => $pago['comprobantes'] ?? null,
+                'id_movimiento_caja' => $idMovimiento,
+                'id_usuario'         => auth()->id(),
+            ]);
+        }
+
+        return $descontado;
     }
 
     protected function getRedirectUrl(): string

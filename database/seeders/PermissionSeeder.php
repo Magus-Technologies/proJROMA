@@ -57,7 +57,6 @@ class PermissionSeeder extends Seeder
                 'productos.crear'   => 'Crear productos',
                 'productos.editar'  => 'Editar productos',
                 'productos.kardex'  => 'Ver kardex',
-                'productos.exportar'=> 'Exportar Excel',
             ],
             'Recepción' => [
                 'almacen_recepcion.ver'   => 'Ver recepciones',
@@ -89,9 +88,6 @@ class PermissionSeeder extends Seeder
                 'cobranzas.registrar' => 'Registrar abonos / cobros',
                 'cobranzas.editar'    => 'Editar abonos',
                 'cobranzas.anular'    => 'Anular abonos',
-            ],
-            'Reporte Deudas' => [
-                'cobranzas_deudas.ver' => 'Ver reporte de deudas',
             ],
             'Mis Cobros' => [
                 'cobranzas_miscobros.ver' => 'Ver mis cobros',
@@ -134,6 +130,11 @@ class PermissionSeeder extends Seeder
                 'finanzas.indicadores'       => 'Ver indicadores financieros',
                 'finanzas.margenes'          => 'Ver análisis de márgenes',
                 'finanzas.costeo'            => 'Ver costeo y rentabilidad',
+            ],
+            'Reportes' => [
+                'reportes.exportar'     => 'Exportar reportes a Excel',
+                'reportes_ventas.pdf'   => 'Reporte de ventas PDF',
+                'reportes_clientes.pdf' => 'Reporte de cliente PDF',
             ],
             'Usuarios' => [
                 'usuarios.ver'    => 'Ver listado',

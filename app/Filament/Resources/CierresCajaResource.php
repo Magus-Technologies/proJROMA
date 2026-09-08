@@ -189,7 +189,6 @@ class CierresCajaResource extends Resource
                     ->modalCancelActionLabel('Cerrar'),
 
                 Action::make('aprobar')
-                    ->visible(fn (): bool => auth()->user()?->can('caja.cierre_aprobar') ?? false)
                     ->label('Aprobar')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
@@ -227,7 +226,8 @@ class CierresCajaResource extends Resource
                     ->label('Rechazar')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->visible(fn (CierreCaja $record): bool => $record->estado === 'PENDIENTE')
+                    ->visible(fn (CierreCaja $record): bool => $record->estado === 'PENDIENTE'
+                        && (auth()->user()?->can('caja.cierre_aprobar') ?? false))
                     ->form([
                         Textarea::make('observaciones')
                             ->label('Motivo del rechazo')

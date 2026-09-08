@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\DB;
 
 class FlujoCaja extends Page
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'finanzas.flujo_caja';
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-currency-dollar';
     protected static ?string $navigationLabel = 'Flujo de Caja';
     protected static string|\UnitEnum|null $navigationGroup = 'Finanzas';

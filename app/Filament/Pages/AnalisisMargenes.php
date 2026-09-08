@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\DB;
 
 class AnalisisMargenes extends Page
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'finanzas.margenes';
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-arrow-trending-up';
     protected static ?string $navigationLabel = 'Análisis de Márgenes';
     protected static string|\UnitEnum|null $navigationGroup = 'Finanzas';

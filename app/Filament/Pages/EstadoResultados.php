@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\DB;
 
 class EstadoResultados extends Page
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'finanzas.estado_resultados';
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-presentation-chart-bar';
     protected static ?string $navigationLabel = 'Estado de Resultados';
     protected static string|\UnitEnum|null $navigationGroup = 'Finanzas';

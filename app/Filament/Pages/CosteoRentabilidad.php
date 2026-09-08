@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\DB;
 
 class CosteoRentabilidad extends Page
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'finanzas.costeo';
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-scale';
     protected static ?string $navigationLabel = 'Costeo y Rentabilidad';
     protected static string|\UnitEnum|null $navigationGroup = 'Finanzas';

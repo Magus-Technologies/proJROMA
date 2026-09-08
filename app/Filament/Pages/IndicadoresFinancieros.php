@@ -11,6 +11,10 @@ use Filament\Pages\Page;
 
 class IndicadoresFinancieros extends Page
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'finanzas.indicadores';
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-chart-bar-square';
     protected static ?string $navigationLabel = 'Indicadores Financieros';
     protected static string|\UnitEnum|null $navigationGroup = 'Finanzas';

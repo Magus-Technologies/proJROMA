@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\DB;
 
 class Utilidades extends Page
 {
+    use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+
+    public const PERMISO_ACCESO = 'finanzas.utilidades';
+
     /**
      * Categorías de egresos de caja que NO son gasto operativo:
      * COMPRA es mercadería (ya entra a la utilidad como costo de ventas

@@ -52,6 +52,7 @@ class RoleResource extends Resource
         'Transporte (TMS)' => ['icono' => 'heroicon-o-truck',                   'grupos' => ['Mercados', 'Vehículos', 'Conductores', 'Rutas', 'Despachos']],
         'Maestros'         => ['icono' => 'heroicon-o-users',                   'grupos' => ['Clientes', 'Proveedores']],
         'Reportes'         => ['icono' => 'heroicon-o-chart-bar',               'grupos' => ['Reportes']],
+        'Finanzas'         => ['icono' => 'heroicon-o-presentation-chart-bar', 'grupos' => ['Finanzas']],
         'Administración'   => ['icono' => 'heroicon-o-cog-6-tooth',             'grupos' => ['Usuarios', 'Roles', 'Permisos', 'Empresas', 'Sucursales', 'Auditoría', 'Correlativos']],
     ];
 

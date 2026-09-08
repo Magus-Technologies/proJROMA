@@ -133,6 +133,14 @@ class PermissionSeeder extends Seeder
                 'reportes_compras.pdf'  => 'Reporte de compras PDF',
                 'reportes_clientes.pdf' => 'Reporte de clientes PDF',
             ],
+            'Finanzas' => [
+                'finanzas.utilidades'        => 'Ver utilidades',
+                'finanzas.flujo_caja'        => 'Ver flujo de caja',
+                'finanzas.estado_resultados' => 'Ver estado de resultados',
+                'finanzas.indicadores'       => 'Ver indicadores financieros',
+                'finanzas.margenes'          => 'Ver análisis de márgenes',
+                'finanzas.costeo'            => 'Ver costeo y rentabilidad',
+            ],
             'Usuarios' => [
                 'usuarios.ver'    => 'Ver listado',
                 'usuarios.crear'  => 'Crear usuarios',

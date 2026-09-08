@@ -50,7 +50,7 @@ class PermissionResource extends Resource
      *
      * @return array<string, array{grupo: string, descripcion: string}>
      */
-    protected static function catalogo(): array
+    public static function catalogo(): array
     {
         if (static::$catalogoCache !== null) {
             return static::$catalogoCache;

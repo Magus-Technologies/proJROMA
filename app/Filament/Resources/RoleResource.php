@@ -51,7 +51,7 @@ class RoleResource extends Resource
         'Cotizaciones'     => ['icono' => 'heroicon-o-clipboard-document-list', 'grupos' => ['Cotizaciones']],
         'Cobranzas'        => ['icono' => 'heroicon-o-banknotes',               'grupos' => ['Cuentas por Cobrar', 'Reporte Deudas', 'Mis Cobros']],
         'Pagos'            => ['icono' => 'heroicon-o-credit-card',             'grupos' => ['Pagos']],
-        'Caja'             => ['icono' => 'heroicon-o-calculator',              'grupos' => ['Mi Caja', 'Movimientos de Caja', 'Administración de Cajas', 'Cierres de Caja', 'Transferencias de Fondos', 'Métodos de Pago']],
+        'Caja'             => ['icono' => 'heroicon-o-calculator',              'grupos' => ['Gestión de Cajas', 'Movimientos', 'Cierres y Cuadre', 'Asignaciones de Fondo', 'Mi Caja', 'Cajas Principales', 'Métodos de Pago', 'Códigos QR']],
         'Inventario'       => ['icono' => 'heroicon-o-cube',                    'grupos' => ['Productos', 'Compras', 'Recepción', 'Existencias', 'Ajustes / Cuadres', 'Traslados', 'Préstamos']],
         'Transporte (TMS)' => ['icono' => 'heroicon-o-truck',                   'grupos' => ['Mercados', 'Vehículos', 'Conductores', 'Rutas', 'Despachos']],
         'Maestros'         => ['icono' => 'heroicon-o-users',                   'grupos' => ['Clientes', 'Proveedores']],
@@ -76,7 +76,10 @@ class RoleResource extends Resource
                     continue;
                 }
                 $gruposAsignados[] = $groupLabel;
-                $subSchemas[] = static::checkboxDeGrupo($groupLabel, $groups[$groupLabel]);
+                // Un solo grupo que se llama igual que el módulo no aporta un
+                // nivel: se muestra sin encabezado y ya desplegado.
+                $redundante = $groupLabel === $modulo && count($config['grupos']) === 1;
+                $subSchemas[] = static::checkboxDeGrupo($groupLabel, $groups[$groupLabel], $redundante);
                 $totalPermisos += count($groups[$groupLabel]);
             }
 
@@ -124,10 +127,31 @@ class RoleResource extends Resource
         ])->columns(1);
     }
 
-    /** Card plegable de un submódulo (dentro del modal del módulo). */
-    private static function checkboxDeGrupo(string $groupLabel, array $permissions): Section
+    /**
+     * Card plegable de un submódulo (dentro del modal del módulo).
+     *
+     * Con $plano se omiten encabezado, contador y plegado: se usa cuando el
+     * grupo se llama igual que el módulo y repetir el título no aporta nada.
+     * El contenedor se mantiene igual porque el buscador identifica los grupos
+     * por su atributo data-grupo-permisos.
+     */
+    private static function checkboxDeGrupo(string $groupLabel, array $permissions, bool $plano = false): Section
     {
         $permissionNames = array_keys($permissions);
+
+        if ($plano) {
+            return Section::make()
+                ->compact()
+                ->extraAttributes(['class' => 'permisos-subcard', 'data-grupo-permisos' => $groupLabel])
+                ->schema([
+                    CheckboxList::make(static::sanitizeKey($groupLabel))
+                        ->hiddenLabel()
+                        ->options(array_combine($permissionNames, $permissionNames))
+                        ->descriptions($permissions)
+                        ->columnSpanFull()
+                        ->default(fn () => $permissionNames),
+                ]);
+        }
 
         return Section::make($groupLabel)
             ->description(count($permissionNames) . ' permisos')

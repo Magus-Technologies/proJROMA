@@ -306,6 +306,7 @@ class CuentaPorCobrarResource extends Resource
                     }),
 
                 Action::make('ver_venta')
+                    ->visible(fn (): bool => auth()->user()?->can('ventas.ver') ?? false)
                     ->label('Ver venta')
                     ->icon('heroicon-o-eye')
                     ->color('info')

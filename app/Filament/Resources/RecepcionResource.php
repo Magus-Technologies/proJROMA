@@ -144,6 +144,7 @@ class RecepcionResource extends Resource
                     ->modalCancelActionLabel('Cerrar'),
 
                 Action::make('deshacer')
+                    ->visible(fn (): bool => auth()->user()?->can('almacen_recepcion.crear') ?? false)
                     ->label('Deshacer')
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->color('danger')

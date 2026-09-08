@@ -29,6 +29,7 @@ class ListPrestamos extends ListRecords
     {
         return [
             Action::make('nuevo_prestamo')
+                ->visible(fn (): bool => auth()->user()?->can('almacen_prestamos.crear') ?? false)
                 ->label('Nuevo Préstamo')
                 ->icon('heroicon-o-plus')
                 ->color('primary')

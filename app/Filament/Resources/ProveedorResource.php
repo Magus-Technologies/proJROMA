@@ -49,6 +49,7 @@ class ProveedorResource extends Resource
                 )
                 ->suffixAction(
                     Action::make('consultar_doc')
+                        ->visible(fn (): bool => auth()->user()?->can('proveedores.crear') ?? false)
                         ->icon('heroicon-m-magnifying-glass')
                         ->tooltip('Consultar SUNAT / RENIEC')
                         ->action(function ($state, $set) {

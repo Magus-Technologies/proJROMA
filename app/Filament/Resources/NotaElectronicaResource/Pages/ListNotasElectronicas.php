@@ -14,6 +14,7 @@ class ListNotasElectronicas extends ListRecords
     {
         return [
             Action::make('nueva_nota')
+                ->visible(fn (): bool => auth()->user()?->can('notas.crear') ?? false)
                 ->label('Nueva Nota')
                 ->icon('heroicon-o-plus')
                 ->color('primary')

@@ -23,7 +23,7 @@ class MovimientosCajaResource extends Resource
 {
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
 
-    public const PERMISO_ACCESO = 'caja.ver';
+    public const PERMISO_ACCESO = 'caja.movimientos_ver';
 
     protected static ?string $model = CajaMovimiento::class;
 

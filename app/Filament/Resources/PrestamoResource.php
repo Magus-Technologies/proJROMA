@@ -113,6 +113,7 @@ class PrestamoResource extends Resource
             ])
             ->actions([
                 Action::make('gestionar')
+                    ->visible(fn (): bool => auth()->user()?->can('almacen_prestamos.crear') ?? false)
                     ->label('Gestionar')
                     ->icon('heroicon-o-arrows-right-left')
                     ->color('info')

@@ -87,34 +87,46 @@ class PermissionSeeder extends Seeder
                 'almacen_prestamos.ver'   => 'Ver préstamos',
                 'almacen_prestamos.crear' => 'Registrar préstamos',
             ],
-            // El módulo Caja se divide por pantalla, igual que Inventario o
-            // Maestros: 15 permisos en un solo bloque eran ilegibles.
+            // Un grupo por pantalla del menú de Caja, con el mismo nombre.
+            // Cada uno lleva su permiso de ver y sus propias acciones: así se
+            // puede dar Movimientos sin dar Mi Caja, o Cierres sin Métodos de Pago.
+            'Gestión de Cajas' => [
+                'caja.gestionar'              => 'Ver y crear cajas',
+                'caja.gestionar_estado'       => 'Activar o desactivar una caja',
+                'caja.gestionar_instrumentos' => 'Asignar métodos de pago a una caja',
+            ],
+            'Movimientos' => [
+                'caja.movimientos_ver'   => 'Ver movimientos de todas las cajas',
+                'caja.movimiento_anular' => 'Anular un movimiento',
+            ],
+            'Cierres y Cuadre' => [
+                'caja.cierres'        => 'Ver cierres y cuadres',
+                'caja.cierre_aprobar' => 'Aprobar o rechazar un cierre',
+                'caja.cancelar_deuda' => 'Cancelar (perdonar) una deuda de cierre',
+            ],
+            'Asignaciones de Fondo' => [
+                'caja.transferencias'           => 'Ver asignaciones de fondo',
+                'caja.transferencias_gestionar' => 'Asignar, reasignar, anular y resolver discrepancias',
+            ],
             'Mi Caja' => [
                 'caja.ver'                  => 'Ver mi caja y sus movimientos',
                 'caja.aperturar'            => 'Aperturar la caja',
                 'caja.cerrar'               => 'Cerrar la caja',
-                'caja.movimiento_registrar' => 'Registrar ingresos y egresos manuales',
+                'caja.movimiento_registrar' => 'Registrar ingresos y egresos',
                 'caja.apertura_ver'         => 'Ver detalle de la apertura',
                 'caja.apertura_editar'      => 'Editar la apertura del día',
             ],
-            'Movimientos de Caja' => [
-                'caja.movimiento_anular' => 'Anular un movimiento de caja',
-            ],
-            'Administración de Cajas' => [
-                'caja.principales' => 'Ver cajas principales',
-                'caja.gestionar'   => 'Gestionar cajas (crear, editar, instrumentos)',
-            ],
-            'Cierres de Caja' => [
-                'caja.cierres'        => 'Ver cierres de caja',
-                'caja.cierre_aprobar' => 'Aprobar o rechazar un cierre',
-                'caja.cancelar_deuda' => 'Cancelar (perdonar) una deuda de cierre',
-            ],
-            'Transferencias de Fondos' => [
-                'caja.transferencias' => 'Ver y gestionar transferencias entre cajas',
+            'Cajas Principales' => [
+                'caja.principales'        => 'Ver cajas principales',
+                'caja.principales_editar' => 'Editar y crear cajas hijas',
+                'caja.principales_estado' => 'Activar o desactivar una caja principal',
             ],
             'Métodos de Pago' => [
-                'caja.metodos_pago' => 'Gestionar bancos, cuentas, tarjetas y billeteras',
-                'qr.ver'            => 'Ver códigos QR de cobro',
+                'caja.metodos_pago'           => 'Ver bancos, cuentas, tarjetas y billeteras',
+                'caja.metodos_pago_gestionar' => 'Crear, editar y activar métodos de pago',
+            ],
+            'Códigos QR' => [
+                'qr.ver' => 'Ver códigos QR de cobro',
             ],
             'Cuentas por Cobrar' => [
                 'cobranzas.ver'       => 'Ver cuentas por cobrar',

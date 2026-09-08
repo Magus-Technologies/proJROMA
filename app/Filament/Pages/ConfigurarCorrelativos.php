@@ -84,6 +84,7 @@ class ConfigurarCorrelativos extends Page
     {
         return [
             Action::make('guardar')
+                ->visible(fn (): bool => auth()->user()?->can('correlativos.gestionar') ?? false)
                 ->label('Guardar cambios')
                 ->icon('heroicon-m-check')
                 ->requiresConfirmation()

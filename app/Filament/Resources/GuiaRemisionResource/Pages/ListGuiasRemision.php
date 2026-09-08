@@ -14,6 +14,7 @@ class ListGuiasRemision extends ListRecords
     {
         return [
             Action::make('nueva_guia')
+                ->visible(fn (): bool => auth()->user()?->can('guias.crear') ?? false)
                 ->label('Nueva Guía')
                 ->icon('heroicon-o-plus')
                 ->color('primary')

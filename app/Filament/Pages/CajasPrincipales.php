@@ -124,7 +124,7 @@ class CajasPrincipales extends Page implements HasTable
                     ->modalCancelActionLabel('Cerrar'),
 
                 Action::make('editar')
-                    ->visible(fn (): bool => auth()->user()?->can('caja.principales') ?? false)
+                    ->visible(fn (): bool => auth()->user()?->can('caja.principales_editar') ?? false)
                     ->label('Editar')
                     ->iconButton()
                     ->tooltip('Editar caja hija')
@@ -156,7 +156,7 @@ class CajasPrincipales extends Page implements HasTable
                     }),
 
                 Action::make('toggle_estado')
-                    ->visible(fn (): bool => auth()->user()?->can('caja.principales') ?? false)
+                    ->visible(fn (): bool => auth()->user()?->can('caja.principales_estado') ?? false)
                     ->label(fn (Caja $record): string => $record->estado === 'ACTIVA' ? 'Desactivar' : 'Activar')
                     ->iconButton()
                     ->tooltip(fn (Caja $record): string => $record->estado === 'ACTIVA' ? 'Desactivar caja' : 'Activar caja')
@@ -188,7 +188,8 @@ class CajasPrincipales extends Page implements HasTable
                         ->options(fn () => $this->principales->pluck('nombre', 'id')->toArray())
                         ->default(fn () => $this->principales->count() === 1 ? $this->principales->first()->id : null)
                         ->required()
-                        ->visible(fn (): bool => $this->principales->count() > 1),
+                        ->visible(fn (): bool => ($this->principales->count() > 1)
+                        && (auth()->user()?->can('caja.principales_editar') ?? false)),
                     Select::make('id_usuario_responsable')
                         ->label('Responsable (trabajador)')
                         ->options(fn () => User::where('id_empresa', (int) session('id_empresa'))

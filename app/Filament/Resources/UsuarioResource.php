@@ -62,6 +62,7 @@ class UsuarioResource extends Resource
                     ->maxLength(20)
                     ->suffixAction(
                         Action::make('consultar_doc')
+                            ->visible(fn (): bool => auth()->user()?->can('usuarios.crear') ?? false)
                             ->icon('heroicon-m-magnifying-glass')
                             ->tooltip('Consultar SUNAT / RENIEC')
                             ->action(function ($state, $set) {

@@ -140,7 +140,8 @@ class GuiaRemisionResource extends Resource
                     ->label('Ver XML')
                     ->icon('heroicon-m-code-bracket')
                     ->color('gray')
-                    ->visible(fn (GuiaRemision $record): bool => filled($record->xml_ruta))
+                    ->visible(fn (GuiaRemision $record): bool => (filled($record->xml_ruta))
+                        && (auth()->user()?->can('guias.sunat') ?? false))
                     ->url(fn (GuiaRemision $record): string => route('facturacion.xml', [
                         'ruc'     => explode('/', $record->xml_ruta)[2] ?? '',
                         'archivo' => basename($record->xml_ruta),
@@ -190,8 +191,8 @@ class GuiaRemisionResource extends Resource
                     ->label('Consultar ticket')
                     ->icon('heroicon-o-arrow-path')
                     ->color('info')
-                    ->visible(fn (GuiaRemision $record): bool =>
-                        $record->estado_gre === 'enviado' && filled($record->ticket_sunat))
+                    ->visible(fn (GuiaRemision $record): bool => ($record->estado_gre === 'enviado' && filled($record->ticket_sunat))
+                        && (auth()->user()?->can('guias.sunat') ?? false))
                     ->action(function (GuiaRemision $record): void {
                         $res = app(\App\Services\GuiaSunatService::class)->consultarTicket($record);
                         $n = Notification::make()->title($res['msg']);

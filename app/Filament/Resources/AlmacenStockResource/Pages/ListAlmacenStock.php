@@ -224,6 +224,7 @@ class ListAlmacenStock extends ListRecords
     {
         return [
             Action::make('ingreso')
+                ->visible(fn (): bool => auth()->user()?->can('almacen_ajustes.crear') ?? false)
                 ->label('Ingreso')
                 ->icon('heroicon-o-arrow-down-tray')
                 ->color('success')
@@ -238,6 +239,7 @@ class ListAlmacenStock extends ListRecords
                 }),
 
             Action::make('salida')
+                ->visible(fn (): bool => auth()->user()?->can('almacen_ajustes.crear') ?? false)
                 ->label('Salida')
                 ->icon('heroicon-o-arrow-up-tray')
                 ->color('danger')
@@ -253,6 +255,7 @@ class ListAlmacenStock extends ListRecords
 
             ActionGroup::make([
                 Action::make('nuevo_almacen')
+                    ->visible(fn (): bool => auth()->user()?->can('inventario.gestionar') ?? false)
                     ->label('Nuevo Almacén')
                     ->icon('heroicon-o-plus')
                     ->form([
@@ -277,7 +280,8 @@ class ListAlmacenStock extends ListRecords
                     }),
 
                 Action::make('editar_almacen')
-                    ->visible(fn (): bool => auth()->user()?->can('almacen_existencias.ver') ?? false)
+                    ->visible(fn (): bool => (auth()->user()?->can('almacen_existencias.ver') ?? false)
+                        && (auth()->user()?->can('inventario.gestionar') ?? false))
                     ->label('Editar Almacén')
                     ->icon('heroicon-o-pencil')
                     ->form(fn (): array => [
@@ -308,6 +312,7 @@ class ListAlmacenStock extends ListRecords
                     }),
 
                 Action::make('desactivar_almacen')
+                    ->visible(fn (): bool => auth()->user()?->can('inventario.gestionar') ?? false)
                     ->label('Desactivar Almacén')
                     ->icon('heroicon-o-trash')
                     ->color('danger')

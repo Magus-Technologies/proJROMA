@@ -35,6 +35,7 @@ class ListCuentasPorCobrar extends ListRecords
     {
         return [
             Action::make('reporte')
+                ->visible(fn (): bool => auth()->user()?->can('cobranzas.ver') ?? false)
                 ->label('Reporte')
                 ->icon('heroicon-o-chart-bar')
                 ->color('success')

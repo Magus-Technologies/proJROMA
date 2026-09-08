@@ -37,6 +37,7 @@ class ViewVenta extends ViewRecord
                 ->openUrlInNewTab(),
 
             Action::make('voucher')
+                ->visible(fn (): bool => auth()->user()?->can('ventas.pdf') ?? false)
                 ->label('Voucher 8cm')
                 ->icon('heroicon-o-printer')
                 ->color('gray')
@@ -83,7 +84,8 @@ class ViewVenta extends ViewRecord
 
                             Section::make('Cuotas de pago')
                                 ->compact()
-                                ->visible(fn (Venta $record): bool => $record->pagos->isNotEmpty())
+                                ->visible(fn (Venta $record): bool => ($record->pagos->isNotEmpty())
+                        && (auth()->user()?->can('ventas.pdf') ?? false))
                                 ->schema([
                                     RepeatableEntry::make('pagos')
                                         ->hiddenLabel()

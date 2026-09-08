@@ -22,6 +22,7 @@ class ListCompras extends ListRecords
     {
         return [
             Action::make('nueva_compra')
+                ->visible(fn (): bool => auth()->user()?->can('compras.crear') ?? false)
                 ->label('Nueva Compra')
                 ->icon('heroicon-m-plus')
                 ->color('primary')

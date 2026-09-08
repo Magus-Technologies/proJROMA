@@ -140,7 +140,7 @@ class GestionCajasResource extends Resource
                     }),
 
                 Action::make('toggle_estado')
-                    ->visible(fn (): bool => auth()->user()?->can('caja.gestionar') ?? false)
+                    ->visible(fn (): bool => auth()->user()?->can('caja.gestionar_estado') ?? false)
                     ->label(fn (Caja $record): string => $record->estado === 'ACTIVA' ? 'Desactivar' : 'Activar')
                     ->icon(fn (Caja $record): string => $record->estado === 'ACTIVA' ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
                     ->color(fn (Caja $record): string => $record->estado === 'ACTIVA' ? 'danger' : 'success')
@@ -155,7 +155,7 @@ class GestionCajasResource extends Resource
                     ->icon('heroicon-o-credit-card')
                     ->color('info')
                     ->visible(fn (Caja $record): bool => ($record->id_caja_padre !== null)
-                        && (auth()->user()?->can('caja.gestionar') ?? false))
+                        && (auth()->user()?->can('caja.gestionar_instrumentos') ?? false))
                     ->modalHeading('Asignar Métodos de Pago')
                     ->modalDescription(fn (Caja $record): string => "Caja: {$record->nombre}")
                     ->fillForm(fn (Caja $record): array => [

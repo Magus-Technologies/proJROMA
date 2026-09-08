@@ -39,12 +39,14 @@ class ListVentas extends ListRecords
     {
         return [
             Action::make('nueva_venta')
+                ->visible(fn (): bool => auth()->user()?->can('ventas.crear') ?? false)
                 ->label('Nueva Venta')
                 ->icon('heroicon-o-plus')
                 ->color('primary')
                 ->url(VentaResource::getUrl('create')),
 
             Action::make('reporte')
+                ->visible(fn (): bool => auth()->user()?->can('reportes_ventas.pdf') ?? false)
                 ->label('Reporte')
                 ->icon('heroicon-o-chart-bar')
                 ->color('success')

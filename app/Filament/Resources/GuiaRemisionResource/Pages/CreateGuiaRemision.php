@@ -470,6 +470,7 @@ class CreateGuiaRemision extends CreateRecord
                                     ->maxLength(11)
                                     ->suffixAction(
                                         Action::make('consultar_transportista')
+                                            ->visible(fn (): bool => auth()->user()?->can('guias.crear') ?? false)
                                             ->icon('heroicon-m-magnifying-glass')
                                             ->tooltip('Consultar SUNAT')
                                             ->action(fn ($state, callable $set) => static::consultarTransportista($state, $set))
@@ -517,6 +518,7 @@ class CreateGuiaRemision extends CreateRecord
                                     ->maxLength(8)
                                     ->suffixAction(
                                         Action::make('consultar_conductor')
+                                            ->visible(fn (): bool => auth()->user()?->can('guias.crear') ?? false)
                                             ->icon('heroicon-m-magnifying-glass')
                                             ->tooltip('Consultar RENIEC')
                                             ->action(fn ($state, callable $set) => static::consultarConductor($state, $set))

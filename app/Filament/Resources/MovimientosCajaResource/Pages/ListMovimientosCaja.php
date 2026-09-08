@@ -93,6 +93,7 @@ class ListMovimientosCaja extends ListRecords
 
         return [
             Action::make('ingreso')
+                ->visible(fn (): bool => auth()->user()?->can('caja.movimiento_registrar') ?? false)
                 ->label('Registrar Ingreso')
                 ->color('success')
                 ->icon('heroicon-o-arrow-down-circle')
@@ -100,6 +101,7 @@ class ListMovimientosCaja extends ListRecords
                 ->action(fn (array $data, Action $action) => $ejecutar($data, 'INGRESO', $action)),
 
             Action::make('egreso')
+                ->visible(fn (): bool => auth()->user()?->can('caja.movimiento_registrar') ?? false)
                 ->label('Registrar Egreso')
                 ->color('danger')
                 ->icon('heroicon-o-arrow-up-circle')

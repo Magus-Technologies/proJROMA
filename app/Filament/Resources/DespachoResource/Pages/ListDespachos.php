@@ -27,6 +27,7 @@ class ListDespachos extends ListRecords
 
         return [
             Action::make('armar')
+                ->visible(fn (): bool => auth()->user()?->can('tms_despachos.crear') ?? false)
                 ->label('Armar Despacho')
                 ->icon('heroicon-o-plus')
                 ->color('primary')

@@ -312,7 +312,8 @@ class VentaResource extends Resource
                     ->label('Ver XML')
                     ->icon('heroicon-m-code-bracket')
                     ->color('gray')
-                    ->visible(fn (Venta $record): bool => filled($record->xml_ruta))
+                    ->visible(fn (Venta $record): bool => (filled($record->xml_ruta))
+                        && (auth()->user()?->can('ventas.sunat') ?? false))
                     ->url(fn (Venta $record): string => route('facturacion.xml', [
                         'ruc'     => explode('/', $record->xml_ruta)[2] ?? '',
                         'archivo' => basename($record->xml_ruta),

@@ -41,12 +41,14 @@ class ListCotizaciones extends ListRecords
     {
         return [
             Actions\Action::make('nueva_cotizacion')
+                ->visible(fn (): bool => auth()->user()?->can('cotizaciones.crear') ?? false)
                 ->label('Nueva Cotización')
                 ->icon('heroicon-o-plus')
                 ->color('primary')
                 ->url(CotizacionResource::getUrl('create')),
 
             Actions\Action::make('reporte')
+                ->visible(fn (): bool => auth()->user()?->can('cotizaciones.pdf') ?? false)
                 ->label('Reporte')
                 ->icon('heroicon-o-chart-bar')
                 ->color('success')

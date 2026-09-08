@@ -40,6 +40,7 @@ class ListTraslados extends ListRecords
 
         return [
             Action::make('nuevo_traslado')
+                ->visible(fn (): bool => auth()->user()?->can('almacen_traslados.crear') ?? false)
                 ->label('Transferir Stock')
                 ->icon('heroicon-o-arrows-right-left')
                 ->color('primary')

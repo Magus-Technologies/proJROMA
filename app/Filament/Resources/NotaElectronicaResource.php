@@ -143,7 +143,8 @@ class NotaElectronicaResource extends Resource
                     ->label('Ver XML')
                     ->icon('heroicon-m-code-bracket')
                     ->color('gray')
-                    ->visible(fn (NotaElectronica $record): bool => filled($record->xml_ruta))
+                    ->visible(fn (NotaElectronica $record): bool => (filled($record->xml_ruta))
+                        && (auth()->user()?->can('notas.sunat') ?? false))
                     ->url(fn (NotaElectronica $record): string => route('facturacion.xml', [
                         'ruc'     => explode('/', $record->xml_ruta)[2] ?? '',
                         'archivo' => basename($record->xml_ruta),

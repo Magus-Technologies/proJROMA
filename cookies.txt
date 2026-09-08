@@ -1,3 +1,4 @@
 php83 artisan optimize:clear
 
 php83 artisan config:cache && php83 artisan route:cache && php83 artisan view:cache
+php83 artisan migrate && php83 artisan db:seed --class=PermissionSeeder --force && php83 artisan permission:cache-reset && php83 artisan optimize:clear

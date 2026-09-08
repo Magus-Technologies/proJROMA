@@ -46,6 +46,7 @@ class ListAjustes extends ListRecords
     {
         return [
             Action::make('nuevo_ajuste')
+                ->visible(fn (): bool => auth()->user()?->can('almacen_ajustes.crear') ?? false)
                 ->label('Nuevo Ajuste / Cuadre')
                 ->icon('heroicon-o-adjustments-horizontal')
                 ->color('primary')

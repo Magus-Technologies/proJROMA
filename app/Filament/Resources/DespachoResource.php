@@ -205,7 +205,8 @@ class DespachoResource extends Resource
                             ->label('Agregar pedidos')
                             ->icon('heroicon-o-plus-circle')
                             ->color('primary')
-                            ->visible(fn (TmsDespacho $r) => in_array($r->estado, ['PLANIFICADO', 'CARGADO'], true) && $r->id_ruta)
+                            ->visible(fn (TmsDespacho $r) => (in_array($r->estado, ['PLANIFICADO', 'CARGADO'], true) && $r->id_ruta)
+                        && (auth()->user()?->can('tms_despachos.editar') ?? false))
                             ->modalHeading(fn (TmsDespacho $record): string => 'Agregar pedidos — ' . $record->codigo)
                             ->modalDescription('Pedidos facturados de la ruta que aún no están en ningún despacho. El peso del despacho se recalcula.')
                             ->modalWidth('3xl')
@@ -263,12 +264,14 @@ class DespachoResource extends Resource
                             }),
 
                         Action::make('cargar')->label('Cargar')->icon('heroicon-o-inbox-arrow-down')->color('warning')
-                            ->visible(fn (TmsDespacho $r) => $r->estado === 'PLANIFICADO')
+                            ->visible(fn (TmsDespacho $r) => ($r->estado === 'PLANIFICADO')
+                        && (auth()->user()?->can('tms_despachos.editar') ?? false))
                             ->requiresConfirmation()
                             ->action(fn (TmsDespacho $r) => $r->update(['estado' => 'CARGADO'])),
 
                         Action::make('salir')->label('Salir a ruta')->icon('heroicon-o-truck')->color('primary')
-                            ->visible(fn (TmsDespacho $r) => $r->estado === 'CARGADO')
+                            ->visible(fn (TmsDespacho $r) => ($r->estado === 'CARGADO')
+                        && (auth()->user()?->can('tms_despachos.editar') ?? false))
                             ->requiresConfirmation()
                             ->action(fn (TmsDespacho $r) => $r->update(['estado' => 'EN_RUTA'])),
 
@@ -279,7 +282,8 @@ class DespachoResource extends Resource
                             ->action(fn (TmsDespacho $r) => $r->update(['estado' => 'CERRADO'])),
 
                         Action::make('entregas')->label('Registrar entregas')->icon('heroicon-o-check-circle')->color('info')
-                            ->visible(fn (TmsDespacho $r) => in_array($r->estado, ['CARGADO', 'EN_RUTA'], true))
+                            ->visible(fn (TmsDespacho $r) => (in_array($r->estado, ['CARGADO', 'EN_RUTA'], true))
+                        && (auth()->user()?->can('tms_despachos.editar') ?? false))
                             ->fillForm(fn (TmsDespacho $r): array => [
                                 'pedidos' => $r->pedidos()->get()->map(fn ($p) => [
                                     'id'             => $p->id,
@@ -321,7 +325,8 @@ class DespachoResource extends Resource
 
                     ActionGroup::make([
                         Action::make('agregar_costo')->label('Agregar costo')->icon('heroicon-o-banknotes')->color('warning')
-                            ->visible(fn (TmsDespacho $r) => $r->estado !== 'ANULADO')
+                            ->visible(fn (TmsDespacho $r) => ($r->estado !== 'ANULADO')
+                        && (auth()->user()?->can('tms_despachos.editar') ?? false))
                             ->form([
                                 TextInput::make('concepto')->label('Concepto')->required()->maxLength(120)
                                     ->placeholder('Combustible, peaje, viáticos...'),

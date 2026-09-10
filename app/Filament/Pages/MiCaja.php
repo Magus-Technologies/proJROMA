@@ -576,7 +576,97 @@ class MiCaja extends Page implements HasTable
                     filled($get('metodo_pago')) && $get('metodo_pago') !== 'EFECTIVO'),
         ];
 
+        /** El fondo que le mandaron y todavía no aplicó. */
+        $fondoPendiente = fn (): ?\App\Models\TransferenciaFondo => \App\Models\TransferenciaFondo::with('origen', 'asignadoPor')
+            ->where('id_caja_destino', $cajaId)
+            ->where('estado', 'ASIGNADA')
+            ->orderBy('id')
+            ->first();
+
         return [
+            // Reposición: le mandaron plata con el turno ya abierto (se quedó
+            // sin sencillo). Se cuenta igual que en la apertura y entra al
+            // turno en curso.
+            Action::make('recibir_fondo')
+                ->label('Recibir Fondo')
+                ->icon('heroicon-o-inbox-arrow-down')
+                ->color('success')
+                ->modalWidth('3xl')
+                ->visible(fn (): bool => (auth()->user()?->can('caja.aperturar') ?? false)
+                    && DB::table('caja_aperturas')
+                        ->where('id_caja', $cajaId)
+                        ->where('estado', 'ABIERTA')
+                        ->exists()
+                    && $fondoPendiente() !== null)
+                ->modalDescription(function () use ($fondoPendiente): ?string {
+                    $tr = $fondoPendiente();
+
+                    return $tr
+                        ? '💰 Te asignaron S/ ' . number_format($tr->monto, 2) . ' desde "' . ($tr->origen?->nombre ?? '—')
+                            . '" (asignó ' . ($tr->asignadoPor?->nombres ?? '—') . '). Contá el efectivo recibido: entra a tu turno '
+                            . 'con lo que declares y cualquier diferencia queda como discrepancia para el supervisor.'
+                        : null;
+                })
+                ->form([
+                    ...$this->componentesConteoEfectivo(),
+                    Textarea::make('observaciones')
+                        ->label('Observaciones')
+                        ->maxLength(500),
+                ])
+                ->fillForm(function () use ($fondoPendiente): array {
+                    $data = ['observaciones' => null];
+                    foreach (array_keys(self::DENOMINACIONES) as $clave) {
+                        $data[$clave] = 0;
+                    }
+                    $data['monto_fijo'] = $fondoPendiente()?->monto;
+
+                    return $data;
+                })
+                ->action(function (array $data) use ($fondoPendiente): void {
+                    $tr = $fondoPendiente();
+
+                    if (! $tr) {
+                        Notification::make()->warning()->title('Ya no hay un fondo pendiente de recibir.')->send();
+
+                        return;
+                    }
+
+                    [$montoTotal, $detalles, $esMontoFijo] = self::resolverConteo($data);
+
+                    if ($montoTotal <= 0) {
+                        Notification::make()->warning()->title('Ingresa el conteo de efectivo o un monto fijo.')->send();
+
+                        return;
+                    }
+
+                    try {
+                        app(CajaService::class)->recibirFondoEnTurno(
+                            $tr->id,
+                            $montoTotal,
+                            $detalles,
+                            (int) auth()->user()->usuario_id,
+                            trim(($data['observaciones'] ?? '') . ($esMontoFijo ? ' [Monto fijo ingresado]' : '')) ?: null,
+                        );
+                    } catch (\RuntimeException $e) {
+                        Notification::make()->danger()->title($e->getMessage())->send();
+
+                        return;
+                    }
+
+                    $dif = round($montoTotal - (float) $tr->monto, 2);
+
+                    Notification::make()->success()
+                        ->title('Fondo recibido — S/ ' . number_format($montoTotal, 2))
+                        ->body(abs($dif) < 0.01
+                            ? 'El conteo coincide con lo asignado.'
+                            : ($dif > 0 ? 'Sobrante de S/ ' . number_format($dif, 2) : 'Faltante de S/ ' . number_format(abs($dif), 2))
+                                . ' respecto a lo asignado — quedó como discrepancia para el supervisor.')
+                        ->send();
+
+                    $this->caja = $this->resolverCaja();
+                    $this->resetTable();
+                }),
+
             Action::make('aperturar')
                 ->label('Aperturar Caja')
                 ->icon('heroicon-o-lock-open')

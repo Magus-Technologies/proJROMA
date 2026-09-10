@@ -120,7 +120,7 @@ class TransferenciaFondoResource extends Resource
                     ->icon('heroicon-o-plus-circle')
                     ->color('primary')
                     ->modalHeading('Asignar fondo a una caja')
-                    ->modalDescription('El monto saldrá de la caja de origen en este momento (el sobre ya se preparó). El cajero deberá contar el efectivo y aperturar su caja para aplicarlo.')
+                    ->modalDescription('El monto saldrá de la caja de origen en este momento (el sobre ya se preparó). El cajero cuenta el efectivo y lo aplica: si su caja está cerrada, aperturándola; si ya está en turno, con "Recibir Fondo".')
                     ->form([
                         Select::make('id_caja_origen')
                             ->label('Desde (caja de origen)')
@@ -168,7 +168,7 @@ class TransferenciaFondoResource extends Resource
 
                         Notification::make()->success()
                             ->title('Fondo asignado (#' . $id . ')')
-                            ->body('S/ ' . number_format((float) $data['monto'], 2) . ' salieron de la caja de origen. El cajero debe contar y aperturar su caja para aplicarlo.')
+                            ->body('S/ ' . number_format((float) $data['monto'], 2) . ' salieron de la caja de origen. El cajero debe contar el efectivo y aplicarlo desde Mi Caja.')
                             ->send();
                     }),
             ])

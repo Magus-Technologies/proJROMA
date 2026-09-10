@@ -143,28 +143,9 @@ class CajaService
                 ->exists();
             if ($yaAsignada) throw new \RuntimeException('La caja destino ya tiene una asignación pendiente de aplicar.');
 
-            $abierta = DB::table('caja_aperturas')
-                ->where('id_caja', $idCajaDestino)
-                ->where('estado', 'ABIERTA')
-                ->orderByDesc('id')
-                ->first();
-            if ($abierta) {
-                throw new \RuntimeException('La caja "' . $destino->nombre . '" tiene un turno abierto desde el '
-                    . \Carbon\Carbon::parse($abierta->created_at)->format('d/m/Y H:i')
-                    . ' (apertura #' . $abierta->id . '). Ciérralo antes de asignarle un nuevo fondo.');
-            }
-
-            // Un cierre pendiente aún puede ser RECHAZADO (lo que reabre el
-            // turno); no se asigna fondo nuevo hasta que se apruebe o rechace.
-            $cierrePendiente = DB::table('cierre_caja')
-                ->where('id_caja', $idCajaDestino)
-                ->where('estado', 'PENDIENTE')
-                ->orderByDesc('id')
-                ->first();
-            if ($cierrePendiente) {
-                throw new \RuntimeException('La caja "' . $destino->nombre . '" tiene el cierre #' . $cierrePendiente->id
-                    . ' pendiente de aprobación. Apruébalo o recházalo en Cierres y Cuadre antes de asignar un nuevo fondo.');
-            }
+            // Antes se exigía la caja cerrada porque el fondo solo podía
+            // aplicarse aperturando. Ahora el cajero también puede recibirlo
+            // con el turno abierto (reposición), así que no hace falta.
 
             $idTransferencia = DB::table('transferencias_fondo')->insertGetId([
                 'id_caja_origen' => $idCajaOrigen,
@@ -327,6 +308,73 @@ class CajaService
             ]);
 
             return $idApertura;
+        });
+    }
+
+    /**
+     * El cajero recibe un fondo con el turno YA abierto: la reposición de
+     * media jornada, cuando se queda sin sencillo.
+     *
+     * Es el gemelo de abrirCajaConFondo() para una caja en funcionamiento:
+     * cuenta lo recibido, entra como INGRESO al turno en curso y, si el
+     * conteo no coincide con lo asignado, queda la misma discrepancia para
+     * que la resuelva un supervisor.
+     *
+     * @param  array<int, array<string, mixed>>  $detalles
+     * @return int id del movimiento de ingreso
+     */
+    public function recibirFondoEnTurno(int $idTransferencia, float $montoContado, array $detalles, int $idUsuario, ?string $observaciones = null): int
+    {
+        return DB::transaction(function () use ($idTransferencia, $montoContado, $detalles, $idUsuario, $observaciones) {
+            $tr = DB::table('transferencias_fondo')->where('id', $idTransferencia)->lockForUpdate()->first();
+            if (!$tr || $tr->estado !== 'ASIGNADA') throw new \RuntimeException('La asignación ya no está disponible.');
+            if ($montoContado <= 0) throw new \RuntimeException('El conteo del efectivo debe ser mayor a 0.');
+
+            $apertura = DB::table('caja_aperturas')
+                ->where('id_caja', $tr->id_caja_destino)
+                ->where('estado', 'ABIERTA')
+                ->orderByDesc('id')
+                ->first();
+
+            if (!$apertura) {
+                throw new \RuntimeException('La caja no tiene un turno abierto. Aperturá la caja para aplicar el fondo.');
+            }
+
+            $idMovimiento = $this->registrarMovimiento([
+                'id_caja'          => $tr->id_caja_destino,
+                'tipo'             => 'INGRESO',
+                'categoria'        => 'REPOSICION',
+                'descripcion'      => 'Reposición de fondo recibida (asignación #' . $tr->id . ')'
+                    . ($observaciones ? ' — ' . $observaciones : ''),
+                'monto'            => $montoContado,
+                'instrumento_tipo' => 'EFECTIVO',
+                'origen_tipo'      => 'TRANSFERENCIA_FONDO',
+                'origen_id'        => $tr->id,
+                'id_usuario'       => $idUsuario,
+            ]);
+
+            // El desglose del conteo se guarda contra la apertura del turno,
+            // igual que el de la apertura: es el mismo efectivo en la caja.
+            if ($detalles !== []) {
+                DB::table('caja_apertura_detalles')->insert(array_map(fn (array $d): array => [
+                    'id_apertura'  => $apertura->id,
+                    'denominacion' => $d['denominacion'],
+                    'tipo'         => $d['tipo'],
+                    'cantidad'     => $d['cantidad'],
+                    'subtotal'     => $d['subtotal'],
+                ], $detalles));
+            }
+
+            $diferencia = round($montoContado - (float) $tr->monto, 2);
+
+            DB::table('transferencias_fondo')->where('id', $tr->id)->update([
+                'estado'              => 'APLICADA',
+                'monto_contado'       => $montoContado,
+                'discrepancia_estado' => abs($diferencia) > 0.001 ? 'PENDIENTE' : null,
+                'updated_at'          => now(),
+            ]);
+
+            return $idMovimiento;
         });
     }
 

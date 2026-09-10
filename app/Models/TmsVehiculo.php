@@ -26,4 +26,10 @@ class TmsVehiculo extends Model
     {
         return $this->belongsTo(TmsTipoVehiculo::class, 'id_tipo');
     }
+
+    /** Conductor que tiene el vehículo a cargo habitualmente. */
+    public function conductor(): BelongsTo
+    {
+        return $this->belongsTo(TmsConductor::class, 'id_conductor');
+    }
 }

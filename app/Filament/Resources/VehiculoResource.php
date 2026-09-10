@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Clusters\Tms;
 use App\Filament\Resources\VehiculoResource\Pages;
+use App\Models\TmsConductor;
 use App\Models\TmsTipoVehiculo;
 use App\Models\TmsVehiculo;
 use BackedEnum;
@@ -76,6 +77,23 @@ class VehiculoResource extends Resource
                         'estado'     => 1,
                     ])->id;
                 }),
+            Select::make('id_conductor')
+                ->label('Conductor a cargo')
+                ->placeholder('— Sin asignar —')
+                ->options(fn (): array => TmsConductor::query()
+                    ->where('id_empresa', (int) session('id_empresa'))
+                    ->where('sucursal', (int) session('sucursal'))
+                    ->where('estado', 1)
+                    ->orderBy('nombres')
+                    ->get()
+                    ->mapWithKeys(fn (TmsConductor $c): array => [
+                        $c->id => $c->nombres . ($c->licencia ? ' — lic. ' . $c->licencia : ''),
+                    ])
+                    ->toArray())
+                ->searchable()
+                ->preload()
+                ->helperText('Quién maneja este vehículo habitualmente. Se puede dejar vacío.'),
+
             TextInput::make('marca')->label('Marca')->maxLength(60),
             TextInput::make('modelo')->label('Modelo')->maxLength(60),
             TextInput::make('anio')->label('Año')->numeric()->integer()->minValue(1980)->maxValue(2100),
@@ -100,6 +118,10 @@ class VehiculoResource extends Resource
             ->columns([
                 TextColumn::make('placa')->label('Placa')->searchable()->sortable(),
                 TextColumn::make('tipo.nombre')->label('Tipo')->badge(),
+                TextColumn::make('conductor.nombres')->label('Conductor a cargo')
+                    ->placeholder('— Sin asignar —')
+                    ->searchable()
+                    ->toggleable(),
                 TextColumn::make('marca')->label('Marca / Modelo')->placeholder('—')
                     ->formatStateUsing(fn ($state, TmsVehiculo $r): string => trim(($r->marca ?? '') . ' ' . ($r->modelo ?? '')) ?: '—'),
                 TextColumn::make('capacidad_kg')->label('Capacidad')->sortable()
@@ -126,6 +148,7 @@ class VehiculoResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
+            ->with(['tipo', 'conductor'])
             ->where('id_empresa', (int) session('id_empresa'))
             ->where('sucursal', (int) session('sucursal'));
     }

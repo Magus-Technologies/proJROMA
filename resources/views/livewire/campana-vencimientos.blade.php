@@ -1,6 +1,6 @@
 {{-- Campanita con panel de notificaciones. Se refresca sola cada 60s. --}}
 <div wire:poll.60s class="flex items-center">
-    @if ($puedeVer || $cantidadStock > 0)
+    @if ($puedeVer || $cantidadStock > 0 || $cantidadLicencias > 0)
         <div x-data="{ abierto: false }" class="relative">
             {{-- Botón campana --}}
             <button
@@ -47,6 +47,11 @@
                                 {{ $cantidadStock }} stock
                             </span>
                         @endif
+                        @if ($cantidadLicencias > 0)
+                            <span class="inline-flex items-center rounded-full bg-warning-50 px-2.5 py-0.5 text-xs font-semibold text-warning-700 dark:bg-warning-400/10 dark:text-warning-400">
+                                {{ $cantidadLicencias }} licencias
+                            </span>
+                        @endif
                         @if ($cantidad > 0)
                             <span class="inline-flex items-center rounded-full bg-danger-50 px-2.5 py-0.5 text-xs font-semibold text-danger-700 dark:bg-danger-400/10 dark:text-danger-400">
                                 {{ $cantidad }} por cobrar
@@ -88,7 +93,44 @@
                     <div class="h-px bg-gray-100 dark:bg-white/10"></div>
                 @endif
 
-                {{-- Lista --}}
+                {{-- Sección: licencias de conducir por vencer --}}
+                @if ($cantidadLicencias > 0)
+                    <div class="px-5 py-2 bg-warning-50/60 dark:bg-warning-400/5">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-warning-700 dark:text-warning-400">Licencias de conducir</span>
+                    </div>
+                    <div class="divide-y divide-gray-50 dark:divide-white/5">
+                        @foreach ($alertasLicencias as $l)
+                            <a href="{{ $urlLicencias }}" class="flex items-start gap-3 px-5 py-3 transition hover:bg-gray-50 dark:hover:bg-white/5">
+                                <span @class([
+                                    'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
+                                    'bg-danger-100 text-danger-600 dark:bg-danger-400/10 dark:text-danger-400' => $l['vencida'],
+                                    'bg-warning-100 text-warning-600 dark:bg-warning-400/10 dark:text-warning-400' => ! $l['vencida'],
+                                ])>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-5 w-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Zm6-10.125a1.875 1.875 0 1 1-3.75 0 1.875 1.875 0 0 1 3.75 0Zm1.294 6.336a6.721 6.721 0 0 1-3.17.789 6.721 6.721 0 0 1-3.168-.789 3.376 3.376 0 0 1 6.338 0Z" />
+                                    </svg>
+                                </span>
+                                <div class="min-w-0 flex-1">
+                                    <span class="block truncate text-sm font-semibold text-gray-900 dark:text-white">{{ $l['conductor'] }}</span>
+                                    <span class="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">
+                                        Licencia {{ $l['licencia'] }}@if ($l['categoria']) &middot; cat. {{ $l['categoria'] }}@endif &middot; vence {{ $l['fecha'] }}
+                                    </span>
+                                    <span @class([
+                                        'mt-1.5 inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium',
+                                        'bg-danger-50 text-danger-700 dark:bg-danger-400/10 dark:text-danger-400' => $l['vencida'],
+                                        'bg-warning-50 text-warning-700 dark:bg-warning-400/10 dark:text-warning-400' => ! $l['vencida'],
+                                    ])>
+                                        {{ $l['cuando'] }}
+                                    </span>
+                                </div>
+                            </a>
+                        @endforeach
+                    </div>
+                    <div class="h-px bg-gray-100 dark:bg-white/10"></div>
+                @endif
+
+                {{-- Lista de cuotas por cobrar --}}
+                @if ($puedeVer)
                 <div style="max-height:24rem;" class="divide-y divide-gray-50 overflow-y-auto dark:divide-white/5">
                     @forelse ($notificaciones as $n)
                         <a
@@ -138,14 +180,25 @@
                     @endforelse
                 </div>
 
+                @endif
+
                 {{-- Pie --}}
                 <div class="h-px bg-gray-100 dark:bg-white/10"></div>
-                <a
-                    href="{{ $url }}"
-                    class="block px-5 py-3 text-center text-sm font-semibold text-primary-600 transition hover:bg-gray-50 dark:text-primary-400 dark:hover:bg-white/5"
-                >
-                    Ver todas en Cuentas por Cobrar
-                </a>
+                @if ($puedeVer)
+                    <a
+                        href="{{ $url }}"
+                        class="block px-5 py-3 text-center text-sm font-semibold text-primary-600 transition hover:bg-gray-50 dark:text-primary-400 dark:hover:bg-white/5"
+                    >
+                        Ver todas en Cuentas por Cobrar
+                    </a>
+                @elseif ($cantidadLicencias > 0)
+                    <a
+                        href="{{ $urlLicencias }}"
+                        class="block px-5 py-3 text-center text-sm font-semibold text-primary-600 transition hover:bg-gray-50 dark:text-primary-400 dark:hover:bg-white/5"
+                    >
+                        Ver conductores
+                    </a>
+                @endif
             </div>
         </div>
     @endif

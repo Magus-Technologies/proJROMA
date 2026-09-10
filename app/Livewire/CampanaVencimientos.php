@@ -2,8 +2,10 @@
 
 namespace App\Livewire;
 
+use App\Filament\Resources\ConductorResource;
 use App\Filament\Resources\CuentaPorCobrarResource;
 use App\Models\DiasVenta;
+use App\Models\TmsConductor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Livewire\Component;
@@ -17,6 +19,12 @@ class CampanaVencimientos extends Component
 {
     /** Ventana de anticipación, en días, para avisar de una cuota por vencer. */
     public const DIAS_AVISO = 3;
+
+    /**
+     * Ventana para la licencia de conducir. Es más larga que la de las cuotas
+     * porque renovar una licencia lleva trámite: avisar el mismo día no sirve.
+     */
+    public const DIAS_AVISO_LICENCIA = 30;
 
     /** Máximo de notificaciones a listar en el desplegable. */
     public const MAX_ITEMS = 15;
@@ -88,6 +96,56 @@ class CampanaVencimientos extends Component
         $this->stockQuery()->update(['read_at' => now()]);
     }
 
+    // ── Licencias de conducir por vencer ────────────────────────────────
+
+    protected function licenciasQuery(): Builder
+    {
+        return TmsConductor::query()
+            ->where('id_empresa', (int) session('id_empresa'))
+            ->where('sucursal', (int) session('sucursal'))
+            ->where('estado', 1)
+            ->whereNotNull('licencia_vence')
+            ->whereDate('licencia_vence', '<=', now()->startOfDay()->addDays(self::DIAS_AVISO_LICENCIA)->toDateString());
+    }
+
+    public function getPuedeVerLicenciasProperty(): bool
+    {
+        return (bool) auth()->user()?->can('tms_conductores.ver');
+    }
+
+    public function getCantidadLicenciasProperty(): int
+    {
+        return $this->puedeVerLicencias ? $this->licenciasQuery()->count() : 0;
+    }
+
+    /** @return Collection<int, array<string, mixed>> */
+    public function getAlertasLicenciasProperty(): Collection
+    {
+        if (! $this->puedeVerLicencias) {
+            return collect();
+        }
+
+        $hoy = now()->startOfDay();
+
+        return $this->licenciasQuery()
+            ->orderBy('licencia_vence')
+            ->limit(self::MAX_ITEMS)
+            ->get()
+            ->map(function (TmsConductor $c) use ($hoy): array {
+                $vence = $c->licencia_vence->startOfDay();
+                $vencida = $vence->lt($hoy);
+
+                return [
+                    'conductor' => $c->nombres,
+                    'licencia'  => $c->licencia ?: 'sin número',
+                    'categoria' => $c->licencia_categoria,
+                    'fecha'     => $vence->format('d/m/Y'),
+                    'vencida'   => $vencida,
+                    'cuando'    => $this->textoCuando((int) $hoy->diffInDays($vence, false), $vencida),
+                ];
+            });
+    }
+
     /** @return Collection<int, array<string, mixed>> */
     public function getNotificacionesProperty(): Collection
     {
@@ -131,6 +189,7 @@ class CampanaVencimientos extends Component
             return $d === 0 ? 'Vence hoy' : "Vencida hace {$d} día" . ($d === 1 ? '' : 's');
         }
 
+
         return match ($dias) {
             0       => 'Vence hoy',
             1       => 'Vence mañana',
@@ -148,7 +207,10 @@ class CampanaVencimientos extends Component
             'cantidadStock'  => $this->cantidadStock,
             'alertasStock'   => $this->alertasStock,
             'urlStock'       => \App\Filament\Resources\ProductoResource::getUrl('index'),
-            'total'          => $this->cantidad + $this->cantidadStock,
+            'cantidadLicencias' => $this->cantidadLicencias,
+            'alertasLicencias'  => $this->alertasLicencias,
+            'urlLicencias'      => ConductorResource::getUrl('index'),
+            'total'          => $this->cantidad + $this->cantidadStock + $this->cantidadLicencias,
         ]);
     }
 }

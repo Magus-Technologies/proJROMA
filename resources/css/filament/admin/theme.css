@@ -270,6 +270,14 @@ html {
   z-index: 50 !important;
 }
 
+/* Los desplegables (submódulos de la barra plegada, menú de usuario, acciones
+   de tabla) vienen en z-index 20 y quedaban por debajo de la barra lateral,
+   que está en 45. Se los sube a 46: por encima de la barra y por debajo de los
+   modales, que están en 50. */
+.fi-dropdown-panel {
+  z-index: 46 !important;
+}
+
 @media (min-width: 1024px) {
 
   .fi-sidebar {

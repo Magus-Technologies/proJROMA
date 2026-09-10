@@ -116,6 +116,12 @@ class AdminPanelProvider extends PanelProvider
                 // ── Administración ───────────────────────────────────────
                 // (SucursalResource handles Sucursales)
             ])
+            ->userMenuItems([
+                'cambiar-clave' => \Filament\Navigation\MenuItem::make()
+                    ->label('Cambiar contraseña')
+                    ->icon('heroicon-o-key')
+                    ->url(fn (): string => \App\Filament\Pages\CambiarClave::getUrl()),
+            ])
             ->widgets([
                 StatsOverview::class,
                 VentasChart::class,
@@ -140,6 +146,9 @@ class AdminPanelProvider extends PanelProvider
                 // filtrarían por id_empresa = 0: pantallas vacías y registros
                 // nuevos naciendo huérfanos. Mejor cortar y pedir login.
                 \App\Http\Middleware\CheckEmpresa::class,
+                // Con la clave inicial puesta por el administrador, lo único
+                // que se puede abrir es "Cambiar contraseña".
+                \App\Http\Middleware\ForzarCambioClave::class,
             ]);
     }
 }

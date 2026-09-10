@@ -17,6 +17,9 @@ class CreateUsuario extends CreateRecord
         $data['fecha_inicio'] = $data['fecha_inicio'] ?? now()->toDateString();
         $data['fecha_salida'] = $data['fecha_salida'] ?? '2030-12-31';
         $data['funciones']    = $data['funciones'] ?? '';
+        // La clave la escribió el administrador: el usuario la cambia al entrar.
+        $data['debe_cambiar_clave'] = true;
+
         return $data;
     }
 }

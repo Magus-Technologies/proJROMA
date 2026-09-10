@@ -160,7 +160,9 @@ class UsuarioResource extends Resource
                     ->required(fn (string $operation) => $operation === 'create')
                     ->dehydrated(fn ($state) => filled($state))
                     ->dehydrateStateUsing(fn ($state) => Hash::make($state))
-                    ->helperText(fn (string $operation) => $operation === 'edit' ? 'Dejá en blanco para no cambiarla.' : null),
+                    ->helperText(fn (string $operation) => $operation === 'edit'
+                        ? 'Dejá en blanco para no cambiarla. Si la cambiás, el usuario tendrá que elegir una nueva al entrar.'
+                        : null),
                 Select::make('id_rol')
                     ->label('Rol')
                     ->options(fn () => Rol::pluck('nombre', 'rol_id'))
@@ -184,6 +186,11 @@ class UsuarioResource extends Resource
                     ->onColor('success')
                     ->default(true)
                     ->helperText('Si se desactiva, el usuario no puede entrar al panel aunque esté activo.'),
+                Toggle::make('debe_cambiar_clave')
+                    ->label('Debe cambiar su contraseña')
+                    ->onColor('warning')
+                    ->default(true)
+                    ->helperText('Mientras esté activo, al entrar solo verá la pantalla para cambiar la contraseña.'),
             ]),
 
                 ]),
@@ -223,6 +230,16 @@ class UsuarioResource extends Resource
                     ->label('Disponible')
                     ->boolean()
                     ->toggleable(isToggledHiddenByDefault: true),
+                IconColumn::make('debe_cambiar_clave')
+                    ->label('Clave inicial')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-exclamation-triangle')
+                    ->trueColor('warning')
+                    ->falseIcon('heroicon-o-shield-check')
+                    ->falseColor('gray')
+                    ->tooltip(fn (User $record): string => $record->debe_cambiar_clave
+                        ? 'Todavía usa la clave que le puso el administrador'
+                        : 'Ya eligió su propia contraseña'),
             ])
             ->filters([
                 SelectFilter::make('id_rol')
@@ -236,7 +253,16 @@ class UsuarioResource extends Resource
                 ActionGroup::make([
                     EditAction::make()
                         ->modalWidth('3xl')
-                        ->modalHeading(fn (User $record): string => 'Editar usuario — ' . $record->nombre_completo),
+                        ->modalHeading(fn (User $record): string => 'Editar usuario — ' . $record->nombre_completo)
+                        // Si el administrador escribió una clave nueva, la
+                        // conoce él: el usuario está obligado a reemplazarla.
+                        ->mutateDataUsing(function (array $data): array {
+                            if (filled($data['clave'] ?? null)) {
+                                $data['debe_cambiar_clave'] = true;
+                            }
+
+                            return $data;
+                        }),
                     DeleteAction::make(),
                 ])->tooltip('Acciones'),
             ])

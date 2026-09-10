@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\CheckEmpresa;
 use App\Http\Middleware\CheckPermission;
+use App\Http\Middleware\ForzarCambioClave;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SessionTimeout;
 use Illuminate\Foundation\Application;
@@ -39,12 +40,19 @@ return Application::configure(basePath: dirname(__DIR__))
             SecurityHeaders::class,
         ]);
 
+        // Las pantallas antiguas (POS, TMS, compras) no pasan por el
+        // authMiddleware del panel: acá se les aplica el mismo cerrojo.
+        $middleware->web(append: [
+            ForzarCambioClave::class,
+        ]);
+
         // ← QUITADO throttleWithRedis() — no tienes Redis
         // Usar throttle normal en su lugar
         $middleware->alias([
             'check.empresa'      => CheckEmpresa::class,
             'check.permission'   => CheckPermission::class,
             'session.timeout'    => SessionTimeout::class,
+            'clave.inicial'      => ForzarCambioClave::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [

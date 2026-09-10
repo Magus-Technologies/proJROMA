@@ -31,6 +31,7 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
         'id_empresa', 'id_rol', 'num_doc', 'usuario', 'clave',
         'email', 'nombres', 'apellidos', 'rubro', 'sucursal',
         'telefono', 'foto', 'estado', 'mensaje', 'rotativo', 'available_status',
+        'debe_cambiar_clave',
         'fecha_inicio', 'fecha_salida', 'funciones',
     ];
 
@@ -41,7 +42,8 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
     protected $casts = [
         'estado'           => 'string',
         'available_status' => 'boolean',
-        'rotativo'         => 'boolean',
+        'rotativo'           => 'boolean',
+        'debe_cambiar_clave' => 'boolean',
     ];
 
     // ── Auth override (campo "clave" en lugar de "password") ─────────────

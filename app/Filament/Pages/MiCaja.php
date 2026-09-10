@@ -205,6 +205,12 @@ class MiCaja extends Page implements HasTable
             ->first();
     }
 
+    /** Si la caja está en turno: manda qué botones se pueden usar. */
+    protected function hayTurnoAbierto(): bool
+    {
+        return $this->aperturaAbierta() !== null;
+    }
+
     protected function saldosPorInstrumento(): array
     {
         // El cuadre es del TURNO actual: solo movimientos desde la apertura
@@ -593,10 +599,7 @@ class MiCaja extends Page implements HasTable
                 ->color('success')
                 ->modalWidth('3xl')
                 ->visible(fn (): bool => (auth()->user()?->can('caja.aperturar') ?? false)
-                    && DB::table('caja_aperturas')
-                        ->where('id_caja', $cajaId)
-                        ->where('estado', 'ABIERTA')
-                        ->exists()
+                    && $this->hayTurnoAbierto()
                     && $fondoPendiente() !== null)
                 ->modalDescription(function () use ($fondoPendiente): ?string {
                     $tr = $fondoPendiente();
@@ -683,11 +686,8 @@ class MiCaja extends Page implements HasTable
                         ? '💰 Fondo asignado: S/ ' . number_format($tr->monto, 2) . ' desde "' . ($tr->origen?->nombre ?? 'bóveda') . '" (asignó ' . ($tr->asignadoPor?->nombres ?? '—') . '). Cuenta el efectivo recibido: la caja abrirá con lo que declares y cualquier diferencia quedará como discrepancia para el supervisor.'
                         : null;
                 })
-                ->visible(fn (): bool => ! DB::table('caja_aperturas')
-                    ->where('id_caja', $cajaId)
-                    ->where('estado', 'ABIERTA')
-                    ->exists()
-                        && (auth()->user()?->can('caja.aperturar') ?? false))
+                ->visible(fn (): bool => ! $this->hayTurnoAbierto()
+                    && (auth()->user()?->can('caja.aperturar') ?? false))
                 ->form([
                     DatePicker::make('fecha')
                         ->label('Fecha')
@@ -812,7 +812,10 @@ class MiCaja extends Page implements HasTable
                 }),
 
             Action::make('ingreso')
-                ->visible(fn (): bool => auth()->user()?->can('caja.movimiento_registrar') ?? false)
+                // Sin turno abierto no hay dónde registrarlo: el movimiento
+                // quedaría fuera de todo cuadre.
+                ->visible(fn (): bool => $this->hayTurnoAbierto()
+                    && (auth()->user()?->can('caja.movimiento_registrar') ?? false))
                 ->label('Ingreso')
                 ->color('success')
                 ->icon('heroicon-o-arrow-down-circle')
@@ -830,10 +833,12 @@ class MiCaja extends Page implements HasTable
 
                     Notification::make()->success()->title('Ingreso registrado')->send();
                     $this->caja = $this->resolverCaja();
+                    $this->resetTable();
                 }),
 
             Action::make('egreso')
-                ->visible(fn (): bool => auth()->user()?->can('caja.movimiento_registrar') ?? false)
+                ->visible(fn (): bool => $this->hayTurnoAbierto()
+                    && (auth()->user()?->can('caja.movimiento_registrar') ?? false))
                 ->label('Egreso')
                 ->color('danger')
                 ->icon('heroicon-o-arrow-up-circle')
@@ -851,13 +856,15 @@ class MiCaja extends Page implements HasTable
 
                     Notification::make()->success()->title('Egreso registrado')->send();
                     $this->caja = $this->resolverCaja();
+                    $this->resetTable();
                 }),
 
             Action::make('cerrar')
                 ->label('Cerrar Caja')
                 ->color('warning')
                 ->icon('heroicon-o-lock-closed')
-                ->visible(fn (): bool => auth()->user()?->can('caja.cerrar') ?? false)
+                ->visible(fn (): bool => $this->hayTurnoAbierto()
+                    && (auth()->user()?->can('caja.cerrar') ?? false))
                 ->modalWidth('3xl')
                 ->modalDescription(function (): string {
                     $saldos = $this->saldosPorInstrumento();

@@ -750,10 +750,12 @@ class MiCaja extends Page implements HasTable
                 ->visible(fn (): bool => ! $this->hayTurnoAbierto()
                     && (auth()->user()?->can('caja.aperturar') ?? false))
                 ->form(fn (): array => [
-                    DatePicker::make('fecha')
-                        ->label('Fecha')
-                        ->default(now())
-                        ->required(),
+                    // La fecha es informativa: un turno se abre cuando se abre.
+                    // Elegir otro día dejaría los movimientos del turno con una
+                    // fecha que no es la real.
+                    Placeholder::make('fecha_apertura')
+                        ->label('Fecha de apertura')
+                        ->content(fn (): string => now()->format('d/m/Y')),
                     ...$this->componentesConteoEfectivo((float) $fondoPendiente()?->monto ?: null),
                     self::campoObservaciones((float) $fondoPendiente()?->monto ?: null),
                 ])
@@ -761,7 +763,7 @@ class MiCaja extends Page implements HasTable
                     // El fondo asignado se muestra aparte, en modo lectura: acá
                     // el cajero declara lo que contó, sin número precargado que
                     // pueda pasar por "lo que me asignaron".
-                    $data = ['fecha' => now()->format('Y-m-d'), 'observaciones' => null, 'monto_fijo' => null];
+                    $data = ['observaciones' => null, 'monto_fijo' => null];
                     foreach (array_keys(self::DENOMINACIONES) as $clave) {
                         $data[$clave] = 0;
                     }
@@ -769,6 +771,8 @@ class MiCaja extends Page implements HasTable
                     return $data;
                 })
                 ->action(function (array $data) use ($cajaId): void {
+                    $data['fecha'] = now()->toDateString();
+
                     [$montoTotal, $detalles, $esMontoFijo] = self::resolverConteo($data);
 
                     if ($montoTotal <= 0) {

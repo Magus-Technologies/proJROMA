@@ -25,6 +25,67 @@ class ProductosImport implements ToModel, WithHeadingRow, WithValidation, SkipsO
     private int $creados = 0;
     private int $duplicados = 0;
 
+    /**
+     * Encabezados alternativos aceptados, además de los de la plantilla.
+     * Los catálogos que manda el proveedor traen los nombres de SUNAT.
+     *
+     * campo de la plantilla => otros encabezados que significan lo mismo
+     */
+    private const ENCABEZADOS_EQUIVALENTES = [
+        'codigo'           => ['codigo_interno', 'cod_interno'],
+        'descripcion'      => ['descripcion_del_producto', 'producto'],
+        'unidad_de_medida' => ['codigo_unidad_de_medida', 'unidad_medida', 'unidad'],
+    ];
+
+    /**
+     * Códigos de unidad de SUNAT (catálogo 03) que aparecen en los catálogos
+     * de proveedor, traducidos al nombre que usa el sistema.
+     */
+    private const UNIDADES_SUNAT = [
+        'NIU' => 'Unidad',
+        'ZZ'  => 'Unidad',
+        'BX'  => 'Cajas',
+        'BG'  => 'Bolsa',
+        'PK'  => 'Paquete',
+        'SA'  => 'Sacos',
+        'BJ'  => 'Balde',
+        'CT'  => 'Cartón',
+        'DZN' => 'Docena',
+        'KGM' => 'Kilogramo',
+        'GRM' => 'Gramo',
+        'LTR' => 'Litro',
+        'MLT' => 'Mililitro',
+        'MTR' => 'Metro',
+        'GLL' => 'Galón',
+        'BO'  => 'Botella',
+        'TU'  => 'Tubo',
+        'LA'  => 'Lata',
+        'BLL' => 'Barril',
+    ];
+
+    /**
+     * Lee un campo aceptando tanto el encabezado de la plantilla como los
+     * equivalentes: así entra un catálogo de proveedor sin retocar el Excel.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private function campo(array $row, string $campo): string
+    {
+        foreach ([$campo, ...(self::ENCABEZADOS_EQUIVALENTES[$campo] ?? [])] as $encabezado) {
+            if (isset($row[$encabezado]) && trim((string) $row[$encabezado]) !== '') {
+                return trim((string) $row[$encabezado]);
+            }
+        }
+
+        return '';
+    }
+
+    /** Traduce el código de SUNAT si vino uno; si no, deja el texto tal cual. */
+    private function nombreDeUnidad(string $valor): string
+    {
+        return self::UNIDADES_SUNAT[strtoupper($valor)] ?? $valor;
+    }
+
     public function __construct(
         protected int $idEmpresa,
         protected int $sucursal,
@@ -32,8 +93,15 @@ class ProductosImport implements ToModel, WithHeadingRow, WithValidation, SkipsO
 
     public function model(array $row)
     {
-        $codigo = trim((string) ($row['codigo'] ?? ''));
+        $codigo = $this->campo($row, 'codigo');
         $codBarra = trim((string) ($row['cod_barra'] ?? ''));
+        $descripcion = $this->campo($row, 'descripcion');
+
+        // Una fila sin descripción no es un producto: suele ser el pie del
+        // Excel o una línea en blanco al final.
+        if ($descripcion === '') {
+            return null;
+        }
 
         // No duplicar: si ya existe un producto de la empresa con el mismo
         // código o código de barras, se salta la fila.
@@ -59,9 +127,10 @@ class ProductosImport implements ToModel, WithHeadingRow, WithValidation, SkipsO
         // Unidad de medida y presentación se guardan como texto (nombre),
         // creándolas en sus catálogos si no existen — igual que el formulario.
         $medida = null;
-        if (! empty($row['unidad_de_medida'])) {
+        $unidad = $this->campo($row, 'unidad_de_medida');
+        if ($unidad !== '') {
             $medida = UnidadMedida::firstOrCreate(
-                ['id_empresa' => $this->idEmpresa, 'nombre' => trim($row['unidad_de_medida'])],
+                ['id_empresa' => $this->idEmpresa, 'nombre' => $this->nombreDeUnidad($unidad)],
                 ['estado' => 1],
             )->nombre;
         }
@@ -112,11 +181,13 @@ class ProductosImport implements ToModel, WithHeadingRow, WithValidation, SkipsO
         return new Producto([
             'cod_barra'       => $codBarra !== '' ? $codBarra : null,
             'codigo'          => $codigo !== '' ? $codigo : null,
-            'descripcion'     => trim($row['descripcion']),
+            'descripcion'     => $descripcion,
             'medida'          => $medida,
             'presentaciones'  => $presentacion,
             'cnt_presenta'    => isset($row['unid_por_presentacion']) && $row['unid_por_presentacion'] !== '' ? (int) $row['unid_por_presentacion'] : null,
-            'peso_bruto'      => (float) $row['peso_kg'],
+            // Los catálogos de proveedor no traen peso; queda en 0 y se
+            // completa después (lo usa el TMS para la carga del vehículo).
+            'peso_bruto'      => isset($row['peso_kg']) && $row['peso_kg'] !== '' ? (float) $row['peso_kg'] : 0,
             'id_categoria'    => $categoriaId,
             'id_subcategoria' => $subcategoriaId,
             'id_marca'        => $marcaId,
@@ -140,11 +211,13 @@ class ProductosImport implements ToModel, WithHeadingRow, WithValidation, SkipsO
         return [
             'cod_barra'             => 'nullable|max:50',
             'codigo'                => 'nullable|max:50',
-            'descripcion'           => 'required|max:200',
+            'descripcion'           => 'nullable|max:200',
+            'codigo_interno'        => 'nullable|max:50',
+            'codigo_unidad_de_medida' => 'nullable|max:60',
             'unidad_de_medida'      => 'nullable|max:60',
             'presentacion'          => 'nullable|max:60',
             'unid_por_presentacion' => 'nullable|numeric|min:0',
-            'peso_kg'               => 'required|numeric|min:0.01',
+            'peso_kg'               => 'nullable|numeric|min:0',
             'categoria'             => 'nullable|max:100',
             'subcategoria'          => 'nullable|max:100',
             'marca'                 => 'nullable|max:100',
@@ -164,6 +237,8 @@ class ProductosImport implements ToModel, WithHeadingRow, WithValidation, SkipsO
             'presentacion'          => 'Presentación',
             'unid_por_presentacion' => 'Unid. por Presentación',
             'peso_kg'               => 'Peso (kg)',
+            'codigo_interno'        => 'Código Interno',
+            'codigo_unidad_de_medida' => 'Código Unidad de Medida',
             'categoria'             => 'Categoría',
             'subcategoria'          => 'Subcategoría',
             'marca'                 => 'Marca',

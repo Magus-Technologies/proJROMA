@@ -304,6 +304,15 @@ html {
     width: 56px !important;
   }
 
+  /* Plegada, cada grupo abre sus submódulos en un desplegable que Filament
+     dibuja dentro de la propia barra. Con la barra recortando lo que se sale
+     (overflow) el panel salía cortado a 56px de ancho. Plegada no hace falta
+     recortar nada: son una docena de iconos, no hay desbordamiento que ocultar. */
+  .fi-sidebar:not(.fi-sidebar-open),
+  .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-nav {
+    overflow: visible !important;
+  }
+
   .fi-layout > div:has(.fi-sidebar) {
     width: 56px !important;
     min-width: 56px !important;

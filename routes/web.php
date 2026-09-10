@@ -157,3 +157,13 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/indicadores/xls',  [ReportesController::class, 'indicadoresExcel'])->name('indicadores.xls')->middleware('can:finanzas.indicadores');
     });
 });
+
+// TEMPORAL — solo para depurar la barra lateral en local. BORRAR.
+Route::get('/__debug-barra', function () {
+    abort_unless(app()->environment('local'), 404);
+    $u = \App\Models\User::where('id_rol', 1)->first();
+    auth()->login($u);
+    session(['id_empresa' => $u->id_empresa, 'sucursal' => $u->sucursal ?? 1]);
+
+    return redirect(url('/panel'));
+});

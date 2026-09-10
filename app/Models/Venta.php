@@ -36,6 +36,49 @@ class Venta extends Model
     public function productosVenta() { return $this->hasMany(ProductoVenta::class,'id_venta','id_venta'); }
     public function pagos()          { return $this->hasMany(DiasVenta::class,'id_venta','id_venta'); }
     public function pagosMetodos()   { return $this->hasMany(VentaPago::class,'id_venta','id_venta'); }
+
+    /**
+     * Todos los pagos recibidos por esta venta, listos para imprimir.
+     *
+     * Hay tres orígenes según la época del registro y se toman en ese orden,
+     * nunca mezclados, para no contar dos veces el mismo dinero:
+     *   1. venta_pagos — el desglose actual: contado mixto y abonos de cuotas.
+     *   2. cxc_abonos  — cobros de crédito de antes de que existiera el desglose.
+     *   3. dias_ventas — cuotas marcadas como pagadas, sin abono detallado.
+     *
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    public function detallePagos(): \Illuminate\Support\Collection
+    {
+        $armar = fn (?string $metodo, $monto, ?string $referencia, $fecha): array =>
+            \App\Services\CajaService::detalleMetodoPago($metodo) + [
+                'monto'      => (float) $monto,
+                'referencia' => $referencia ?: null,
+                'fecha'      => $fecha ? \Carbon\Carbon::parse($fecha) : null,
+            ];
+
+        $pagos = $this->pagosMetodos
+            ->map(fn (VentaPago $p): array => $armar($p->metodo_pago, $p->monto, $p->referencia, $p->created_at));
+
+        if ($pagos->isNotEmpty()) {
+            return $pagos->values();
+        }
+
+        $abonos = CxcAbono::where('id_venta', $this->id_venta)
+            ->where('estado', 'ACTIVO')
+            ->orderBy('fecha')
+            ->get()
+            ->map(fn (CxcAbono $a): array => $armar($a->metodo_pago, $a->monto, $a->referencia, $a->fecha));
+
+        if ($abonos->isNotEmpty()) {
+            return $abonos->values();
+        }
+
+        return $this->pagos
+            ->where('estado', '1')
+            ->map(fn (DiasVenta $c): array => $armar($c->tipo_pago, $c->monto, $c->referencia, $c->fecha_pago_real ?? $c->fecha))
+            ->values();
+    }
     public function sunat()          { return $this->hasOne(VentaSunat::class,'id_venta','id_venta'); }
 
     public function scopeDeEmpresa(Builder $q, int $id): Builder { return $q->where('id_empresa',$id); }

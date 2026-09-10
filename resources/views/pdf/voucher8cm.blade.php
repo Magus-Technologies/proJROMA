@@ -109,6 +109,31 @@
 
 <div class="line"></div>
 
+{{-- Con qué se pagó: el cliente necesita ver a qué cuenta entró su dinero --}}
+@php($detallePagos = $v->detallePagos())
+@if ($detallePagos->isNotEmpty())
+<div style="font-size:8px">
+    <div class="bold" style="margin-bottom:2px">DETALLE DEL PAGO</div>
+    @foreach ($detallePagos as $d)
+        <div>
+            {{ strtoupper($d['metodo']) }}
+            <span style="float:right">S/ {{ number_format($d['monto'], 2) }}</span>
+        </div>
+        @if ($d['banco'] || $d['cuenta'])
+            <div style="padding-left:6px">{{ trim(($d['banco'] ?? '') . ' ' . ($d['cuenta'] ?? '')) }}</div>
+        @endif
+        @if ($d['titular'])
+            <div style="padding-left:6px">Titular: {{ $d['titular'] }}</div>
+        @endif
+        @if ($d['referencia'])
+            <div style="padding-left:6px">Op. {{ $d['referencia'] }}</div>
+        @endif
+    @endforeach
+</div>
+
+<div class="line"></div>
+@endif
+
 @if(!empty($qr))
 <div class="qr-box">
     <img src="{{ $qr }}" alt="QR">

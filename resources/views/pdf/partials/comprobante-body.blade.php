@@ -166,26 +166,27 @@
 
         {{-- Con qué se pagó. El cliente necesita ver a qué cuenta entró su
              transferencia; sin esto solo decía "CONTADO". --}}
-        @php($metodosPago = $v->pagosMetodos ?? collect())
+        @php($metodosPago = $v->detallePagos())
         @if ($metodosPago->isNotEmpty())
             <table class="products-table" style="margin-bottom: 5px;">
                 <thead>
                     <tr>
-                        <th colspan="4" style="text-align:left; padding:5px 8px;">
+                        <th colspan="5" style="text-align:left; padding:5px 8px;">
                             DETALLE DEL PAGO
                         </th>
                     </tr>
                     <tr>
-                        <th style="width:22%;">MEDIO</th>
-                        <th style="width:42%;">DESTINO</th>
-                        <th style="width:18%;">OPERACIÓN</th>
-                        <th style="width:18%;">IMPORTE</th>
+                        <th style="width:14%;">FECHA</th>
+                        <th style="width:20%;">MEDIO</th>
+                        <th style="width:36%;">DESTINO</th>
+                        <th style="width:15%;">OPERACIÓN</th>
+                        <th style="width:15%;">IMPORTE</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach ($metodosPago as $pago)
-                        @php($d = \App\Services\CajaService::detalleMetodoPago($pago->metodo_pago))
+                    @foreach ($metodosPago as $d)
                         <tr>
+                            <td style="text-align:center;">{{ $d['fecha']?->format('d/m/Y') ?? '—' }}</td>
                             <td style="text-align:center;">{{ strtoupper($d['metodo']) }}</td>
                             <td style="padding-left:8px;">
                                 @if ($d['banco'] || $d['cuenta'] || $d['titular'])
@@ -198,13 +199,13 @@
                                     —
                                 @endif
                             </td>
-                            <td style="text-align:center;">{{ $pago->referencia ?: '—' }}</td>
-                            <td style="text-align:right; padding-right:8px;">S/ {{ number_format((float) $pago->monto, 2) }}</td>
+                            <td style="text-align:center;">{{ $d['referencia'] ?? '—' }}</td>
+                            <td style="text-align:right; padding-right:8px;">S/ {{ number_format($d['monto'], 2) }}</td>
                         </tr>
                     @endforeach
                     @if ($metodosPago->count() > 1)
                         <tr>
-                            <td colspan="3" style="text-align:right; font-weight:bold; padding-right:8px;">TOTAL PAGADO</td>
+                            <td colspan="4" style="text-align:right; font-weight:bold; padding-right:8px;">TOTAL PAGADO</td>
                             <td style="text-align:right; font-weight:bold; padding-right:8px;">S/ {{ number_format((float) $metodosPago->sum('monto'), 2) }}</td>
                         </tr>
                     @endif
@@ -234,7 +235,7 @@
                             <td style="text-align:center;">{{ str_pad($i + 1, 3, '0', STR_PAD_LEFT) }}</td>
                             <td style="text-align:center;">{{ optional($cuota->fecha)->format('d/m/Y') ?? '—' }}</td>
                             <td style="text-align:center;">
-                                {{ ucfirst(strtolower($cuota->tipo_pago ?? 'Efectivo')) }}
+                                {{ \App\Services\CajaService::etiquetaMetodoPago($cuota->tipo_pago) }}
                                 @if ($cuota->estado === '1')
                                     <span style="color:#065f46; font-weight:bold;">· PAGADA</span>
                                 @endif

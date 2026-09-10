@@ -52,7 +52,7 @@
                     @endif
                     <div style="font-size: 8pt; color: #555; margin-top: 5px; line-height: 1.6;">
                         {{ $empresa->direccion ?? '' }}<br>
-                        @if($empresa->telefono ?? '')<span style="font-weight:bold;">TELEF.:</span> {{ $empresa->telefono }}<br>@endif
+                        @if($empresa->telefono_principal ?? '')<span style="font-weight:bold;">TELEF.:</span> {{ $empresa->telefono_principal }}<br>@endif
                         @if($empresa->email ?? '')<span style="font-weight:bold;">Correo:</span> {{ $empresa->email }}@endif
                     </div>
                 </td>

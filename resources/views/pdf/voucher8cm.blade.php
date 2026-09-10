@@ -44,7 +44,7 @@
 @endif
 <div class="center" style="font-size:8px">RUC: {{ $empresa?->ruc ?? '-' }}</div>
 <div class="center" style="font-size:8px">{{ $empresa?->direccion ?? '' }}</div>
-<div class="center" style="font-size:8px">Telf: {{ $empresa?->telefono ?? '' }}</div>
+<div class="center" style="font-size:8px">Telf: {{ $empresa?->telefono_principal ?? '' }}</div>
 
 <div class="line"></div>
 

@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Models\Empresa;
 use BackedEnum;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -214,10 +215,24 @@ class EmpresaResource extends Resource
                                 Grid::make(2)
                                     ->schema([
                                         TextInput::make('email')->label('Email')->email()->maxLength(145),
-                                        TextInput::make('telefono')->label('Teléfono 1')->maxLength(30),
-                                        TextInput::make('telefono2')->label('Teléfono 2')->maxLength(30),
-                                        TextInput::make('telefono3')->label('Teléfono 3')->maxLength(30),
+                                        TextInput::make('telefono')->label('Teléfono 1')->maxLength(30)->live(onBlur: true),
+                                        TextInput::make('telefono2')->label('Teléfono 2')->maxLength(30)->live(onBlur: true),
+                                        TextInput::make('telefono3')->label('Teléfono 3')->maxLength(30)->live(onBlur: true),
                                     ]),
+
+                                Radio::make('telefono_predeterminado')
+                                    ->label('Teléfono predeterminado')
+                                    ->helperText('Es el único que sale impreso en los PDF de ventas, pedidos, guías y cotizaciones. Los otros quedan guardados como referencia.')
+                                    ->options(fn (callable $get): array => collect(Empresa::CAMPOS_TELEFONO)
+                                        ->mapWithKeys(function (string $etiqueta, string $campo) use ($get): array {
+                                            $numero = trim((string) $get($campo));
+
+                                            return [$campo => $numero !== '' ? "{$etiqueta} — {$numero}" : "{$etiqueta} (vacío)"];
+                                        })
+                                        ->toArray())
+                                    // No se puede marcar un teléfono que todavía no tiene número.
+                                    ->disableOptionWhen(fn (string $value, callable $get): bool => trim((string) $get($value)) === '')
+                                    ->default('telefono'),
                             ]),
 
                         Tab::make('SUNAT')

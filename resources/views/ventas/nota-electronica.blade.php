@@ -62,8 +62,8 @@ Ventas / <a href="{{ url('/panel/notas-electronicas') }}" class="hover:underline
                         <div class="flex-1">
                             <p class="font-bold text-xs text-red-600 leading-tight">{{ $empresa->razon_social ?? 'EMPRESA' }}</p>
                             <p class="text-gray-500 mt-1">{{ $empresa->direccion ?? '' }}</p>
-                            @if($empresa->telefono ?? '')
-                            <p class="text-gray-500">Telf: {{ $empresa->telefono }}</p>
+                            @if($empresa->telefono_principal ?? '')
+                            <p class="text-gray-500">Telf: {{ $empresa->telefono_principal }}</p>
                             @endif
                             <p class="text-gray-500">RUC: {{ $empresa->ruc ?? '-' }}</p>
                         </div>

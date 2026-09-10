@@ -2,3 +2,11 @@ php83 artisan optimize:clear
 
 php83 artisan config:cache && php83 artisan route:cache && php83 artisan view:cache
 php83 artisan migrate && php83 artisan db:seed --class=PermissionSeeder --force && php83 artisan permission:cache-reset && php83 artisan optimize:clear
+
+usuario entrar con la clave inicial y que fuereze cambiar contraseña  SOLO PUEDA CA CONTRASEÑA QUE EL SOLO PUEDA VER SU USUARIO y ver prmisos especilaes
+de solo el puede cambiar contraseña.
+PONER ALERTA PARA CADUCIDDE LICENCIA; MI VEHICULO ACAGARGO LICENCIA QUE AVISE NUEVO
+SUBIR COMPRABNTE CUANDO SE ENTREGA OSEA EL PDF DE ENTREGA PERMISOS  DIMANICO.
+VENTAS SOLO QUE ´PUEDE VER SUS VENTAS IGUAL CONBRA SUS SOLO PUEDA VER SUS CREDITOS. COMPRAS SUBIR FOTO
+
+bug /panel/compras en el modal de almacen no sale para selecioanr almacen

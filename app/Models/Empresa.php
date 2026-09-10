@@ -10,11 +10,40 @@ class Empresa extends Model
 
     protected $fillable = [
         'ruc','razon_social','comercial','cod_sucursal','direccion',
-        'email','telefono','telefono2','telefono3','estado','password',
+        'email','telefono','telefono2','telefono3','telefono_predeterminado','estado','password',
         'user_sol','clave_sol','gre_client_id','gre_client_secret','certificado',
         'logo','ubigeo','distrito','provincia',
         'departamento','tipo_impresion','modo','igv','propaganda',
     ];
+
+    /** Los tres teléfonos que puede tener una empresa, en orden. */
+    public const CAMPOS_TELEFONO = [
+        'telefono'  => 'Teléfono 1',
+        'telefono2' => 'Teléfono 2',
+        'telefono3' => 'Teléfono 3',
+    ];
+
+    /**
+     * El teléfono que va impreso en los PDF (ventas, pedidos, guías,
+     * cotizaciones). Es el marcado como predeterminado; si quedó vacío o
+     * nunca se eligió, cae al primero que tenga número.
+     */
+    public function getTelefonoPrincipalAttribute(): string
+    {
+        $elegido = (string) ($this->telefono_predeterminado ?? '');
+
+        if (isset(self::CAMPOS_TELEFONO[$elegido]) && trim((string) $this->{$elegido}) !== '') {
+            return trim((string) $this->{$elegido});
+        }
+
+        foreach (array_keys(self::CAMPOS_TELEFONO) as $campo) {
+            if (trim((string) $this->{$campo}) !== '') {
+                return trim((string) $this->{$campo});
+            }
+        }
+
+        return '';
+    }
 
     /**
      * Credenciales SUNAT según el modo.

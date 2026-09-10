@@ -53,7 +53,7 @@
                             @endif
                             <div class="empresa-nombre">{{ $empresa->razon_social ?? 'EMPRESA' }}</div>
                             <div class="empresa-datos">
-                                @if($empresa->telefono ?? '')Central Telefónica: {{ $empresa->telefono }}<br>@endif
+                                @if($empresa->telefono_principal ?? '')Central Telefónica: {{ $empresa->telefono_principal }}<br>@endif
                                 @if($empresa->email ?? '')Email: {{ $empresa->email }}@endif
                                 @if($empresa->web ?? '') | Web: {{ $empresa->web }}@endif<br>
                                 Dirección: {{ $empresa->direccion ?? '' }}

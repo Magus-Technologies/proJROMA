@@ -9,7 +9,7 @@
             </div>
             <div style="font-size:7.5pt;color:#555;line-height:1.6">
                 {{ $empresa->direccion ?? '' }}<br>
-                @if($empresa->telefono)Central Telefónica: {{ $empresa->telefono }}<br>@endif
+                @if($empresa->telefono_principal)Central Telefónica: {{ $empresa->telefono_principal }}<br>@endif
                 @if($empresa->email)Email: {{ $empresa->email }}<br>@endif
                 RUC: {{ $empresa->ruc ?? '-' }}
             </div>

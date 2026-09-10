@@ -109,6 +109,9 @@ class VehiculoResource extends Resource
 
             DatePicker::make('soat_vence')->label('SOAT vence'),
             DatePicker::make('rev_tecnica_vence')->label('Rev. técnica vence'),
+            DatePicker::make('mantenimiento_vence')
+                ->label('Próximo mantenimiento')
+                ->helperText('Fecha en la que toca el próximo servicio.'),
         ]);
     }
 
@@ -130,6 +133,22 @@ class VehiculoResource extends Resource
                     ->formatStateUsing(fn ($state): string => $state ? number_format((float) $state, 2) . ' m³' : '—'),
                 TextColumn::make('soat_vence')->label('SOAT')->date('d/m/Y')->placeholder('—')
                     ->color(fn ($state): string => $state && $state->isPast() ? 'danger' : 'gray'),
+                TextColumn::make('mantenimiento_vence')->label('Mantenimiento')->date('d/m/Y')->placeholder('—')
+                    ->badge()
+                    ->color(fn ($state): string => match (true) {
+                        ! $state => 'gray',
+                        $state->isPast() => 'danger',
+                        $state->lte(now()->addDays(30)) => 'warning',
+                        default => 'gray',
+                    })
+                    ->tooltip(fn ($state): ?string => match (true) {
+                        ! $state => null,
+                        $state->isPast() => 'Mantenimiento atrasado',
+                        $state->lte(now()->addDays(30)) => 'Toca mantenimiento pronto',
+                        default => null,
+                    })
+                    ->sortable()
+                    ->toggleable(),
                 IconColumn::make('estado')->label('Estado')->boolean(),
             ])
             ->actions([

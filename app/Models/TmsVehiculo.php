@@ -19,6 +19,7 @@ class TmsVehiculo extends Model
         'capacidad_m3'      => 'decimal:2',
         'soat_vence'        => 'date',
         'rev_tecnica_vence' => 'date',
+        'mantenimiento_vence' => 'date',
         'estado'            => 'integer',
     ];
 

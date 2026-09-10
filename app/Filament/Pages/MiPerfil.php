@@ -39,8 +39,10 @@ class MiPerfil extends Page
 
     protected static ?string $slug = 'mi-perfil';
 
-    /** Se llega por el menú de usuario, no por la navegación lateral. */
-    protected static bool $shouldRegisterNavigation = false;
+    protected static ?string $navigationLabel = 'Mi Perfil';
+
+    /** Al final del menú: es una pantalla personal, no un módulo del negocio. */
+    protected static ?int $navigationSort = 99;
 
     protected string $view = 'filament-panels::pages.simple';
 

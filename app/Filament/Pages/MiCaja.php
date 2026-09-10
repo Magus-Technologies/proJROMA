@@ -133,7 +133,7 @@ class MiCaja extends Page implements HasTable
                 ->visible($fondoAsignado !== null)
                 ->content(fn (): HtmlString => new HtmlString(
                     '<strong style="font-size:1.1rem">S/ ' . number_format((float) $fondoAsignado, 2) . '</strong>'
-                    . '<br><span style="opacity:.7">Contá el efectivo recibido y declaralo abajo.</span>'
+                    . '<br><span style="opacity:.7">Cuenta el efectivo que recibiste y decláralo abajo.</span>'
                 )),
 
             Section::make('Desglose de billetes y monedas')
@@ -154,7 +154,7 @@ class MiCaja extends Page implements HasTable
                     ->prefix('S/')
                     ->live(debounce: 400)
                     ->helperText($fondoAsignado !== null
-                        ? 'Lo que contaste de verdad. Si difiere del fondo asignado, explicá por qué.'
+                        ? 'Lo que contaste de verdad, aunque no coincida con el fondo.'
                         : 'Se autocompleta con el desglose; puedes corregirlo.'),
 
                 Placeholder::make('total_final')
@@ -175,7 +175,7 @@ class MiCaja extends Page implements HasTable
                     $declarado = self::totalDeclarado($get);
 
                     if ($declarado <= 0) {
-                        return new HtmlString('<span style="opacity:.7">Declará cuánto contaste.</span>');
+                        return new HtmlString('<span style="opacity:.7">Declara cuánto contaste.</span>');
                     }
 
                     $dif = round($declarado - (float) $fondoAsignado, 2);
@@ -186,7 +186,8 @@ class MiCaja extends Page implements HasTable
 
                     return new HtmlString('<strong style="color:#dc2626">'
                         . ($dif > 0 ? 'Sobran S/ ' : 'Faltan S/ ') . number_format(abs($dif), 2)
-                        . '</strong><br><span style="opacity:.7">Queda como discrepancia para el supervisor; explicá el motivo abajo.</span>');
+                        . '</strong><br><span style="opacity:.7">Explica el motivo abajo. La caja queda con lo que declaraste y '
+                        . 'la diferencia pasa al supervisor.</span>');
                 }),
         ];
     }
@@ -212,7 +213,7 @@ class MiCaja extends Page implements HasTable
                 && self::totalDeclarado($get) > 0
                 && abs(self::totalDeclarado($get) - $fondoAsignado) >= 0.01)
             ->helperText($fondoAsignado !== null
-                ? 'Obligatorias si lo que contaste no coincide con el fondo asignado.'
+                ? 'Obligatorias solo si hay diferencia.'
                 : null);
     }
 
@@ -667,9 +668,7 @@ class MiCaja extends Page implements HasTable
                     $tr = $fondoPendiente();
 
                     return $tr
-                        ? '💰 Te asignaron S/ ' . number_format($tr->monto, 2) . ' desde "' . ($tr->origen?->nombre ?? '—')
-                            . '" (asignó ' . ($tr->asignadoPor?->nombres ?? '—') . '). Contá el efectivo recibido: entra a tu turno '
-                            . 'con lo que declares y cualquier diferencia queda como discrepancia para el supervisor.'
+                        ? 'Fondo enviado desde "' . ($tr->origen?->nombre ?? '—') . '" por ' . ($tr->asignadoPor?->nombres ?? '—') . '.'
                         : null;
                 })
                 ->form(fn (): array => [
@@ -744,7 +743,7 @@ class MiCaja extends Page implements HasTable
                         ->first();
 
                     return $tr
-                        ? '💰 Fondo asignado: S/ ' . number_format($tr->monto, 2) . ' desde "' . ($tr->origen?->nombre ?? 'bóveda') . '" (asignó ' . ($tr->asignadoPor?->nombres ?? '—') . '). Cuenta el efectivo recibido: la caja abrirá con lo que declares y cualquier diferencia quedará como discrepancia para el supervisor.'
+                        ? 'Fondo enviado desde "' . ($tr->origen?->nombre ?? '—') . '" por ' . ($tr->asignadoPor?->nombres ?? '—') . '.'
                         : null;
                 })
                 ->visible(fn (): bool => ! $this->hayTurnoAbierto()

@@ -119,6 +119,17 @@ class MiPerfil extends Page
 
     public function form(Schema $schema): Schema
     {
+        // Con la clave inicial pendiente la pantalla es una tarjeta angosta y
+        // centrada: los campos van uno debajo del otro y sin tarjeta interna,
+        // que ahí dentro quedaba una caja adentro de otra y los dos campos de
+        // contraseña partidos en columnas de dos dedos de ancho.
+        if ($this->debeCambiar()) {
+            return $schema
+                ->statePath('data')
+                ->columns(1)
+                ->components($this->camposDeClave());
+        }
+
         return $schema
             ->statePath('data')
             ->components([
@@ -168,41 +179,10 @@ class MiPerfil extends Page
                     ]),
 
                 Section::make('Contraseña')
-                    ->description(fn (): string => $this->debeCambiar()
-                        ? 'Elegí una contraseña que solo conozcas vos.'
-                        : 'Dejá los campos en blanco si no querés cambiarla.')
+                    ->description('Dejá los campos en blanco si no querés cambiarla.')
                     ->icon('heroicon-o-key')
                     ->columns(2)
-                    ->schema([
-                        TextInput::make('clave_actual')
-                            ->label($this->debeCambiar() ? 'Contraseña con la que entraste' : 'Contraseña actual')
-                            ->password()
-                            ->revealable()
-                            ->currentPassword()
-                            ->required(fn (): bool => $this->debeCambiar())
-                            ->requiredWith('clave_nueva')
-                            ->columnSpanFull(),
-                        TextInput::make('clave_nueva')
-                            ->label('Contraseña nueva')
-                            ->password()
-                            ->revealable()
-                            ->required(fn (): bool => $this->debeCambiar())
-                            ->rule(Password::min(8))
-                            ->maxLength(60)
-                            ->different('clave_actual')
-                            ->validationMessages([
-                                'different' => 'La contraseña nueva tiene que ser distinta de la actual.',
-                            ])
-                            ->confirmed()
-                            ->helperText('Mínimo 8 caracteres.'),
-                        TextInput::make('clave_nueva_confirmation')
-                            ->label('Repetí la contraseña nueva')
-                            ->password()
-                            ->revealable()
-                            ->required(fn (): bool => $this->debeCambiar())
-                            ->requiredWith('clave_nueva')
-                            ->dehydrated(false),
-                    ]),
+                    ->schema($this->camposDeClave()),
 
                 Section::make('Tu rol y tus permisos')
                     ->description('Es lo que podés hacer dentro del sistema. Si necesitás algo más, pedíselo a tu jefatura.')
@@ -214,6 +194,50 @@ class MiPerfil extends Page
                         Text::make(fn (): string => $this->permisosLegibles()),
                     ]),
             ]);
+    }
+
+    /**
+     * Los tres campos de contraseña. Se comparten entre el perfil completo y
+     * la pantalla del cambio obligatorio, que solo muestra estos.
+     *
+     * @return array<TextInput>
+     */
+    protected function camposDeClave(): array
+    {
+        $obligatorio = $this->debeCambiar();
+
+        return [
+            TextInput::make('clave_actual')
+                ->label($obligatorio ? 'Contraseña con la que entraste' : 'Contraseña actual')
+                ->password()
+                ->revealable()
+                ->currentPassword()
+                ->required($obligatorio)
+                ->requiredWith('clave_nueva')
+                ->columnSpanFull(),
+            TextInput::make('clave_nueva')
+                ->label('Contraseña nueva')
+                ->password()
+                ->revealable()
+                ->required($obligatorio)
+                ->rule(Password::min(8))
+                ->maxLength(60)
+                ->different('clave_actual')
+                ->validationMessages([
+                    'different' => 'La contraseña nueva tiene que ser distinta de la actual.',
+                ])
+                ->confirmed()
+                ->helperText('Mínimo 8 caracteres.')
+                ->columnSpanFull(),
+            TextInput::make('clave_nueva_confirmation')
+                ->label('Repetí la contraseña nueva')
+                ->password()
+                ->revealable()
+                ->required($obligatorio)
+                ->requiredWith('clave_nueva')
+                ->dehydrated(false)
+                ->columnSpanFull(),
+        ];
     }
 
     public function content(Schema $schema): Schema

@@ -157,3 +157,17 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/indicadores/xls',  [ReportesController::class, 'indicadoresExcel'])->name('indicadores.xls')->middleware('can:finanzas.indicadores');
     });
 });
+
+// TEMPORAL — probar el cambio de clave forzado en local. BORRAR.
+Route::get('/__debug-clave', function () {
+    abort_unless(app()->environment('local'), 404);
+    $u = \App\Models\User::where('usuario', 'prueba_estilo')->firstOrFail();
+    auth()->login($u);
+    session([
+        'id_empresa' => $u->id_empresa,
+        'sucursal' => $u->sucursal ?? 1,
+        'password_hash_web' => $u->getAuthPassword(),
+    ]);
+
+    return redirect(url('/panel'));
+});

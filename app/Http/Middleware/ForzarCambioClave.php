@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Filament\Pages\MiPerfil;
+use App\Livewire\CampanaVencimientos;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -30,10 +31,17 @@ class ForzarCambioClave
 
     /**
      * Componentes Livewire que se aceptan con el cambio pendiente: la propia
-     * pantalla y los internos de Filament (notificaciones, etc.).
+     * pantalla y los internos de Filament (notificaciones, menú de usuario).
+     *
+     * Filament registra sus páginas por nombre de clase, no por alias en
+     * kebab-case; se aceptan las dos formas por si eso cambia.
      */
     private const COMPONENTES_LIBRES = [
+        MiPerfil::class,
         'app.filament.pages.mi-perfil',
+        // La campanita se dibuja también en esta pantalla y se refresca sola
+        // cada minuto; solo lee, no deja hacer nada.
+        CampanaVencimientos::class,
     ];
 
     public function handle(Request $request, Closure $next): Response
@@ -105,7 +113,10 @@ class ForzarCambioClave
                 return false;
             }
 
+            $nombre = ltrim($nombre, '\\');
+
             if (! in_array($nombre, self::COMPONENTES_LIBRES, true)
+                && ! str_starts_with($nombre, 'Filament\\')
                 && ! str_starts_with($nombre, 'filament.livewire.')) {
                 return false;
             }

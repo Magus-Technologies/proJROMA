@@ -245,17 +245,22 @@ class CajaService
     }
 
     /**
-     * El cajero cuenta el efectivo recibido y apertura la caja contra la
-     * asignación. Si el conteo difiere del monto asignado, la caja abre con
-     * lo CONTADO y queda una discrepancia pendiente de resolver por un
-     * supervisor (el faltante no es deuda del cajero: recién recibe).
+     * El cajero apertura la caja con su propio efectivo y, además, recibe el
+     * fondo que le asignaron. La caja abre con la suma de los dos y cada uno
+     * entra en su propia línea del extracto.
+     *
+     * @param  float  $montoPropio  efectivo con el que abre, sin contar el fondo
      */
-    public function abrirCajaConFondo(int $idTransferencia, float $montoContado, array $detalles, int $idUsuario, ?string $fecha = null, ?string $observaciones = null): int
+    public function abrirCajaConFondo(int $idTransferencia, float $montoPropio, array $detalles, int $idUsuario, ?string $fecha = null, ?string $observaciones = null): int
     {
-        return DB::transaction(function () use ($idTransferencia, $montoContado, $detalles, $idUsuario, $fecha, $observaciones) {
+        return DB::transaction(function () use ($idTransferencia, $montoPropio, $detalles, $idUsuario, $fecha, $observaciones) {
             $tr = DB::table('transferencias_fondo')->where('id', $idTransferencia)->lockForUpdate()->first();
             if (!$tr || $tr->estado !== 'ASIGNADA') throw new \RuntimeException('La asignación ya no está disponible.');
-            if ($montoContado <= 0) throw new \RuntimeException('El conteo del efectivo debe ser mayor a 0.');
+            if ($montoPropio < 0) throw new \RuntimeException('El efectivo declarado no puede ser negativo.');
+
+            // Con fondo asignado se puede abrir solo con él: el cajero no está
+            // obligado a poner plata suya.
+            $montoTotal = round($montoPropio + (float) $tr->monto, 2);
 
             $yaAbierta = DB::table('caja_aperturas')
                 ->where('id_caja', $tr->id_caja_destino)
@@ -267,7 +272,7 @@ class CajaService
                 'id_caja' => $tr->id_caja_destino,
                 'id_transferencia' => $tr->id,
                 'fecha' => $fecha ?? now()->toDateString(),
-                'monto_total' => $montoContado,
+                'monto_total' => $montoTotal,
                 'estado' => 'ABIERTA',
                 'id_usuario_apertura' => $idUsuario,
                 'observaciones' => $observaciones,
@@ -285,31 +290,41 @@ class CajaService
                 ], $detalles));
             }
 
-            // Entra el fondo tal como se asignó y, si el conteo no coincide,
-            // la diferencia va en su propia línea. Así el extracto dice las dos
-            // cosas —cuánto mandaron y cuánto se declaró— en vez de esconder el
-            // faltante detrás de un único importe.
+            // Dos líneas separadas: el efectivo del cajero y el fondo que le
+            // mandaron. Juntas suman con lo que abre la caja, y cada peso queda
+            // atribuido a su origen.
+            if ($montoPropio > 0) {
+                $this->registrarMovimiento([
+                    'id_caja' => $tr->id_caja_destino,
+                    'fecha' => $fecha ?? now()->toDateString(),
+                    'tipo' => 'INGRESO',
+                    'categoria' => 'APERTURA',
+                    'descripcion' => 'Apertura de caja (efectivo declarado)',
+                    'monto' => $montoPropio,
+                    'instrumento_tipo' => 'EFECTIVO',
+                    'origen_tipo' => 'APERTURA',
+                    'origen_id' => $idApertura,
+                    'id_usuario' => $idUsuario,
+                ]);
+            }
+
             $this->registrarMovimiento([
                 'id_caja' => $tr->id_caja_destino,
                 'fecha' => $fecha ?? now()->toDateString(),
                 'tipo' => 'INGRESO',
                 'categoria' => 'APERTURA',
-                'descripcion' => 'Apertura de caja (fondo asignado #' . $tr->id . ')',
+                'descripcion' => 'Fondo asignado #' . $tr->id . ' desde otra caja',
                 'monto' => (float) $tr->monto,
                 'instrumento_tipo' => 'EFECTIVO',
-                'origen_tipo' => 'APERTURA',
-                'origen_id' => $idApertura,
+                'origen_tipo' => 'TRANSFERENCIA_FONDO',
+                'origen_id' => $tr->id,
                 'id_usuario' => $idUsuario,
             ]);
 
-            $diferencia = round($montoContado - (float) $tr->monto, 2);
-
-            $this->registrarDiferenciaDeFondo($tr, $diferencia, $idUsuario, $fecha);
-
             DB::table('transferencias_fondo')->where('id', $tr->id)->update([
                 'estado' => 'APLICADA',
-                'monto_contado' => $montoContado,
-                'discrepancia_estado' => abs($diferencia) > 0.001 ? 'PENDIENTE' : null,
+                'monto_contado' => (float) $tr->monto,
+                'discrepancia_estado' => null,
                 'updated_at' => now(),
             ]);
 
@@ -322,19 +337,15 @@ class CajaService
      * media jornada, cuando se queda sin sencillo.
      *
      * Es el gemelo de abrirCajaConFondo() para una caja en funcionamiento:
-     * cuenta lo recibido, entra como INGRESO al turno en curso y, si el
-     * conteo no coincide con lo asignado, queda la misma discrepancia para
-     * que la resuelva un supervisor.
+     * el fondo entra por lo que se asignó, en su propia línea del extracto.
      *
-     * @param  array<int, array<string, mixed>>  $detalles
      * @return int id del movimiento de ingreso
      */
-    public function recibirFondoEnTurno(int $idTransferencia, float $montoContado, array $detalles, int $idUsuario, ?string $observaciones = null): int
+    public function recibirFondoEnTurno(int $idTransferencia, int $idUsuario, ?string $observaciones = null): int
     {
-        return DB::transaction(function () use ($idTransferencia, $montoContado, $detalles, $idUsuario, $observaciones) {
+        return DB::transaction(function () use ($idTransferencia, $idUsuario, $observaciones) {
             $tr = DB::table('transferencias_fondo')->where('id', $idTransferencia)->lockForUpdate()->first();
             if (!$tr || $tr->estado !== 'ASIGNADA') throw new \RuntimeException('La asignación ya no está disponible.');
-            if ($montoContado <= 0) throw new \RuntimeException('El conteo del efectivo debe ser mayor a 0.');
 
             $apertura = DB::table('caja_aperturas')
                 ->where('id_caja', $tr->id_caja_destino)
@@ -350,7 +361,7 @@ class CajaService
                 'id_caja'          => $tr->id_caja_destino,
                 'tipo'             => 'INGRESO',
                 'categoria'        => 'REPOSICION',
-                'descripcion'      => 'Reposición de fondo recibida (asignación #' . $tr->id . ')'
+                'descripcion'      => 'Fondo asignado #' . $tr->id . ' desde otra caja'
                     . ($observaciones ? ' — ' . $observaciones : ''),
                 'monto'            => (float) $tr->monto,
                 'instrumento_tipo' => 'EFECTIVO',
@@ -359,61 +370,15 @@ class CajaService
                 'id_usuario'       => $idUsuario,
             ]);
 
-            // El desglose del conteo se guarda contra la apertura del turno,
-            // igual que el de la apertura: es el mismo efectivo en la caja.
-            if ($detalles !== []) {
-                DB::table('caja_apertura_detalles')->insert(array_map(fn (array $d): array => [
-                    'id_apertura'  => $apertura->id,
-                    'denominacion' => $d['denominacion'],
-                    'tipo'         => $d['tipo'],
-                    'cantidad'     => $d['cantidad'],
-                    'subtotal'     => $d['subtotal'],
-                ], $detalles));
-            }
-
-            $diferencia = round($montoContado - (float) $tr->monto, 2);
-
-            $this->registrarDiferenciaDeFondo($tr, $diferencia, $idUsuario);
-
             DB::table('transferencias_fondo')->where('id', $tr->id)->update([
                 'estado'              => 'APLICADA',
-                'monto_contado'       => $montoContado,
-                'discrepancia_estado' => abs($diferencia) > 0.001 ? 'PENDIENTE' : null,
+                'monto_contado'       => (float) $tr->monto,
+                'discrepancia_estado' => null,
                 'updated_at'          => now(),
             ]);
 
             return $idMovimiento;
         });
-    }
-
-    /**
-     * La línea de la diferencia entre el fondo asignado y lo que el cajero
-     * declaró haber contado.
-     *
-     * No mueve dinero de verdad: deja el saldo de la caja en lo declarado y
-     * el faltante (o sobrante) escrito en el extracto, a la espera de que un
-     * supervisor lo resuelva contra la caja de origen.
-     */
-    private function registrarDiferenciaDeFondo(object $tr, float $diferencia, int $idUsuario, ?string $fecha = null): void
-    {
-        if (abs($diferencia) < 0.01) {
-            return;
-        }
-
-        $this->registrarMovimiento([
-            'id_caja'          => $tr->id_caja_destino,
-            'fecha'            => $fecha ?? now()->toDateString(),
-            'tipo'             => $diferencia < 0 ? 'EGRESO' : 'INGRESO',
-            'categoria'        => 'DISCREPANCIA',
-            'descripcion'      => ($diferencia < 0 ? 'Faltante' : 'Sobrante') . ' de S/ ' . number_format(abs($diferencia), 2)
-                . ' contra el fondo asignado #' . $tr->id . ' (asignado S/ ' . number_format((float) $tr->monto, 2)
-                . ', declarado S/ ' . number_format((float) $tr->monto + $diferencia, 2) . ') — pendiente de resolver',
-            'monto'            => abs($diferencia),
-            'instrumento_tipo' => 'EFECTIVO',
-            'origen_tipo'      => 'TRANSFERENCIA_FONDO',
-            'origen_id'        => $tr->id,
-            'id_usuario'       => $idUsuario,
-        ]);
     }
 
     /**

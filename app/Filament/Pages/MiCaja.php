@@ -137,23 +137,28 @@ class MiCaja extends Page implements HasTable
                     ->content(fn (callable $get): string => 'S/ ' . number_format(self::sumaDesglose($get), 2)),
 
                 TextInput::make('monto_fijo')
-                    ->label('Monto a declarar')
+                    ->label($fondoAsignado !== null ? 'Tu efectivo a declarar' : 'Monto a declarar')
                     ->numeric()
                     ->minValue(0)
                     ->prefix('S/')
                     ->live(debounce: 400)
                     ->helperText($fondoAsignado !== null
-                        ? 'Cuenta el efectivo y declara lo que recibiste de verdad.'
+                        ? 'Tu efectivo, sin contar el fondo. Puede quedar en cero.'
                         : 'Se autocompleta con el desglose; puedes corregirlo.'),
 
                 Placeholder::make('total_final')
-                    ->label('TOTAL FINAL')
-                    ->content(function (callable $get): string {
-                        $fijo  = (float) ($get('monto_fijo') ?: 0);
-                        $suma  = self::sumaDesglose($get);
-                        $total = $fijo > 0 ? $fijo : $suma;
+                    ->label($fondoAsignado !== null ? 'ABRE CON' : 'TOTAL FINAL')
+                    ->content(function (callable $get) use ($fondoAsignado): HtmlString {
+                        $propio = self::totalDeclarado($get);
+                        $total  = round($propio + (float) ($fondoAsignado ?? 0), 2);
 
-                        return 'S/ ' . number_format($total, 2) . ($fijo > 0 && abs($fijo - $suma) > 0.001 ? ' (fijo)' : '');
+                        if ($fondoAsignado === null) {
+                            return new HtmlString('S/ ' . number_format($total, 2));
+                        }
+
+                        return new HtmlString('<strong>S/ ' . number_format($total, 2) . '</strong>'
+                            . '<br><span style="opacity:.7">' . number_format($propio, 2) . ' declarado + '
+                            . number_format((float) $fondoAsignado, 2) . ' de fondo</span>');
                     }),
             ]),
         ];
@@ -176,11 +181,12 @@ class MiCaja extends Page implements HasTable
         }
 
         if ($fondoAsignado !== null) {
-            // Solo informa cuánto le mandaron; lo que declare es cosa suya.
+            // Entra tal cual, además del efectivo que ponga el cajero.
             $celdas[] = Placeholder::make('fondo_asignado')
                 ->label('Fondo que te asignaron')
                 ->content(fn (): HtmlString => new HtmlString(
                     '<strong style="font-size:1.1rem">S/ ' . number_format((float) $fondoAsignado, 2) . '</strong>'
+                    . '<br><span style="opacity:.7">Se suma a lo que declares abajo.</span>'
                 ));
         }
 
@@ -195,21 +201,12 @@ class MiCaja extends Page implements HasTable
         return $fijo > 0 ? $fijo : self::sumaDesglose($get);
     }
 
-    /**
-     * Observaciones del conteo. Con un fondo asignado de por medio, explicar
-     * la diferencia deja de ser opcional.
-     */
+    /** Observaciones del conteo. */
     protected static function campoObservaciones(?float $fondoAsignado = null): Textarea
     {
         return Textarea::make('observaciones')
             ->label('Observaciones')
-            ->maxLength(500)
-            ->required(fn (callable $get): bool => $fondoAsignado !== null
-                && self::totalDeclarado($get) > 0
-                && abs(self::totalDeclarado($get) - $fondoAsignado) >= 0.01)
-            ->helperText($fondoAsignado !== null
-                ? 'Obligatorias solo si el monto que declaras no coincide con el fondo asignado.'
-                : null);
+            ->maxLength(500);
     }
 
     protected static function sumaDesglose(callable $get): float
@@ -666,21 +663,17 @@ class MiCaja extends Page implements HasTable
                         ? 'Fondo enviado desde "' . ($tr->origen?->nombre ?? '—') . '" por ' . ($tr->asignadoPor?->nombres ?? '—') . '.'
                         : null;
                 })
+                // El fondo entra por lo que se asignó: no hay nada que contar,
+                // solo confirmar que llegó.
                 ->form(fn (): array => [
-                    ...$this->cabeceraDeConteo((float) $fondoPendiente()?->monto ?: null, conFecha: false),
-                    ...$this->componentesConteoEfectivo((float) $fondoPendiente()?->monto ?: null),
-                    self::campoObservaciones((float) $fondoPendiente()?->monto ?: null),
+                    Placeholder::make('fondo_a_recibir')
+                        ->label('Fondo que ingresa a tu caja')
+                        ->content(fn (): HtmlString => new HtmlString(
+                            '<strong style="font-size:1.25rem">S/ '
+                            . number_format((float) ($fondoPendiente()?->monto ?? 0), 2) . '</strong>'
+                        )),
+                    self::campoObservaciones(),
                 ])
-                ->fillForm(function (): array {
-                    // El monto NO viene precargado: el cajero tiene que contar
-                    // y declarar lo que recibió de verdad.
-                    $data = ['observaciones' => null, 'monto_fijo' => null];
-                    foreach (array_keys(self::DENOMINACIONES) as $clave) {
-                        $data[$clave] = 0;
-                    }
-
-                    return $data;
-                })
                 ->action(function (array $data) use ($fondoPendiente): void {
                     $tr = $fondoPendiente();
 
@@ -690,21 +683,11 @@ class MiCaja extends Page implements HasTable
                         return;
                     }
 
-                    [$montoTotal, $detalles, $esMontoFijo] = self::resolverConteo($data);
-
-                    if ($montoTotal <= 0) {
-                        Notification::make()->warning()->title('Ingresa el conteo de efectivo o un monto fijo.')->send();
-
-                        return;
-                    }
-
                     try {
                         app(CajaService::class)->recibirFondoEnTurno(
                             $tr->id,
-                            $montoTotal,
-                            $detalles,
                             (int) auth()->user()->usuario_id,
-                            trim(($data['observaciones'] ?? '') . ($esMontoFijo ? ' [Monto fijo ingresado]' : '')) ?: null,
+                            $data['observaciones'] ?? null,
                         );
                     } catch (\RuntimeException $e) {
                         Notification::make()->danger()->title($e->getMessage())->send();
@@ -712,14 +695,9 @@ class MiCaja extends Page implements HasTable
                         return;
                     }
 
-                    $dif = round($montoTotal - (float) $tr->monto, 2);
-
                     Notification::make()->success()
-                        ->title('Fondo recibido — S/ ' . number_format($montoTotal, 2))
-                        ->body(abs($dif) < 0.01
-                            ? 'El conteo coincide con lo asignado.'
-                            : ($dif > 0 ? 'Sobrante de S/ ' . number_format($dif, 2) : 'Faltante de S/ ' . number_format(abs($dif), 2))
-                                . ' respecto a lo asignado — quedó como discrepancia para el supervisor.')
+                        ->title('Fondo recibido — S/ ' . number_format((float) $tr->monto, 2))
+                        ->body('Entró a tu turno como un movimiento aparte.')
                         ->send();
 
                     $this->caja = $this->resolverCaja();
@@ -768,18 +746,19 @@ class MiCaja extends Page implements HasTable
 
                     [$montoTotal, $detalles, $esMontoFijo] = self::resolverConteo($data);
 
-                    if ($montoTotal <= 0) {
-                        Notification::make()->warning()->title('Ingresa el conteo de efectivo o un monto fijo.')->send();
-
-                        return;
-                    }
-
                     // Si hay un fondo asignado pendiente, la apertura se hace
-                    // contra la asignación (traspaso bóveda → caja trazable).
+                    // contra la asignación: el fondo se suma a lo que declara
+                    // el cajero y cada uno queda en su propia línea.
                     $transferencia = \App\Models\TransferenciaFondo::where('id_caja_destino', $cajaId)
                         ->where('estado', 'ASIGNADA')
                         ->orderBy('id')
                         ->first();
+
+                    if (! $transferencia && $montoTotal <= 0) {
+                        Notification::make()->warning()->title('Ingresa el conteo de efectivo o un monto fijo.')->send();
+
+                        return;
+                    }
 
                     if ($transferencia) {
                         try {
@@ -797,18 +776,13 @@ class MiCaja extends Page implements HasTable
                             return;
                         }
 
-                        $dif = round($montoTotal - $transferencia->monto, 2);
-                        $detalleDif = abs($dif) < 0.01
-                            ? 'El conteo coincide con el fondo asignado.'
-                            : ($dif > 0
-                                ? 'Sobrante de S/ ' . number_format($dif, 2)
-                                : 'Faltante de S/ ' . number_format(abs($dif), 2)) . ' respecto a lo asignado — quedó como discrepancia para el supervisor.';
-
                         Notification::make()->success()
-                            ->title('Caja aperturada con fondo asignado — S/ ' . number_format($montoTotal, 2))
-                            ->body($detalleDif)
+                            ->title('Caja aperturada — S/ ' . number_format($montoTotal + (float) $transferencia->monto, 2))
+                            ->body('S/ ' . number_format($montoTotal, 2) . ' que declaraste + S/ '
+                                . number_format((float) $transferencia->monto, 2) . ' del fondo asignado.')
                             ->send();
                         $this->caja = $this->resolverCaja();
+                        $this->resetTable();
 
                         return;
                     }

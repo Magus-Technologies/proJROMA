@@ -195,15 +195,21 @@ class MiCaja extends Page implements HasTable
      * solo efectivo; lo que entró por transferencia/billetera se declara
      * aparte. Movimientos sin instrumento cuentan como efectivo.
      */
-    protected function saldosPorInstrumento(): array
+    /** El turno abierto de la caja, o null si está cerrada. */
+    protected function aperturaAbierta(): ?object
     {
-        // El cuadre es del TURNO actual: solo movimientos desde la apertura
-        // abierta (el fondo inicial entra como INGRESO/APERTURA, ya incluido).
-        $apertura = DB::table('caja_aperturas')
+        return DB::table('caja_aperturas')
             ->where('id_caja', (int) ($this->caja->id ?? 0))
             ->where('estado', 'ABIERTA')
             ->orderByDesc('id')
             ->first();
+    }
+
+    protected function saldosPorInstrumento(): array
+    {
+        // El cuadre es del TURNO actual: solo movimientos desde la apertura
+        // abierta (el fondo inicial entra como INGRESO/APERTURA, ya incluido).
+        $apertura = $this->aperturaAbierta();
 
         if (! $apertura) {
             return ['efectivo' => 0.0, 'otros' => 0.0];
@@ -257,8 +263,26 @@ class MiCaja extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->query(fn (): Builder => CajaMovimiento::query()
-                ->where('id_caja', $this->caja->id ?? 0))
+            // Mi Caja es la vista del TURNO: arrancar en la apertura abierta.
+            // Con la caja cerrada no hay turno del cual mostrar movimientos;
+            // el historial completo está en Movimientos de Caja.
+            ->query(function (): Builder {
+                $apertura = $this->aperturaAbierta();
+
+                return CajaMovimiento::query()
+                    ->where('id_caja', $this->caja->id ?? 0)
+                    ->when(
+                        $apertura,
+                        fn (Builder $q): Builder => $q->where('created_at', '>=', $apertura->created_at),
+                        fn (Builder $q): Builder => $q->whereRaw('1 = 0'),
+                    );
+            })
+            ->emptyStateHeading(fn (): string => $this->aperturaAbierta()
+                ? 'Sin movimientos en este turno'
+                : 'La caja está cerrada')
+            ->emptyStateDescription(fn (): ?string => $this->aperturaAbierta()
+                ? null
+                : 'Aperturá tu caja para empezar el turno. Los movimientos de turnos anteriores están en Movimientos de Caja.')
             ->columns([
                 TextColumn::make('created_at')
                     ->label('Fecha y hora')

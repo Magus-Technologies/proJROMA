@@ -1,6 +1,6 @@
 {{-- Campanita con panel de notificaciones. Se refresca sola cada 60s. --}}
 <div wire:poll.60s class="flex items-center">
-    @if ($puedeVer || $cantidadStock > 0 || $cantidadLicencias > 0)
+    @if ($puedeVer || $cantidadStock > 0 || $cantidadLicencias > 0 || $cantidadVehiculos > 0)
         <div x-data="{ abierto: false }" class="relative">
             {{-- Botón campana --}}
             <button
@@ -47,6 +47,11 @@
                                 {{ $cantidadStock }} stock
                             </span>
                         @endif
+                        @if ($cantidadVehiculos > 0)
+                            <span class="inline-flex items-center rounded-full bg-warning-50 px-2.5 py-0.5 text-xs font-semibold text-warning-700 dark:bg-warning-400/10 dark:text-warning-400">
+                                {{ $cantidadVehiculos }} vehículos
+                            </span>
+                        @endif
                         @if ($cantidadLicencias > 0)
                             <span class="inline-flex items-center rounded-full bg-warning-50 px-2.5 py-0.5 text-xs font-semibold text-warning-700 dark:bg-warning-400/10 dark:text-warning-400">
                                 {{ $cantidadLicencias }} licencias
@@ -86,6 +91,48 @@
                                     <span class="block truncate text-sm font-semibold text-gray-900 dark:text-white">{{ $a['titulo'] }}</span>
                                     <span class="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">{{ $a['cuerpo'] }}</span>
                                     <span class="mt-1 block text-[11px] text-gray-400 dark:text-gray-500">{{ $a['cuando'] }}</span>
+                                </div>
+                            </a>
+                        @endforeach
+                    </div>
+                    <div class="h-px bg-gray-100 dark:bg-white/10"></div>
+                @endif
+
+                {{-- Sección: vencimientos del vehículo --}}
+                @if ($cantidadVehiculos > 0)
+                    <div class="px-5 py-2 bg-warning-50/60 dark:bg-warning-400/5">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-warning-700 dark:text-warning-400">Vehículos</span>
+                    </div>
+                    <div class="divide-y divide-gray-50 dark:divide-white/5">
+                        @foreach ($alertasVehiculos as $v)
+                            <a href="{{ $urlVehiculos }}" class="flex items-start gap-3 px-5 py-3 transition hover:bg-gray-50 dark:hover:bg-white/5">
+                                <span @class([
+                                    'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
+                                    'bg-danger-100 text-danger-600 dark:bg-danger-400/10 dark:text-danger-400' => $v['vencida'],
+                                    'bg-warning-100 text-warning-600 dark:bg-warning-400/10 dark:text-warning-400' => ! $v['vencida'],
+                                ])>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-5 w-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-6m0-15H3.375c-.621 0-1.125.504-1.125 1.125v9.75c0 .621.504 1.125 1.125 1.125h6.75V3.75Z" />
+                                    </svg>
+                                </span>
+                                <div class="min-w-0 flex-1">
+                                    <span class="block truncate text-sm font-semibold text-gray-900 dark:text-white">
+                                        {{ $v['concepto'] }} &middot; {{ $v['placa'] }}
+                                    </span>
+                                    <span class="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">
+                                        @if ($v['conductor'])
+                                            A cargo de {{ $v['conductor'] }} &middot; vence {{ $v['fecha'] }}
+                                        @else
+                                            Sin conductor asignado &middot; vence {{ $v['fecha'] }}
+                                        @endif
+                                    </span>
+                                    <span @class([
+                                        'mt-1.5 inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium',
+                                        'bg-danger-50 text-danger-700 dark:bg-danger-400/10 dark:text-danger-400' => $v['vencida'],
+                                        'bg-warning-50 text-warning-700 dark:bg-warning-400/10 dark:text-warning-400' => ! $v['vencida'],
+                                    ])>
+                                        {{ $v['cuando'] }}
+                                    </span>
                                 </div>
                             </a>
                         @endforeach
@@ -190,6 +237,13 @@
                         class="block px-5 py-3 text-center text-sm font-semibold text-primary-600 transition hover:bg-gray-50 dark:text-primary-400 dark:hover:bg-white/5"
                     >
                         Ver todas en Cuentas por Cobrar
+                    </a>
+                @elseif ($cantidadVehiculos > 0)
+                    <a
+                        href="{{ $urlVehiculos }}"
+                        class="block px-5 py-3 text-center text-sm font-semibold text-primary-600 transition hover:bg-gray-50 dark:text-primary-400 dark:hover:bg-white/5"
+                    >
+                        Ver vehículos
                     </a>
                 @elseif ($cantidadLicencias > 0)
                     <a

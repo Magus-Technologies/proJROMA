@@ -3,9 +3,11 @@
 namespace App\Livewire;
 
 use App\Filament\Resources\ConductorResource;
+use App\Filament\Resources\VehiculoResource;
 use App\Filament\Resources\CuentaPorCobrarResource;
 use App\Models\DiasVenta;
 use App\Models\TmsConductor;
+use App\Models\TmsVehiculo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Livewire\Component;
@@ -25,6 +27,16 @@ class CampanaVencimientos extends Component
      * porque renovar una licencia lleva trámite: avisar el mismo día no sirve.
      */
     public const DIAS_AVISO_LICENCIA = 30;
+
+    /** Ventana para SOAT, revisión técnica y mantenimiento del vehículo. */
+    public const DIAS_AVISO_VEHICULO = 30;
+
+    /** Los tres vencimientos del vehículo: columna => cómo se llama. */
+    private const VENCIMIENTOS_VEHICULO = [
+        'soat_vence'          => 'SOAT',
+        'rev_tecnica_vence'   => 'Revisión técnica',
+        'mantenimiento_vence' => 'Mantenimiento',
+    ];
 
     /** Máximo de notificaciones a listar en el desplegable. */
     public const MAX_ITEMS = 15;
@@ -146,6 +158,101 @@ class CampanaVencimientos extends Component
             });
     }
 
+    // ── Vencimientos del vehículo (SOAT, revisión técnica, mantenimiento) ──
+
+    /**
+     * Qué vehículos le tocan a quien está mirando: los que tiene a cargo y los
+     * que no tienen conductor asignado. Un vehículo sin dueño es de todos —
+     * si no, su vencimiento no lo vería nadie. Los administradores ven todos.
+     */
+    protected function vehiculosQuery(): Builder
+    {
+        $limite = now()->startOfDay()->addDays(self::DIAS_AVISO_VEHICULO)->toDateString();
+
+        $query = TmsVehiculo::query()
+            ->with('conductor')
+            ->where('id_empresa', (int) session('id_empresa'))
+            ->where('sucursal', (int) session('sucursal'))
+            ->where('estado', 1)
+            ->where(function (Builder $q) use ($limite): Builder {
+                foreach (array_keys(self::VENCIMIENTOS_VEHICULO) as $columna) {
+                    $q->orWhereDate($columna, '<=', $limite);
+                }
+
+                return $q;
+            });
+
+        if (auth()->user()?->esAdmin()) {
+            return $query;
+        }
+
+        // Conductores que son este usuario (por su enlace con la ficha).
+        $mios = TmsConductor::query()
+            ->where('id_usuario', (int) auth()->user()?->usuario_id)
+            ->pluck('id');
+
+        // Conductores sin usuario del sistema: no pueden recibir el aviso, así
+        // que su vehículo se comporta como uno sin conductor asignado.
+        $sinUsuario = TmsConductor::query()->whereNull('id_usuario')->select('id');
+
+        return $query->where(fn (Builder $q): Builder => $q
+            ->whereNull('id_conductor')
+            ->orWhereIn('id_conductor', $mios)
+            ->orWhereIn('id_conductor', $sinUsuario));
+    }
+
+    public function getPuedeVerVehiculosProperty(): bool
+    {
+        return (bool) auth()->user()?->can('tms_vehiculos.ver');
+    }
+
+    /** @return Collection<int, array<string, mixed>> */
+    public function getAlertasVehiculosProperty(): Collection
+    {
+        if (! $this->puedeVerVehiculos) {
+            return collect();
+        }
+
+        $hoy = now()->startOfDay();
+        $limite = $hoy->copy()->addDays(self::DIAS_AVISO_VEHICULO);
+
+        return $this->vehiculosQuery()
+            ->get()
+            ->flatMap(function (TmsVehiculo $v) use ($hoy, $limite): array {
+                $filas = [];
+
+                foreach (self::VENCIMIENTOS_VEHICULO as $columna => $concepto) {
+                    $fecha = $v->{$columna};
+
+                    if (! $fecha || $fecha->gt($limite)) {
+                        continue;
+                    }
+
+                    $vencida = $fecha->startOfDay()->lt($hoy);
+
+                    $filas[] = [
+                        'placa'     => $v->placa,
+                        'concepto'  => $concepto,
+                        'conductor' => $v->conductor?->nombres,
+                        'fecha'     => $fecha->format('d/m/Y'),
+                        'orden'     => $fecha->timestamp,
+                        'vencida'   => $vencida,
+                        'cuando'    => $this->textoCuando((int) $hoy->diffInDays($fecha, false), $vencida),
+                    ];
+                }
+
+                return $filas;
+            })
+            ->sortBy('orden')
+            ->take(self::MAX_ITEMS)
+            ->values();
+    }
+
+    public function getCantidadVehiculosProperty(): int
+    {
+        return $this->alertasVehiculos->count();
+    }
+
     /** @return Collection<int, array<string, mixed>> */
     public function getNotificacionesProperty(): Collection
     {
@@ -208,9 +315,12 @@ class CampanaVencimientos extends Component
             'alertasStock'   => $this->alertasStock,
             'urlStock'       => \App\Filament\Resources\ProductoResource::getUrl('index'),
             'cantidadLicencias' => $this->cantidadLicencias,
+            'alertasVehiculos'  => $alertasVehiculos = $this->alertasVehiculos,
+            'cantidadVehiculos' => $cantidadVehiculos = $alertasVehiculos->count(),
+            'urlVehiculos'      => VehiculoResource::getUrl('index'),
             'alertasLicencias'  => $this->alertasLicencias,
             'urlLicencias'      => ConductorResource::getUrl('index'),
-            'total'          => $this->cantidad + $this->cantidadStock + $this->cantidadLicencias,
+            'total'          => $this->cantidad + $this->cantidadStock + $this->cantidadLicencias + $cantidadVehiculos,
         ]);
     }
 }

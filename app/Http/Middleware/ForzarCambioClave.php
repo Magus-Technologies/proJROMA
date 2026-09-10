@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Filament\Pages\CambiarClave;
+use App\Filament\Pages\MiPerfil;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Mientras el usuario tenga la clave inicial que le puso el administrador, lo
  * único que puede hacer es cambiarla: cualquier otra pantalla lo devuelve a
- * "Cambiar contraseña".
+ * "Mi Perfil", que en ese estado se reduce al cambio de contraseña.
  *
  * Se aplica en dos lugares porque el sistema tiene dos mitades: el panel de
  * Filament (authMiddleware) y las pantallas antiguas en Blade (grupo web).
@@ -33,7 +33,7 @@ class ForzarCambioClave
      * pantalla y los internos de Filament (notificaciones, etc.).
      */
     private const COMPONENTES_LIBRES = [
-        'app.filament.pages.cambiar-clave',
+        'app.filament.pages.mi-perfil',
     ];
 
     public function handle(Request $request, Closure $next): Response
@@ -60,7 +60,7 @@ class ForzarCambioClave
             abort(403, 'Primero tenés que cambiar tu contraseña.');
         }
 
-        return redirect()->to(CambiarClave::getUrl());
+        return redirect()->to(MiPerfil::getUrl());
     }
 
     private function esRutaLibre(Request $request): bool
@@ -73,7 +73,7 @@ class ForzarCambioClave
 
         // La propia pantalla de cambio de clave, más los assets y subidas que
         // Livewire y Filament necesitan para renderizarla.
-        return $nombre === CambiarClave::getRouteName()
+        return $nombre === MiPerfil::getRouteName()
             || str_starts_with($nombre, 'livewire.')
             || str_starts_with($nombre, 'filament.asset')
             || $request->is('livewire*');

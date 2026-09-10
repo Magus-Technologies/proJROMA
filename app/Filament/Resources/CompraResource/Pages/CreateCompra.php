@@ -448,6 +448,7 @@ class CreateCompra extends CreateRecord
                 'numero'            => $data['numero'] ?? '',
                 'total'             => $total,
                 'id_empresa'        => (int) session('id_empresa'),
+                'id_usuario'        => (int) auth()->id(),
                 'sucursal'          => (int) session('sucursal'),
                 'moneda'            => 'S',
                 'recepcionado'      => 0,

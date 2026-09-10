@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\DB;
 class CuentaPorCobrarResource extends Resource
 {
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+    use \App\Filament\Concerns\LimitaARegistrosPropios;
 
     public const PERMISO_ACCESO = 'cobranzas.ver';
 
@@ -523,7 +524,10 @@ class CuentaPorCobrarResource extends Resource
             ->whereHas('venta', fn (Builder $q) => $q
                 ->where('id_empresa', (int) session('id_empresa'))
                 ->where('sucursal', (int) session('sucursal'))
-                ->where('estado', '!=', '0'))
+                ->where('estado', '!=', '0')
+                // Sin "ver todas", solo las deudas de las ventas que hizo él.
+                ->when(! static::veTodo('cobranzas.ver_todas'),
+                    fn (Builder $q2) => $q2->where('ventas.id_vendedor', static::usuarioActual())))
             ->with(['venta.cliente', 'venta.vendedor', 'usuario']);
     }
 

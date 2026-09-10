@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 class CuentaPorPagarResource extends Resource
 {
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+    use \App\Filament\Concerns\LimitaARegistrosPropios;
 
     public const PERMISO_ACCESO = 'pagos.ver';
     public const PERMISO_REGISTRAR = 'pagos.registrar';
@@ -282,6 +283,9 @@ class CuentaPorPagarResource extends Resource
         return parent::getEloquentQuery()
             ->where('compras.id_empresa', (int) session('id_empresa'))
             ->where('compras.id_tipo_pago', 2)
+            // Sin "ver todas", solo las compras que registró él.
+            ->when(! static::veTodo('pagos.ver_todas'),
+                fn (Builder $q) => $q->where('compras.id_usuario', static::usuarioActual()))
             ->with(['proveedor', 'tipoDocSunat']);
     }
 

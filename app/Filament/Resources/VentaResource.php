@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\DB;
 class VentaResource extends Resource
 {
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+    use \App\Filament\Concerns\LimitaARegistrosPropios;
 
     public const PERMISO_ACCESO = 'ventas.ver';
     public const PERMISO_CREAR = 'ventas.crear';
@@ -486,6 +487,9 @@ class VentaResource extends Resource
         return parent::getEloquentQuery()
             ->where('id_empresa', (int) session('id_empresa'))
             ->where('sucursal', (int) session('sucursal'))
+            // Sin "ver todas", el vendedor solo ve lo que vendió él.
+            ->when(! static::veTodo('ventas.ver_todas'),
+                fn (Builder $q) => $q->where('ventas.id_vendedor', static::usuarioActual()))
             ->with(['cliente', 'vendedor', 'tipoDocumento', 'sunat'])
             ->select('ventas.*')
             // Despacho (no anulado) del pedido de origen: enlaza por

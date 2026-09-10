@@ -117,10 +117,10 @@ class AdminPanelProvider extends PanelProvider
                 // (SucursalResource handles Sucursales)
             ])
             ->userMenuItems([
-                'cambiar-clave' => \Filament\Navigation\MenuItem::make()
-                    ->label('Cambiar contraseña')
-                    ->icon('heroicon-o-key')
-                    ->url(fn (): string => \App\Filament\Pages\CambiarClave::getUrl()),
+                'mi-perfil' => \Filament\Navigation\MenuItem::make()
+                    ->label('Mi Perfil')
+                    ->icon('heroicon-o-user-circle')
+                    ->url(fn (): string => \App\Filament\Pages\MiPerfil::getUrl()),
             ])
             ->widgets([
                 StatsOverview::class,

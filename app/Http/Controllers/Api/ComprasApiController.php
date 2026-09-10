@@ -65,6 +65,7 @@ class ComprasApiController extends Controller
                 'numero'            => $data['numero'] ?? '',
                 'total'             => $data['total'],
                 'id_empresa'        => $this->empresa(),
+                'id_usuario'        => (int) auth()->id(),
                 'sucursal'          => $this->sucursal(),
                 'moneda'            => 'S',
                 'recepcionado'      => 0,

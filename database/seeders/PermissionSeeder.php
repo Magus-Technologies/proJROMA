@@ -16,6 +16,7 @@ class PermissionSeeder extends Seeder
                 'ventas.anular' => 'Anular ventas',
                 'ventas.pdf'    => 'Generar PDF / comprobante',
                 'ventas.sunat'  => 'Enviar a SUNAT, regenerar XML y descargar CDR',
+                'ventas.ver_todas' => 'Ver las ventas de todos los vendedores (sin esto solo ve las suyas)',
             ],
             'Compras' => [
                 'compras.ver'    => 'Ver listado de compras',
@@ -30,6 +31,7 @@ class PermissionSeeder extends Seeder
                 'cotizaciones.pdf'    => 'Generar PDF',
                 'cotizaciones.cuotas' => 'Gestionar cuotas',
                 'cotizaciones.anular' => 'Anular cotizaciones',
+                'cotizaciones.ver_todas' => 'Ver las cotizaciones y pedidos de todos (sin esto solo ve los suyos)',
             ],
             'Notas Electrónicas' => [
                 'notas.ver'    => 'Ver listado',
@@ -136,6 +138,7 @@ class PermissionSeeder extends Seeder
                 'cobranzas.registrar' => 'Registrar abonos / cobros',
                 'cobranzas.editar'    => 'Editar abonos',
                 'cobranzas.anular'    => 'Anular abonos',
+                'cobranzas.ver_todas' => 'Ver las cuentas por cobrar de todos (sin esto solo las de sus ventas)',
             ],
             'Mis Cobros' => [
                 'cobranzas_miscobros.ver' => 'Ver mis cobros',
@@ -143,6 +146,7 @@ class PermissionSeeder extends Seeder
             'Pagos' => [
                 'pagos.ver'      => 'Ver pagos',
                 'pagos.registrar'=> 'Registrar pagos',
+                'pagos.ver_todas'=> 'Ver las cuentas por pagar de todos (sin esto solo las compras que registró)',
             ],
             'Mercados' => [
                 'tms_mercados.ver'    => 'Ver mercados',

@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Log;
 class CotizacionResource extends Resource
 {
     use \App\Filament\Concerns\VerificaPermisoDeAcceso;
+    use \App\Filament\Concerns\LimitaARegistrosPropios;
 
     public const PERMISO_ACCESO = 'cotizaciones.ver';
     public const PERMISO_CREAR = 'cotizaciones.crear';
@@ -202,7 +203,10 @@ class CotizacionResource extends Resource
     {
         return parent::getEloquentQuery()
             ->with(['cliente', 'usuario'])
-            ->where('id_empresa', (int) session('id_empresa'));
+            ->where('id_empresa', (int) session('id_empresa'))
+            // Sin "ver todas", cada uno ve sus cotizaciones y sus pedidos.
+            ->when(! static::veTodo('cotizaciones.ver_todas'),
+                fn (Builder $q) => $q->where('cotizaciones.id_usuario', static::usuarioActual()));
     }
 
     public static function getRelations(): array { return []; }

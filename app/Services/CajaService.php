@@ -285,13 +285,17 @@ class CajaService
                 ], $detalles));
             }
 
+            // Entra el fondo tal como se asignó y, si el conteo no coincide,
+            // la diferencia va en su propia línea. Así el extracto dice las dos
+            // cosas —cuánto mandaron y cuánto se declaró— en vez de esconder el
+            // faltante detrás de un único importe.
             $this->registrarMovimiento([
                 'id_caja' => $tr->id_caja_destino,
                 'fecha' => $fecha ?? now()->toDateString(),
                 'tipo' => 'INGRESO',
                 'categoria' => 'APERTURA',
                 'descripcion' => 'Apertura de caja (fondo asignado #' . $tr->id . ')',
-                'monto' => $montoContado,
+                'monto' => (float) $tr->monto,
                 'instrumento_tipo' => 'EFECTIVO',
                 'origen_tipo' => 'APERTURA',
                 'origen_id' => $idApertura,
@@ -299,6 +303,8 @@ class CajaService
             ]);
 
             $diferencia = round($montoContado - (float) $tr->monto, 2);
+
+            $this->registrarDiferenciaDeFondo($tr, $diferencia, $idUsuario, $fecha);
 
             DB::table('transferencias_fondo')->where('id', $tr->id)->update([
                 'estado' => 'APLICADA',
@@ -346,7 +352,7 @@ class CajaService
                 'categoria'        => 'REPOSICION',
                 'descripcion'      => 'Reposición de fondo recibida (asignación #' . $tr->id . ')'
                     . ($observaciones ? ' — ' . $observaciones : ''),
-                'monto'            => $montoContado,
+                'monto'            => (float) $tr->monto,
                 'instrumento_tipo' => 'EFECTIVO',
                 'origen_tipo'      => 'TRANSFERENCIA_FONDO',
                 'origen_id'        => $tr->id,
@@ -367,6 +373,8 @@ class CajaService
 
             $diferencia = round($montoContado - (float) $tr->monto, 2);
 
+            $this->registrarDiferenciaDeFondo($tr, $diferencia, $idUsuario);
+
             DB::table('transferencias_fondo')->where('id', $tr->id)->update([
                 'estado'              => 'APLICADA',
                 'monto_contado'       => $montoContado,
@@ -376,6 +384,36 @@ class CajaService
 
             return $idMovimiento;
         });
+    }
+
+    /**
+     * La línea de la diferencia entre el fondo asignado y lo que el cajero
+     * declaró haber contado.
+     *
+     * No mueve dinero de verdad: deja el saldo de la caja en lo declarado y
+     * el faltante (o sobrante) escrito en el extracto, a la espera de que un
+     * supervisor lo resuelva contra la caja de origen.
+     */
+    private function registrarDiferenciaDeFondo(object $tr, float $diferencia, int $idUsuario, ?string $fecha = null): void
+    {
+        if (abs($diferencia) < 0.01) {
+            return;
+        }
+
+        $this->registrarMovimiento([
+            'id_caja'          => $tr->id_caja_destino,
+            'fecha'            => $fecha ?? now()->toDateString(),
+            'tipo'             => $diferencia < 0 ? 'EGRESO' : 'INGRESO',
+            'categoria'        => 'DISCREPANCIA',
+            'descripcion'      => ($diferencia < 0 ? 'Faltante' : 'Sobrante') . ' de S/ ' . number_format(abs($diferencia), 2)
+                . ' contra el fondo asignado #' . $tr->id . ' (asignado S/ ' . number_format((float) $tr->monto, 2)
+                . ', declarado S/ ' . number_format((float) $tr->monto + $diferencia, 2) . ') — pendiente de resolver',
+            'monto'            => abs($diferencia),
+            'instrumento_tipo' => 'EFECTIVO',
+            'origen_tipo'      => 'TRANSFERENCIA_FONDO',
+            'origen_id'        => $tr->id,
+            'id_usuario'       => $idUsuario,
+        ]);
     }
 
     /**

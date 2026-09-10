@@ -10,11 +10,31 @@ class Empresa extends Model
 
     protected $fillable = [
         'ruc','razon_social','comercial','cod_sucursal','direccion',
-        'email','telefono','telefono2','telefono3','telefono_predeterminado','estado','password',
+        'email','web','telefono','telefono2','telefono3','telefono_predeterminado','estado','password',
         'user_sol','clave_sol','gre_client_id','gre_client_secret','certificado',
         'logo','ubigeo','distrito','provincia',
         'departamento','tipo_impresion','modo','igv','propaganda',
     ];
+
+    /**
+     * URL pública del sistema, la que se imprime en los comprobantes para que
+     * el cliente valide el suyo. Si no está cargada se usa la del servidor.
+     */
+    public function getUrlConsultaAttribute(): string
+    {
+        $web = trim((string) ($this->web ?? ''));
+
+        if ($web === '') {
+            return url('/consulta');
+        }
+
+        // Aceptar que la carguen sin protocolo ("miempresa.com/consulta").
+        if (! str_starts_with($web, 'http://') && ! str_starts_with($web, 'https://')) {
+            $web = 'https://' . $web;
+        }
+
+        return rtrim($web, '/');
+    }
 
     /** Los tres teléfonos que puede tener una empresa, en orden. */
     public const CAMPOS_TELEFONO = [

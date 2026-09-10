@@ -561,6 +561,58 @@ class CajaService
             ?? $valor;
     }
 
+    /**
+     * Detalle de un método de pago para imprimirlo en un comprobante.
+     *
+     * A diferencia de etiquetaMetodoPago(), que arma un texto corto para la
+     * pantalla, acá se devuelven los datos por separado y se leen de la base
+     * aunque la cuenta o la billetera ya estén desactivadas: un comprobante
+     * viejo tiene que seguir mostrando dónde se cobró.
+     *
+     * @return array{metodo: string, banco: ?string, cuenta: ?string, titular: ?string}
+     */
+    public static function detalleMetodoPago(?string $valor): array
+    {
+        $vacio = ['metodo' => '—', 'banco' => null, 'cuenta' => null, 'titular' => null];
+
+        if (blank($valor)) {
+            return $vacio;
+        }
+
+        if (str_starts_with($valor, 'CUENTA|')) {
+            $cuenta = DB::table('cuentas_bancarias as c')
+                ->leftJoin('bancos as b', 'b.id_banco', '=', 'c.id_banco')
+                ->where('c.id_cuenta', (int) substr($valor, 7))
+                ->first(['b.nombre as banco', 'c.numero_cuenta', 'c.cci', 'c.titular', 'c.tipo_cuenta']);
+
+            return [
+                'metodo'  => 'Transferencia',
+                'banco'   => $cuenta?->banco,
+                'cuenta'  => $cuenta?->numero_cuenta,
+                'titular' => $cuenta?->titular,
+            ];
+        }
+
+        if (str_starts_with($valor, 'BILLETERA|')) {
+            $billetera = DB::table('billeteras_digitales as bd')
+                ->leftJoin('billetera_tipos as bt', 'bt.id', '=', 'bd.id_billetera_tipo')
+                ->leftJoin('cuentas_bancarias as c', 'c.id_cuenta', '=', 'bd.id_cuenta_bancaria')
+                ->leftJoin('bancos as b', 'b.id_banco', '=', 'c.id_banco')
+                ->where('bd.id_billetera', (int) substr($valor, 10))
+                ->first(['bt.nombre as tipo', 'bd.telefono', 'bd.titular', 'b.nombre as banco', 'c.numero_cuenta']);
+
+            return [
+                'metodo'  => $billetera?->tipo ?: 'Billetera digital',
+                'banco'   => $billetera?->banco,
+                // La billetera se identifica por su número, no por la cuenta.
+                'cuenta'  => $billetera?->telefono,
+                'titular' => $billetera?->titular,
+            ];
+        }
+
+        return ['metodo' => static::etiquetaMetodoPago($valor), 'banco' => null, 'cuenta' => null, 'titular' => null];
+    }
+
     /** Etiqueta de un instrumento de caja (con detalle si hay id registrado). */
     public static function etiquetaInstrumento(?string $tipo, ?int $id): string
     {

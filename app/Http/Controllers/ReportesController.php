@@ -50,6 +50,7 @@ class ReportesController extends Controller
             'empresa',
             'vendedor',
             'pagos',
+            'pagosMetodos',
         ])->findOrFail($venta);
 
         $empresa    = $this->getEmpresa() ?? Empresa::find($v->id_empresa);
@@ -74,6 +75,7 @@ class ReportesController extends Controller
             'tipoDocSunat',
             'empresa',
             'pagos',
+            'pagosMetodos',
         ])->findOrFail($voucher);
 
         $empresa    = $this->getEmpresa() ?? Empresa::find($v->id_empresa);

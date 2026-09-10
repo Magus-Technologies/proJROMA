@@ -215,6 +215,13 @@ class EmpresaResource extends Resource
                                 Grid::make(2)
                                     ->schema([
                                         TextInput::make('email')->label('Email')->email()->maxLength(145),
+                                        TextInput::make('web')
+                                            ->label('Web del sistema')
+                                            ->url()
+                                            ->maxLength(191)
+                                            ->placeholder('https://corporacionromaerp.com/consulta')
+                                            ->helperText('Es la dirección que se imprime en los comprobantes para que el cliente valide el suyo. Si la dejás vacía se usa la del servidor.')
+                                            ->columnSpanFull(),
                                         TextInput::make('telefono')->label('Teléfono 1')->maxLength(30)->live(onBlur: true),
                                         TextInput::make('telefono2')->label('Teléfono 2')->maxLength(30)->live(onBlur: true),
                                         TextInput::make('telefono3')->label('Teléfono 3')->maxLength(30)->live(onBlur: true),

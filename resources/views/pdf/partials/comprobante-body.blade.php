@@ -164,6 +164,54 @@
             </tr>
         </table>
 
+        {{-- Con qué se pagó. El cliente necesita ver a qué cuenta entró su
+             transferencia; sin esto solo decía "CONTADO". --}}
+        @php($metodosPago = $v->pagosMetodos ?? collect())
+        @if ($metodosPago->isNotEmpty())
+            <table class="products-table" style="margin-bottom: 5px;">
+                <thead>
+                    <tr>
+                        <th colspan="4" style="text-align:left; padding:5px 8px;">
+                            DETALLE DEL PAGO
+                        </th>
+                    </tr>
+                    <tr>
+                        <th style="width:22%;">MEDIO</th>
+                        <th style="width:42%;">DESTINO</th>
+                        <th style="width:18%;">OPERACIÓN</th>
+                        <th style="width:18%;">IMPORTE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($metodosPago as $pago)
+                        @php($d = \App\Services\CajaService::detalleMetodoPago($pago->metodo_pago))
+                        <tr>
+                            <td style="text-align:center;">{{ strtoupper($d['metodo']) }}</td>
+                            <td style="padding-left:8px;">
+                                @if ($d['banco'] || $d['cuenta'] || $d['titular'])
+                                    @if ($d['banco'])<strong>{{ $d['banco'] }}</strong>@endif
+                                    @if ($d['cuenta'])
+                                        @if ($d['banco']) · @endif{{ $d['cuenta'] }}
+                                    @endif
+                                    @if ($d['titular'])<br><span style="font-size:7pt;">Titular: {{ $d['titular'] }}</span>@endif
+                                @else
+                                    —
+                                @endif
+                            </td>
+                            <td style="text-align:center;">{{ $pago->referencia ?: '—' }}</td>
+                            <td style="text-align:right; padding-right:8px;">S/ {{ number_format((float) $pago->monto, 2) }}</td>
+                        </tr>
+                    @endforeach
+                    @if ($metodosPago->count() > 1)
+                        <tr>
+                            <td colspan="3" style="text-align:right; font-weight:bold; padding-right:8px;">TOTAL PAGADO</td>
+                            <td style="text-align:right; font-weight:bold; padding-right:8px;">S/ {{ number_format((float) $metodosPago->sum('monto'), 2) }}</td>
+                        </tr>
+                    @endif
+                </tbody>
+            </table>
+        @endif
+
         {{-- Cuotas del crédito: SUNAT exige detallarlas en el comprobante --}}
         @if ((int) ($v->id_tipo_pago ?? 1) === 2 && ($v->pagos?->isNotEmpty() ?? false))
             <table class="products-table" style="margin-bottom: 5px;">
@@ -271,7 +319,7 @@
         <div class="footer">
             <p>{{ $empresa->razon_social ?? '' }} | RUC: {{ $empresa->ruc ?? '' }}</p>
             <p style="margin-top:4px">
-                Consulte su comprobante en: <strong>{{ url('/consulta') }}</strong>
+                Consulte su comprobante en: <strong>{{ $empresa->url_consulta ?? url('/consulta') }}</strong>
             </p>
         </div>
     </div>

@@ -37,11 +37,14 @@ class ForzarCambioClave
      * kebab-case; se aceptan las dos formas por si eso cambia.
      */
     private const COMPONENTES_LIBRES = [
+        // Las páginas del panel las registra Filament por nombre de clase.
         MiPerfil::class,
         'app.filament.pages.mi-perfil',
         // La campanita se dibuja también en esta pantalla y se refresca sola
-        // cada minuto; solo lee, no deja hacer nada.
+        // cada minuto; solo lee, no deja hacer nada. Livewire la descubre por
+        // su cuenta, así que su nombre es el alias en kebab-case.
         CampanaVencimientos::class,
+        'campana-vencimientos',
     ];
 
     public function handle(Request $request, Closure $next): Response

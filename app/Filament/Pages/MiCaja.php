@@ -84,7 +84,10 @@ class MiCaja extends Page implements HasTable
     }
 
     /** Conteo en dos columnas (billetes | monedas) + totales en una sola fila. */
-    protected function componentesConteoEfectivo(): array
+    /**
+     * @param  float|null  $fondoAsignado  monto que le mandaron, si lo hay
+     */
+    protected function componentesConteoEfectivo(?float $fondoAsignado = null): array
     {
         $billetes = [];
         $monedas  = [];
@@ -122,6 +125,17 @@ class MiCaja extends Page implements HasTable
         }
 
         return [
+            // El fondo asignado se muestra, no se edita: lo fijó quien preparó
+            // el sobre. El cajero declara lo que contó, y si no coincide queda
+            // la diferencia a la vista y hay que explicarla.
+            Placeholder::make('fondo_asignado')
+                ->label('Fondo que te asignaron')
+                ->visible($fondoAsignado !== null)
+                ->content(fn (): HtmlString => new HtmlString(
+                    '<strong style="font-size:1.1rem">S/ ' . number_format((float) $fondoAsignado, 2) . '</strong>'
+                    . '<br><span style="opacity:.7">Contá el efectivo recibido y declaralo abajo.</span>'
+                )),
+
             Section::make('Desglose de billetes y monedas')
                 ->compact()
                 ->schema([
@@ -139,7 +153,9 @@ class MiCaja extends Page implements HasTable
                     ->minValue(0)
                     ->prefix('S/')
                     ->live(debounce: 400)
-                    ->helperText('Se autocompleta; puedes corregirlo.'),
+                    ->helperText($fondoAsignado !== null
+                        ? 'Lo que contaste de verdad. Si difiere del fondo asignado, explicá por qué.'
+                        : 'Se autocompleta con el desglose; puedes corregirlo.'),
 
                 Placeholder::make('total_final')
                     ->label('TOTAL FINAL')
@@ -151,7 +167,53 @@ class MiCaja extends Page implements HasTable
                         return 'S/ ' . number_format($total, 2) . ($fijo > 0 && abs($fijo - $suma) > 0.001 ? ' (fijo)' : '');
                     }),
             ]),
+
+            Placeholder::make('diferencia_fondo')
+                ->label('Diferencia contra el fondo asignado')
+                ->visible($fondoAsignado !== null)
+                ->content(function (callable $get) use ($fondoAsignado): HtmlString {
+                    $declarado = self::totalDeclarado($get);
+
+                    if ($declarado <= 0) {
+                        return new HtmlString('<span style="opacity:.7">Declará cuánto contaste.</span>');
+                    }
+
+                    $dif = round($declarado - (float) $fondoAsignado, 2);
+
+                    if (abs($dif) < 0.01) {
+                        return new HtmlString('<strong style="color:#059669">Coincide con lo asignado.</strong>');
+                    }
+
+                    return new HtmlString('<strong style="color:#dc2626">'
+                        . ($dif > 0 ? 'Sobran S/ ' : 'Faltan S/ ') . number_format(abs($dif), 2)
+                        . '</strong><br><span style="opacity:.7">Queda como discrepancia para el supervisor; explicá el motivo abajo.</span>');
+                }),
         ];
+    }
+
+    /** Lo que el cajero está declarando: el monto fijo si lo puso, o el desglose. */
+    protected static function totalDeclarado(callable $get): float
+    {
+        $fijo = (float) ($get('monto_fijo') ?: 0);
+
+        return $fijo > 0 ? $fijo : self::sumaDesglose($get);
+    }
+
+    /**
+     * Observaciones del conteo. Con un fondo asignado de por medio, explicar
+     * la diferencia deja de ser opcional.
+     */
+    protected static function campoObservaciones(?float $fondoAsignado = null): Textarea
+    {
+        return Textarea::make('observaciones')
+            ->label('Observaciones')
+            ->maxLength(500)
+            ->required(fn (callable $get): bool => $fondoAsignado !== null
+                && self::totalDeclarado($get) > 0
+                && abs(self::totalDeclarado($get) - $fondoAsignado) >= 0.01)
+            ->helperText($fondoAsignado !== null
+                ? 'Obligatorias si lo que contaste no coincide con el fondo asignado.'
+                : null);
     }
 
     protected static function sumaDesglose(callable $get): float
@@ -610,18 +672,17 @@ class MiCaja extends Page implements HasTable
                             . 'con lo que declares y cualquier diferencia queda como discrepancia para el supervisor.'
                         : null;
                 })
-                ->form([
-                    ...$this->componentesConteoEfectivo(),
-                    Textarea::make('observaciones')
-                        ->label('Observaciones')
-                        ->maxLength(500),
+                ->form(fn (): array => [
+                    ...$this->componentesConteoEfectivo((float) $fondoPendiente()?->monto ?: null),
+                    self::campoObservaciones((float) $fondoPendiente()?->monto ?: null),
                 ])
-                ->fillForm(function () use ($fondoPendiente): array {
-                    $data = ['observaciones' => null];
+                ->fillForm(function (): array {
+                    // El monto NO viene precargado: el cajero tiene que contar
+                    // y declarar lo que recibió de verdad.
+                    $data = ['observaciones' => null, 'monto_fijo' => null];
                     foreach (array_keys(self::DENOMINACIONES) as $clave) {
                         $data[$clave] = 0;
                     }
-                    $data['monto_fijo'] = $fondoPendiente()?->monto;
 
                     return $data;
                 })
@@ -688,30 +749,22 @@ class MiCaja extends Page implements HasTable
                 })
                 ->visible(fn (): bool => ! $this->hayTurnoAbierto()
                     && (auth()->user()?->can('caja.aperturar') ?? false))
-                ->form([
+                ->form(fn (): array => [
                     DatePicker::make('fecha')
                         ->label('Fecha')
                         ->default(now())
                         ->required(),
-                    ...$this->componentesConteoEfectivo(),
-                    Textarea::make('observaciones')
-                        ->label('Observaciones')
-                        ->maxLength(500),
+                    ...$this->componentesConteoEfectivo((float) $fondoPendiente()?->monto ?: null),
+                    self::campoObservaciones((float) $fondoPendiente()?->monto ?: null),
                 ])
-                ->fillForm(function () use ($cajaId): array {
-                    $tr = \App\Models\TransferenciaFondo::where('id_caja_destino', $cajaId)
-                        ->where('estado', 'ASIGNADA')
-                        ->orderBy('id')
-                        ->first();
-
-                    $data = ['fecha' => now()->format('Y-m-d'), 'observaciones' => null];
+                ->fillForm(function (): array {
+                    // El fondo asignado se muestra aparte, en modo lectura: acá
+                    // el cajero declara lo que contó, sin número precargado que
+                    // pueda pasar por "lo que me asignaron".
+                    $data = ['fecha' => now()->format('Y-m-d'), 'observaciones' => null, 'monto_fijo' => null];
                     foreach (array_keys(self::DENOMINACIONES) as $clave) {
                         $data[$clave] = 0;
                     }
-                    // Con fondo asignado, el monto a declarar viene precargado:
-                    // un clic en Enviar lo acepta tal cual, o se corrige/cuenta
-                    // el desglose si lo recibido difiere.
-                    $data['monto_fijo'] = $tr?->monto;
 
                     return $data;
                 })

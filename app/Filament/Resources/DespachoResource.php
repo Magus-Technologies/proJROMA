@@ -135,6 +135,29 @@ class DespachoResource extends Resource
                                 $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
                             }),
 
+                        Action::make('clientes')
+                            ->visible(fn (): bool => auth()->user()?->can('tms_despachos.pdf') ?? false)
+                            ->label('Listado de clientes')
+                            ->icon('heroicon-o-users')
+                            ->color('gray')
+                            ->modalHeading(fn (TmsDespacho $record): string => 'Listado de clientes — ' . $record->codigo)
+                            ->modalDescription('La hoja de cobro: a quién se entrega, con qué número de venta y por cuánto. Deja el filtro vacío para todos los mercados.')
+                            ->modalSubmitActionLabel('Generar PDF')
+                            ->form([
+                                CheckboxList::make('mercados')
+                                    ->label('Solo estos mercados (vacío = todos)')
+                                    ->options(fn (TmsDespacho $record) => self::mercadosDelDespacho($record))
+                                    ->columns(2)
+                                    ->bulkToggleable(),
+                            ])
+                            ->action(function (array $data, TmsDespacho $record, $livewire): void {
+                                $qs = http_build_query(array_filter([
+                                    'mercados' => implode(',', $data['mercados'] ?? []),
+                                ]));
+                                $url = route('tms.despacho.clientes', $record->id) . ($qs ? "?{$qs}" : '');
+                                $livewire->js("window.open(" . json_encode($url) . ", '_blank')");
+                            }),
+
                         Action::make('comprobantes')
                             ->visible(fn (): bool => auth()->user()?->can('tms_despachos.pdf') ?? false)
                             ->label('Boletas / Facturas')

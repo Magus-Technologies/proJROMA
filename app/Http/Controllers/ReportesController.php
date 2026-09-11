@@ -919,6 +919,49 @@ class ReportesController extends Controller
             ], "hoja-carga-{$despacho->codigo}.pdf");
     }
 
+    /**
+     * Listado de clientes del despacho: a quién se le entrega, con qué venta
+     * y por cuánto. Es la hoja que lleva el conductor para cobrar.
+     */
+    public function despachoClientesPdf(int $id): \Illuminate\Http\Response
+    {
+        $despacho = \App\Models\TmsDespacho::with(['ruta', 'vehiculo', 'conductor'])->findOrFail($id);
+        $empresa  = $this->getEmpresa() ?? Empresa::find($despacho->id_empresa);
+
+        $mercadoIds = collect(explode(',', (string) request('mercados')))
+            ->filter()->map(fn ($v) => (int) $v)->values()->all();
+
+        $filas = \Illuminate\Support\Facades\DB::table('tms_despacho_pedidos as dp')
+            ->join('cotizaciones as c', 'c.cotizacion_id', '=', 'dp.id_cotizacion')
+            ->join('clientes as cl', 'cl.id_cliente', '=', 'dp.id_cliente')
+            ->leftJoin('ventas as v', 'v.id_venta', '=', 'c.id_venta')
+            ->leftJoin('tms_mercados as m', 'm.id', '=', 'dp.id_mercado')
+            ->where('dp.id_despacho', $id)
+            ->when($mercadoIds, fn ($q) => $q->whereIn('dp.id_mercado', $mercadoIds))
+            ->orderBy('dp.orden')
+            ->select(
+                'cl.datos as cliente',
+                'v.numero as numero_venta',
+                // Si la venta ya existe manda su total; si no, el del pedido.
+                \Illuminate\Support\Facades\DB::raw('COALESCE(v.total, dp.monto) as total'),
+                \Illuminate\Support\Facades\DB::raw("COALESCE(m.nombre, 'Sin mercado') as mercado"),
+            )
+            ->get();
+
+        $nombresMercados = $mercadoIds
+            ? \App\Models\TmsMercado::whereIn('id', $mercadoIds)->pluck('nombre')->implode(', ')
+            : null;
+
+        return PdfService::a4()
+            ->generar('pdf.despacho-clientes', [
+                'despacho'       => $despacho,
+                'empresa'        => $empresa,
+                'clientes'       => $filas->groupBy('mercado'),
+                'total'          => (float) $filas->sum('total'),
+                'filtroMercados' => $nombresMercados,
+            ], "clientes-{$despacho->codigo}.pdf");
+    }
+
     public function exportarExcel(string $fecha): \Symfony\Component\HttpFoundation\Response
     {
         // $fecha llega como 'YYYY-MM' (mes a exportar)

@@ -54,6 +54,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/tms/despacho/pdf/{despacho}',          [ReportesController::class, 'despachoReportePdf'])->name('tms.despacho.pdf')->middleware('can:tms_despachos.pdf');
     Route::get('/tms/despacho/pdf/{despacho}/mercado/{mercado}', [ReportesController::class, 'despachoReportePdf'])->name('tms.despacho.pdf.mercado')->middleware('can:tms_despachos.pdf');
     Route::get('/tms/despacho/guias/{despacho}',        [ReportesController::class, 'despachoGuiasPdf'])->name('tms.despacho.guias')->middleware('can:tms_despachos.pdf');
+    Route::get('/tms/despacho/clientes/{despacho}',     [ReportesController::class, 'despachoClientesPdf'])->name('tms.despacho.clientes')->middleware('can:tms_despachos.pdf');
     Route::get('/tms/despacho/comprobantes/{despacho}', [ReportesController::class, 'despachoComprobantesPdf'])->name('tms.despacho.comprobantes')->middleware('can:tms_despachos.pdf');
     Route::get('/tms/despacho/guias-remision/{despacho}', [ReportesController::class, 'despachoGuiasRemisionPdf'])->name('tms.despacho.guias.remision')->middleware('can:tms_despachos.pdf');
     Route::get('/escanear/codigobarra/{empresa}/{sucursal}', [ProductosController::class, 'escanearBarra'])->name('scanner.barra')->middleware('can:productos.ver');

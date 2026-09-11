@@ -26,7 +26,7 @@
                             R.U.C. {{ $empresa->ruc ?? '' }}
                         </div>
                         <div style="background: #bfc4cc; text-align: center; padding: 10px; font-size: 14px; font-weight: bold; color: #000;">
-                            {{ $v->tipoDocumento?->tipo_doc ?? 'NOTA DE VENTA' }}
+                            {{ $v->tipoDocumento?->tipo_doc ?? 'COMPROBANTE' }}
                         </div>
                         <div style="text-align: center; padding: 10px; font-size: 17px; font-weight: bold; color: #000;">
                             {{ $v->documento_completo }}

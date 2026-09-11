@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>{{ $v->tipoDocumento?->tipo_doc ?? 'NOTA DE VENTA' }} {{ $v->documento_completo }}</title>
+    <title>{{ $v->tipoDocumento?->tipo_doc ?? 'COMPROBANTE' }} {{ $v->documento_completo }}</title>
     <style>
         @page { margin: 50px 40px 50px 40px; }
         body { font-family: 'Arial', sans-serif; font-size: 9pt; color: #333; margin: 0; padding: 0; }

@@ -48,7 +48,7 @@
 
 <div class="line"></div>
 
-<div class="doc-tipo">{{ $v->tipoDocSunat?->nombre ?? 'NOTA DE VENTA' }}</div>
+<div class="doc-tipo">{{ $v->tipoDocSunat?->nombre ?? 'COMPROBANTE' }}</div>
 <div class="doc-serie">{{ $v->documento_completo }}</div>
 
 <div class="line"></div>

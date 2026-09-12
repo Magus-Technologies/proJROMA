@@ -147,12 +147,15 @@ class CreateCompra extends CreateRecord
                                     // descuento.
                                     ->table([
                                         TableColumn::make('Código')->width('90px'),
-                                        TableColumn::make('Descripción del producto'),
-                                        TableColumn::make('Und.')->width('80px'),
-                                        TableColumn::make('Cant.')->width('90px'),
-                                        TableColumn::make('Imp. unit.')->width('115px'),
-                                        TableColumn::make('Desct.')->width('105px'),
-                                        TableColumn::make('Total')->width('120px'),
+                                        // Acotada: el nombre del producto no
+                                        // necesita más y así los importes se
+                                        // leen sin apretarse.
+                                        TableColumn::make('Descripción del producto')->width('240px'),
+                                        TableColumn::make('Und.')->width('90px'),
+                                        TableColumn::make('Cant.')->width('100px'),
+                                        TableColumn::make('Imp. unit.')->width('130px'),
+                                        TableColumn::make('Desct.')->width('120px'),
+                                        TableColumn::make('Total')->width('130px'),
                                     ])
                                     ->schema([
                                         Hidden::make('id_producto'),

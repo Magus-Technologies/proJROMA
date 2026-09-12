@@ -42,7 +42,10 @@ class CreateCompra extends CreateRecord
     public function form(Schema $schema): Schema
     {
         return $schema->components([
-            Grid::make(['default' => 1, 'xl' => 3])
+            // 4 columnas: la tabla de productos necesita el ancho para las
+            // columnas de la factura, así que la ficha de la compra se queda
+            // con un cuarto en lugar de un tercio.
+            Grid::make(['default' => 1, 'xl' => 4])
                 ->columnSpanFull()
                 ->schema([
                     // ── COLUMNA IZQUIERDA: buscador + tabla de productos ──
@@ -202,7 +205,7 @@ class CreateCompra extends CreateRecord
                                             ->dehydrated(false),
                                     ]),
                             ]),
-                    ])->columnSpan(['default' => 1, 'xl' => 2]),
+                    ])->columnSpan(['default' => 1, 'xl' => 3]),
 
                     // ── COLUMNA DERECHA: proveedor, documento, pago, resumen ──
                     Group::make([

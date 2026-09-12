@@ -102,7 +102,9 @@
         </table>
 
         <!-- Detalle: las mismas columnas que trae la factura del proveedor -->
-        @php($igvPct = (float) ($compra->igv_porcentaje ?: 18))
+        @php
+            $igvPct = (float) ($compra->igv_porcentaje ?: 18);
+        @endphp
         <table class="products-table">
             <thead>
                 <tr>

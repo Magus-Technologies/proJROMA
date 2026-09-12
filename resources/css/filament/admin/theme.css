@@ -609,6 +609,35 @@ html {
 }
 
 /* ============================================================
+   ARMAR DESPACHO — la lista de ventas
+   ============================================================
+   Una ruta con cuarenta ventas convertía el modal en un scroll
+   infinito y empujaba vehículo, conductor y el botón de guardar
+   fuera de la pantalla. La lista pasa a su propia caja con alto
+   fijo: el resto del formulario queda siempre a la vista.
+   ============================================================ */
+.despacho-ventas .fi-fo-checkbox-list-options {
+  max-height: 19rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: .75rem;
+  border: 1px solid rgba(148, 163, 184, .35);
+  border-radius: 12px;
+}
+
+.dark .despacho-ventas .fi-fo-checkbox-list-options {
+  border-color: rgba(148, 163, 184, .22);
+}
+
+.despacho-ventas .fi-fo-checkbox-list-options::-webkit-scrollbar { width: 8px; }
+.despacho-ventas .fi-fo-checkbox-list-options::-webkit-scrollbar-track { background: transparent; }
+.despacho-ventas .fi-fo-checkbox-list-options::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, .45);
+  border-radius: 99px;
+}
+
+/* ============================================================
    STAT CARDS — con color (claro + oscuro)
    ============================================================ */
 .fi-stat--info    { --stat: 59, 130, 246; }   /* azul   */

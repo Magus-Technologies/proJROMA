@@ -665,7 +665,8 @@ class ReportesController extends Controller
         $lineas = \Illuminate\Support\Facades\DB::table('productos_compras as pc')
             ->leftJoin('productos as p', 'p.id_producto', '=', 'pc.id_producto')
             ->where('pc.id_compra', $compra->id_compra)
-            ->get(['pc.id_producto', 'pc.cantidad', 'pc.costo', 'p.descripcion', 'p.codigo']);
+            ->get(['pc.id_producto', 'pc.cantidad', 'pc.costo', 'pc.unidad', 'pc.descuento',
+                'p.descripcion', 'p.codigo', 'p.medida']);
 
         $tipoDocumento = \Illuminate\Support\Facades\DB::table('documentos_sunat')
             ->where('id_tido', $compra->id_tido)

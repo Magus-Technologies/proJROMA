@@ -17,6 +17,10 @@ class Compra extends Model
         'fecha_vencimiento','dias_pagos','direccion','serie',
         'numero','total','id_empresa','moneda','sucursal','recepcionado',
         'instrumento_tipo','instrumento_id','id_usuario',
+        // Desglose de la factura del proveedor y regímenes de retención/percepción.
+        'subtotal','descuento_total','igv','igv_porcentaje',
+        'sujeto_retencion','retencion_porcentaje','retencion_monto',
+        'sujeto_percepcion','percepcion_porcentaje','percepcion_monto','total_referencial',
     ];
 
     protected $casts = [

@@ -101,27 +101,42 @@
             </tr>
         </table>
 
-        <!-- Detalle -->
+        <!-- Detalle: las mismas columnas que trae la factura del proveedor -->
+        @php($igvPct = (float) ($compra->igv_porcentaje ?: 18))
         <table class="products-table">
             <thead>
                 <tr>
-                    <th style="width:8%;">ÍTEM</th>
-                    <th style="width:14%;">CÓDIGO</th>
-                    <th style="width:42%; text-align:left;">DESCRIPCIÓN</th>
-                    <th style="width:10%;">CANT.</th>
-                    <th style="width:13%;">COSTO UNIT.</th>
-                    <th style="width:13%;">IMPORTE</th>
+                    <th style="width:9%;">CODIGO</th>
+                    <th style="width:29%; text-align:left;">DESCRIPCION DEL PRODUCTO</th>
+                    <th style="width:6%;">UND</th>
+                    <th style="width:6%;">CANT</th>
+                    <th style="width:10%;">IMP. UNIT S/</th>
+                    <th style="width:10%;">IMP. BRUTO S/</th>
+                    <th style="width:8%;">DESCT. S/</th>
+                    <th style="width:10%;">VALOR VTA. S/</th>
+                    <th style="width:10%;">IGV {{ number_format($igvPct, 2) }}% S/</th>
+                    <th style="width:10%;">TOTAL S/</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($lineas as $i => $l)
+                @foreach($lineas as $l)
+                    @php
+                        $bruto     = round((float) $l->cantidad * (float) $l->costo, 2);
+                        $descuento = (float) ($l->descuento ?? 0);
+                        $valor     = round($bruto - $descuento, 2);
+                        $igvLinea  = round($valor * $igvPct / 100, 2);
+                    @endphp
                     <tr>
-                        <td style="text-align:center;">{{ $i + 1 }}</td>
                         <td style="text-align:center;">{{ $l->codigo ?? '—' }}</td>
                         <td>{{ $l->descripcion ?? 'Producto #' . $l->id_producto }}</td>
+                        <td style="text-align:center;">{{ $l->unidad ?: ($l->medida ?? '—') }}</td>
                         <td style="text-align:center;">{{ rtrim(rtrim(number_format((float) $l->cantidad, 2), '0'), '.') }}</td>
-                        <td style="text-align:right;">S/ {{ number_format((float) $l->costo, 2) }}</td>
-                        <td style="text-align:right;">S/ {{ number_format((float) $l->cantidad * (float) $l->costo, 2) }}</td>
+                        <td style="text-align:right;">{{ number_format((float) $l->costo, 2) }}</td>
+                        <td style="text-align:right;">{{ number_format($bruto, 2) }}</td>
+                        <td style="text-align:right;">{{ number_format($descuento, 2) }}</td>
+                        <td style="text-align:right;">{{ number_format($valor, 2) }}</td>
+                        <td style="text-align:right;">{{ number_format($igvLinea, 2) }}</td>
+                        <td style="text-align:right;">{{ number_format($valor + $igvLinea, 2) }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -139,16 +154,58 @@
                     @endif
                 </td>
                 <td style="width:40%; vertical-align:top;">
-                    <table style="width:100%; border-collapse:collapse;">
+                    <table style="width:100%; border-collapse:collapse; font-size:8pt;">
+                        <tr>
+                            <td style="padding:3px 8px; text-align:right;">IMP. BRUTO S/</td>
+                            <td style="padding:3px 8px; text-align:right; width:38%;">{{ number_format((float) $compra->subtotal + (float) $compra->descuento_total, 2) }}</td>
+                        </tr>
+                        @if((float) $compra->descuento_total > 0)
+                        <tr>
+                            <td style="padding:3px 8px; text-align:right;">DESCUENTO S/</td>
+                            <td style="padding:3px 8px; text-align:right;">-{{ number_format((float) $compra->descuento_total, 2) }}</td>
+                        </tr>
+                        @endif
+                        <tr>
+                            <td style="padding:3px 8px; text-align:right;">VALOR VENTA S/</td>
+                            <td style="padding:3px 8px; text-align:right;">{{ number_format((float) $compra->subtotal, 2) }}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:3px 8px; text-align:right;">IGV {{ number_format($igvPct, 2) }}% S/</td>
+                            <td style="padding:3px 8px; text-align:right;">{{ number_format((float) $compra->igv, 2) }}</td>
+                        </tr>
                         <tr>
                             <td style="padding:8px 10px; background:#bfc4cc; font-weight:bold; font-size:10pt; text-align:right; border-radius:6px 0 0 6px;">
-                                TOTAL COMPRA
+                                TOTAL S/
                             </td>
                             <td style="padding:8px 10px; background:#bfc4cc; font-weight:bold; font-size:12pt; text-align:right; border-radius:0 6px 6px 0;">
-                                S/ {{ number_format((float) $compra->total, 2) }}
+                                {{ number_format((float) $compra->total, 2) }}
                             </td>
                         </tr>
                     </table>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Regímenes de retención y percepción -->
+        <table style="width:100%; margin-top:10px; border-collapse:separate; border-spacing:8px 0;">
+            <tr>
+                <td style="width:50%; vertical-align:top; border:1px solid #999; border-radius:8px; padding:8px 10px; font-size:8pt;">
+                    @if($compra->sujeto_retencion)
+                        <strong>OPERACION SUJETA A RETENCION DEL IGV ({{ number_format((float) $compra->retencion_porcentaje, 2) }}%)</strong>
+                        <div style="margin-top:4px;">RETENCION S/ {{ number_format((float) $compra->retencion_monto, 2) }}</div>
+                    @else
+                        POR RS No 037-2002/SUNAT NO SOMOS SUJETOS A RETENCIONES
+                    @endif
+                </td>
+                <td style="width:50%; vertical-align:top; border:1px solid #999; border-radius:8px; padding:8px 10px; font-size:8pt;">
+                    @if($compra->sujeto_percepcion)
+                        <strong>OPERACION SUJETA A PERCEPCION DEL IGV.({{ number_format((float) $compra->percepcion_porcentaje, 2) }}%)</strong>
+                        <div style="margin-top:6px; font-weight:bold;">
+                            TOTAL A PAGAR REFERENCIAL: S/.{{ number_format((float) $compra->total_referencial, 2) }}
+                        </div>
+                    @else
+                        OPERACION NO SUJETA A PERCEPCION DEL IGV.
+                    @endif
                 </td>
             </tr>
         </table>

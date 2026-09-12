@@ -13,6 +13,7 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Schemas\Components\Grid;
@@ -135,19 +136,37 @@ class CreateCompra extends CreateRecord
                                     ->addable(false)
                                     ->reorderable(false)
                                     ->live()
+                                    // Las mismas columnas que trae la factura del
+                                    // proveedor. El bruto, el valor de venta y el
+                                    // IGV se calculan y salen en el resumen y en
+                                    // el PDF; acá se escribe lo que se lee del
+                                    // documento: cantidad, importe unitario y
+                                    // descuento.
                                     ->table([
-                                        TableColumn::make('Producto'),
-                                        TableColumn::make('Cant.')->width('110px'),
-                                        TableColumn::make('Costo unit.')->width('140px'),
-                                        TableColumn::make('Total')->width('140px'),
+                                        TableColumn::make('Código')->width('90px'),
+                                        TableColumn::make('Descripción del producto'),
+                                        TableColumn::make('Und.')->width('80px'),
+                                        TableColumn::make('Cant.')->width('90px'),
+                                        TableColumn::make('Imp. unit.')->width('115px'),
+                                        TableColumn::make('Desct.')->width('105px'),
+                                        TableColumn::make('Total')->width('120px'),
                                     ])
                                     ->schema([
                                         Hidden::make('id_producto'),
+
+                                        TextInput::make('codigo')
+                                            ->hiddenLabel()
+                                            ->readOnly()
+                                            ->dehydrated(false),
 
                                         TextInput::make('descripcion')
                                             ->hiddenLabel()
                                             ->readOnly()
                                             ->dehydrated(false),
+
+                                        TextInput::make('unidad')
+                                            ->hiddenLabel()
+                                            ->maxLength(20),
 
                                         TextInput::make('cantidad')
                                             ->hiddenLabel()
@@ -155,8 +174,7 @@ class CreateCompra extends CreateRecord
                                             ->minValue(0.01)
                                             ->default(1)
                                             ->live(onBlur: true)
-                                            ->afterStateUpdated(fn ($state, callable $set, callable $get) =>
-                                                $set('linea_total', number_format((float) $state * (float) $get('costo'), 2, '.', '')))
+                                            ->afterStateUpdated(fn (callable $set, callable $get) => static::recalcularLinea($set, $get))
                                             ->required(),
 
                                         TextInput::make('costo')
@@ -165,9 +183,17 @@ class CreateCompra extends CreateRecord
                                             ->minValue(0)
                                             ->prefix('S/')
                                             ->live(onBlur: true)
-                                            ->afterStateUpdated(fn ($state, callable $set, callable $get) =>
-                                                $set('linea_total', number_format((float) $get('cantidad') * (float) $state, 2, '.', '')))
+                                            ->afterStateUpdated(fn (callable $set, callable $get) => static::recalcularLinea($set, $get))
                                             ->required(),
+
+                                        TextInput::make('descuento')
+                                            ->hiddenLabel()
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->default(0)
+                                            ->prefix('S/')
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn (callable $set, callable $get) => static::recalcularLinea($set, $get)),
 
                                         TextInput::make('linea_total')
                                             ->hiddenLabel()
@@ -269,28 +295,141 @@ class CreateCompra extends CreateRecord
                                     ->columnSpanFull(),
                             ]),
 
+                        Section::make('Retenciones y percepciones')
+                            ->compact()
+                            ->columns(2)
+                            ->schema([
+                                Toggle::make('sujeto_retencion')
+                                    ->label('Sujeto a retención')
+                                    ->helperText('Si se apaga, el documento sale con la leyenda de la RS 037-2002/SUNAT.')
+                                    ->live()
+                                    ->columnSpanFull(),
+
+                                TextInput::make('retencion_porcentaje')
+                                    ->label('Retención %')
+                                    ->numeric()
+                                    ->default(3)
+                                    ->suffix('%')
+                                    ->live(onBlur: true)
+                                    ->visible(fn (callable $get): bool => (bool) $get('sujeto_retencion')),
+
+                                Toggle::make('sujeto_percepcion')
+                                    ->label('Operación sujeta a percepción del IGV')
+                                    ->live()
+                                    ->columnSpanFull(),
+
+                                TextInput::make('percepcion_porcentaje')
+                                    ->label('Percepción %')
+                                    ->numeric()
+                                    ->default(2)
+                                    ->suffix('%')
+                                    ->live(onBlur: true)
+                                    ->visible(fn (callable $get): bool => (bool) $get('sujeto_percepcion')),
+                            ]),
+
                         Section::make('Resumen')
                             ->compact()
                             ->schema([
                                 Placeholder::make('resumen')
                                     ->hiddenLabel()
                                     ->content(function (callable $get): HtmlString {
-                                        $total = collect($get('productos') ?? [])->sum(
-                                            fn (array $l): float => (float) ($l['cantidad'] ?? 0) * (float) ($l['costo'] ?? 0)
-                                        );
+                                        $d = static::desglose($get('productos') ?? []);
 
-                                        return new HtmlString(
-                                            '<div style="display:flex;justify-content:space-between;align-items:center;'
-                                            . 'border-top:1px solid rgba(128,128,128,.25);padding-top:10px">'
-                                            . '<span style="font-weight:700">TOTAL DE LA COMPRA:</span>'
-                                            . '<span style="font-weight:800;font-size:1.35rem;color:rgb(59,130,246)">S/ '
-                                            . number_format($total, 2) . '</span></div>'
-                                        );
+                                        $fila = fn (string $etiqueta, float $monto, string $extra = ''): string =>
+                                            '<div style="display:flex;justify-content:space-between;padding:2px 0' . $extra . '">'
+                                            . '<span>' . $etiqueta . '</span><span>S/ ' . number_format($monto, 2) . '</span></div>';
+
+                                        $html = $fila('Imp. bruto', $d['bruto']);
+
+                                        if ($d['descuento'] > 0) {
+                                            $html .= $fila('Descuento', -$d['descuento']);
+                                        }
+
+                                        $html .= $fila('Valor de venta', $d['valor'])
+                                            . $fila('IGV 18%', $d['igv'])
+                                            . '<div style="display:flex;justify-content:space-between;align-items:center;'
+                                            . 'border-top:1px solid rgba(128,128,128,.25);padding-top:8px;margin-top:6px">'
+                                            . '<span style="font-weight:700">TOTAL:</span>'
+                                            . '<span style="font-weight:800;font-size:1.25rem;color:rgb(59,130,246)">S/ '
+                                            . number_format($d['total'], 2) . '</span></div>';
+
+                                        // La percepción no es parte del total del
+                                        // documento: se cobra aparte y por eso el
+                                        // importe a pagar es "referencial".
+                                        if ($get('sujeto_percepcion')) {
+                                            $pct = (float) ($get('percepcion_porcentaje') ?: 2);
+                                            $percepcion = round($d['total'] * $pct / 100, 2);
+
+                                            $html .= $fila('Percepción ' . number_format($pct, 2) . '%', $percepcion, ';opacity:.85')
+                                                . '<div style="display:flex;justify-content:space-between;align-items:center;'
+                                                . 'border-top:1px dashed rgba(128,128,128,.35);padding-top:8px;margin-top:6px">'
+                                                . '<span style="font-weight:700">TOTAL A PAGAR REFERENCIAL:</span>'
+                                                . '<span style="font-weight:800">S/ ' . number_format($d['total'] + $percepcion, 2)
+                                                . '</span></div>';
+                                        }
+
+                                        if ($get('sujeto_retencion')) {
+                                            $pct = (float) ($get('retencion_porcentaje') ?: 3);
+                                            $html .= $fila('Retención ' . number_format($pct, 2) . '%',
+                                                round($d['total'] * $pct / 100, 2), ';opacity:.85');
+                                        }
+
+                                        return new HtmlString($html);
                                     }),
                             ]),
                     ])->columnSpan(1),
                 ]),
         ]);
+    }
+
+    /**
+     * El desglose de la factura del proveedor.
+     *
+     * El importe unitario es SIN IGV, como en el documento: bruto es cantidad
+     * por unitario, el descuento se resta para llegar al valor de venta, y el
+     * IGV se calcula sobre ese valor.
+     *
+     * @param  array<int, array<string, mixed>>  $lineas
+     * @return array{bruto: float, descuento: float, valor: float, igv: float, total: float}
+     */
+    public static function desglose(array $lineas, float $igvPorcentaje = 18.0): array
+    {
+        $bruto = 0.0;
+        $descuento = 0.0;
+
+        foreach ($lineas as $l) {
+            $bruto += round((float) ($l['cantidad'] ?? 0) * (float) ($l['costo'] ?? 0), 2);
+            $descuento += (float) ($l['descuento'] ?? 0);
+        }
+
+        $valor = round($bruto - $descuento, 2);
+        $igv   = round($valor * $igvPorcentaje / 100, 2);
+
+        return [
+            'bruto'     => round($bruto, 2),
+            'descuento' => round($descuento, 2),
+            'valor'     => $valor,
+            'igv'       => $igv,
+            'total'     => round($valor + $igv, 2),
+        ];
+    }
+
+    /** Total de una línea, con su IGV, tal como sale impreso. */
+    protected static function totalDeLinea(float $cantidad, float $costo, float $descuento): string
+    {
+        $valor = max(round($cantidad * $costo, 2) - $descuento, 0);
+
+        return number_format(round($valor * 1.18, 2), 2, '.', '');
+    }
+
+    /** Recalcula el total de la línea cuando cambia cantidad, costo o descuento. */
+    protected static function recalcularLinea(callable $set, callable $get): void
+    {
+        $set('linea_total', static::totalDeLinea(
+            (float) $get('cantidad'),
+            (float) $get('costo'),
+            (float) $get('descuento'),
+        ));
     }
 
     /** @return array<int, string> */
@@ -331,7 +470,11 @@ class CreateCompra extends CreateRecord
         foreach ($items as $key => $item) {
             if ((int) ($item['id_producto'] ?? 0) === (int) $p->id_producto) {
                 $items[$key]['cantidad']    = (float) $item['cantidad'] + 1;
-                $items[$key]['linea_total'] = number_format($items[$key]['cantidad'] * (float) $item['costo'], 2, '.', '');
+                $items[$key]['linea_total'] = static::totalDeLinea(
+                    $items[$key]['cantidad'],
+                    (float) $item['costo'],
+                    (float) ($item['descuento'] ?? 0),
+                );
                 $this->data['productos'] = $items;
                 $this->data['buscador_producto'] = null;
 
@@ -341,10 +484,13 @@ class CreateCompra extends CreateRecord
 
         $items[] = [
             'id_producto' => $p->id_producto,
+            'codigo'      => $p->codigo ?: $p->cod_barra,
             'descripcion' => $p->descripcion,
+            'unidad'      => $p->medida,
             'cantidad'    => 1,
             'costo'       => number_format((float) ($p->costo ?? 0), 2, '.', ''),
-            'linea_total' => number_format((float) ($p->costo ?? 0), 2, '.', ''),
+            'descuento'   => 0,
+            'linea_total' => static::totalDeLinea(1, (float) ($p->costo ?? 0), 0),
         ];
 
         $this->data['productos'] = $items;
@@ -363,25 +509,36 @@ class CreateCompra extends CreateRecord
     protected function resolverLineas(array $data): array
     {
         $lineas = [];
-        $total  = 0.0;
 
         foreach ($data['productos'] as $linea) {
-            $cantidad = (float) $linea['cantidad'];
-            $costo    = (float) $linea['costo'];
+            $cantidad  = (float) $linea['cantidad'];
+            $costo     = (float) $linea['costo'];
+            $descuento = (float) ($linea['descuento'] ?? 0);
 
             if ($cantidad <= 0) {
                 $this->fallo('Las cantidades deben ser mayores a 0.');
             }
 
-            $total   += round($cantidad * $costo, 2);
-            $lineas[] = ['id_producto' => (int) $linea['id_producto'], 'cantidad' => $cantidad, 'costo' => $costo];
+            if ($descuento > round($cantidad * $costo, 2)) {
+                $this->fallo('El descuento de una línea no puede superar su importe bruto.');
+            }
+
+            $lineas[] = [
+                'id_producto' => (int) $linea['id_producto'],
+                'unidad'      => $linea['unidad'] ?? null,
+                'cantidad'    => $cantidad,
+                'costo'       => $costo,
+                'descuento'   => $descuento,
+            ];
         }
 
-        if ($total <= 0) {
+        $desglose = static::desglose($lineas);
+
+        if ($desglose['total'] <= 0) {
             $this->fallo('El total de la compra debe ser mayor a 0.');
         }
 
-        return [$lineas, $total];
+        return [$lineas, $desglose['total'], $desglose];
     }
 
     /** Reemplaza las líneas de la compra. */
@@ -393,9 +550,11 @@ class CreateCompra extends CreateRecord
             DB::table('productos_compras')->insert([
                 'id_compra'   => $idCompra,
                 'id_producto' => $l['id_producto'],
+                'unidad'      => $l['unidad'] ?? null,
                 'cantidad'    => $l['cantidad'],
                 'costo'       => $l['costo'],
                 'precio'      => $l['costo'],
+                'descuento'   => $l['descuento'] ?? 0,
             ]);
         }
     }
@@ -420,7 +579,16 @@ class CreateCompra extends CreateRecord
     protected function crearCompraConPago(array $data): Compra
     {
         return DB::transaction(function () use ($data): Compra {
-            [$lineas, $total] = $this->resolverLineas($data);
+            [$lineas, $total, $desglose] = $this->resolverLineas($data);
+
+            $retencionPct = (bool) ($data['sujeto_retencion'] ?? false)
+                ? (float) ($data['retencion_porcentaje'] ?: 3)
+                : 0.0;
+            $percepcionPct = (bool) ($data['sujeto_percepcion'] ?? false)
+                ? (float) ($data['percepcion_porcentaje'] ?: 2)
+                : 0.0;
+
+            $percepcion = round($total * $percepcionPct / 100, 2);
 
             $esContado = (int) ($data['id_tipo_pago'] ?? 1) === 1;
             $pagos     = $esContado ? array_values($data['pagos'] ?? []) : [];
@@ -447,6 +615,19 @@ class CreateCompra extends CreateRecord
                 'serie'             => $data['serie'] ?? '',
                 'numero'            => $data['numero'] ?? '',
                 'total'             => $total,
+                'subtotal'          => $desglose['valor'],
+                'descuento_total'   => $desglose['descuento'],
+                'igv'               => $desglose['igv'],
+                'igv_porcentaje'    => 18,
+                'sujeto_retencion'      => $retencionPct > 0,
+                'retencion_porcentaje'  => $retencionPct ?: 3,
+                'retencion_monto'       => round($total * $retencionPct / 100, 2),
+                'sujeto_percepcion'     => $percepcionPct > 0,
+                'percepcion_porcentaje' => $percepcionPct ?: 2,
+                'percepcion_monto'      => $percepcion,
+                // La percepción se paga aparte del documento: por eso el
+                // importe a pagar es "referencial".
+                'total_referencial'     => round($total + $percepcion, 2),
                 'id_empresa'        => (int) session('id_empresa'),
                 'id_usuario'        => (int) auth()->id(),
                 'sucursal'          => (int) session('sucursal'),

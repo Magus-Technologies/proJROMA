@@ -52,10 +52,12 @@
     <table class="data">
         <thead>
             <tr>
-                <th style="width:6%;">N°</th>
-                <th style="width:16%;">VENTA</th>
+                <th style="width:5%;">N°</th>
+                <th style="width:13%;">VENTA</th>
                 <th style="text-align:left;">CLIENTE</th>
-                <th style="width:18%;">TOTAL</th>
+                <th style="width:16%;">TOTAL</th>
+                {{-- Columna libre: el conductor anota acá durante el reparto --}}
+                <th style="width:20%;">&nbsp;</th>
             </tr>
         </thead>
         <tbody>
@@ -63,7 +65,7 @@
             @foreach ($clientes as $mercado => $filas)
                 @if ($clientes->count() > 1)
                     <tr class="mercado">
-                        <td colspan="4">{{ $mercado }}</td>
+                        <td colspan="5">{{ $mercado }}</td>
                     </tr>
                 @endif
                 @foreach ($filas as $fila)
@@ -72,12 +74,13 @@
                         <td class="text-center">{{ $fila->numero_venta ?? '—' }}</td>
                         <td>{{ $fila->cliente }}</td>
                         <td class="text-right">S/ {{ number_format((float) $fila->total, 2) }}</td>
+                        <td style="height:26px;">&nbsp;</td>
                     </tr>
                 @endforeach
             @endforeach
             @if ($n === 0)
                 <tr>
-                    <td colspan="4" class="text-center" style="padding:14px;">Este despacho no tiene pedidos.</td>
+                    <td colspan="5" class="text-center" style="padding:14px;">Este despacho no tiene pedidos.</td>
                 </tr>
             @endif
         </tbody>
@@ -86,27 +89,9 @@
                 <td colspan="2" class="text-center">{{ $n }} {{ $n === 1 ? 'cliente' : 'clientes' }}</td>
                 <td class="text-right">TOTAL</td>
                 <td class="text-right">S/ {{ number_format($total, 2) }}</td>
+                <td>&nbsp;</td>
             </tr>
         </tfoot>
-    </table>
-
-    {{-- Espacio en blanco para anotar a mano durante el reparto --}}
-    <table class="data" style="margin-top:14px;">
-        <thead>
-            <tr>
-                <th colspan="4" style="text-align:left; padding:5px 8px;">ANOTACIONES</th>
-            </tr>
-        </thead>
-        <tbody>
-            @for ($i = 0; $i < 6; $i++)
-                <tr>
-                    <td style="width:6%; height:22px;">&nbsp;</td>
-                    <td style="width:16%;">&nbsp;</td>
-                    <td>&nbsp;</td>
-                    <td style="width:18%;">&nbsp;</td>
-                </tr>
-            @endfor
-        </tbody>
     </table>
 
     <div class="footer">

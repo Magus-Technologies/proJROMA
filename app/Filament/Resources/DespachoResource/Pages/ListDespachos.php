@@ -15,6 +15,8 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Placeholder;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Support\HtmlString;
 
 class ListDespachos extends ListRecords
@@ -35,6 +37,12 @@ class ListDespachos extends ListRecords
                 ->color('primary')
                 ->modalWidth('5xl')
                 ->form([
+                    Tabs::make()->tabs([
+
+                    Tab::make('Ruta y fechas')
+                        ->icon('heroicon-o-map')
+                        ->columns(2)
+                        ->schema([
                     Select::make('id_ruta')
                         ->label('Ruta')
                         ->options(fn () => TmsRuta::where('id_empresa', $empresa)->where('sucursal', $sucursal)
@@ -70,7 +78,12 @@ class ListDespachos extends ListRecords
 
                             return new HtmlString($texto);
                         }),
+                        ]),
 
+                    Tab::make('Ventas')
+                        ->icon('heroicon-o-shopping-cart')
+                        ->badge(fn (callable $get): ?string => ($n = count($get('pedidos') ?: [])) ? (string) $n : null)
+                        ->schema([
                     // Con 40 ventas la lista se hacía interminable y empujaba el
                     // resto del formulario fuera de la pantalla. Ahora va en su
                     // propia caja con altura fija, buscador y dos columnas.
@@ -108,6 +121,38 @@ class ListDespachos extends ListRecords
                         // la grilla de opciones que necesita el scroll.
                         ->extraAlpineAttributes(['class' => 'despacho-ventas'])
                         ->columnSpanFull(),
+                        ]),
+
+                    Tab::make('Camión y conductor')
+                        ->icon('heroicon-o-truck')
+                        ->columns(2)
+                        ->schema([
+                    Placeholder::make('resumen_camion')
+                        ->hiddenLabel()
+                        ->columnSpanFull()
+                        ->content(function (callable $get) use ($svc, $empresa): HtmlString {
+                            $sel = $get('pedidos') ?: [];
+
+                            if (! $sel) {
+                                return new HtmlString('<span style="color:#dc2626">Todavía no marcaste ninguna venta en la pestaña anterior.</span>');
+                            }
+
+                            $peso = array_sum($svc->pesosPorVenta(array_map('intval', $sel)));
+                            $cap = (float) TmsVehiculo::where('id_empresa', $empresa)
+                                ->where('id', $get('id_vehiculo'))->value('capacidad_kg');
+
+                            $texto = '<strong>' . count($sel) . ' ventas · ' . number_format($peso, 2) . ' kg</strong>';
+
+                            if ($cap > 0) {
+                                $dif = $cap - $peso;
+                                $texto .= $dif >= 0
+                                    ? '<span style="opacity:.7"> — de ' . number_format($cap, 0) . ' kg, quedan '
+                                        . number_format($dif, 2) . ' kg libres.</span>'
+                                    : '<span style="color:#dc2626"> — sobrepeso de ' . number_format(abs($dif), 2) . ' kg.</span>';
+                            }
+
+                            return new HtmlString($texto);
+                        }),
 
                     Select::make('id_vehiculo')->label('Vehículo')
                         ->options(function (callable $get) use ($svc, $empresa, $sucursal) {
@@ -165,6 +210,9 @@ class ListDespachos extends ListRecords
 
                     DatePicker::make('fecha_reparto')->label('Fecha de reparto')->default(now())->required(),
                     TextInput::make('observaciones')->label('Observaciones')->maxLength(255)->columnSpanFull(),
+                        ]),
+
+                    ])->columnSpanFull(),
                 ])
                 ->action(function (array $data) use ($svc, $empresa, $sucursal): void {
                     try {

@@ -90,6 +90,25 @@
         </tfoot>
     </table>
 
+    {{-- Espacio en blanco para anotar a mano durante el reparto --}}
+    <table class="data" style="margin-top:14px;">
+        <thead>
+            <tr>
+                <th colspan="4" style="text-align:left; padding:5px 8px;">ANOTACIONES</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for ($i = 0; $i < 6; $i++)
+                <tr>
+                    <td style="width:6%; height:22px;">&nbsp;</td>
+                    <td style="width:16%;">&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td style="width:18%;">&nbsp;</td>
+                </tr>
+            @endfor
+        </tbody>
+    </table>
+
     <div class="footer">
         {{ $empresa->razon_social ?? '' }} | RUC: {{ $empresa->ruc ?? '' }} — generado el {{ now()->format('d/m/Y H:i') }}
     </div>

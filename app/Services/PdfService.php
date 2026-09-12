@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Empresa;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
 
 class PdfService
 {
@@ -54,7 +56,7 @@ class PdfService
 
     public function generar(string $view, array $data, string $filename): Response
     {
-        $pdf = Pdf::loadView($view, $data + ['logoBase64' => $this->logoBase64()])
+        $pdf = Pdf::loadView($view, $data + ['logoBase64' => $this->logoBase64($data)])
             ->setPaper($this->paper, $this->orientation)
             ->setOptions($this->options);
 
@@ -63,14 +65,59 @@ class PdfService
 
     public function descargar(string $view, array $data, string $filename): Response
     {
-        $pdf = Pdf::loadView($view, $data + ['logoBase64' => $this->logoBase64()])
+        $pdf = Pdf::loadView($view, $data + ['logoBase64' => $this->logoBase64($data)])
             ->setPaper($this->paper, $this->orientation)
             ->setOptions($this->options);
 
         return $pdf->download($filename);
     }
 
-    private function logoBase64(): string
+    /**
+     * El logo que va en la cabecera del PDF.
+     *
+     * Manda el que la empresa cargó en su ficha; el del sistema es solo el
+     * respaldo para cuando no cargó ninguno. Antes se usaba siempre el del
+     * sistema, así que los reportes que no pasaban el logo a mano salían con
+     * la marca de ProjRoma en lugar de la del cliente.
+     *
+     * @param  array<string, mixed>  $data  datos de la vista; si trae la
+     *                                      empresa, se usa esa en vez de la
+     *                                      de la sesión.
+     */
+    private function logoBase64(array $data = []): string
+    {
+        $empresa = $data['empresa'] ?? null;
+
+        if (! $empresa instanceof Empresa) {
+            $empresa = Empresa::find((int) session('id_empresa'));
+        }
+
+        return static::logoDeEmpresa($empresa) ?: $this->logoDelSistema();
+    }
+
+    /** El logo cargado en Empresa, listo para incrustar en el PDF. */
+    public static function logoDeEmpresa(?Empresa $empresa): string
+    {
+        if (! $empresa?->logo) {
+            return '';
+        }
+
+        // Subidas de Filament (disco public) y, si no, la ruta legada.
+        foreach ([
+            Storage::disk('public')->exists($empresa->logo)
+                ? Storage::disk('public')->path($empresa->logo)
+                : null,
+            public_path('storage/' . $empresa->logo),
+        ] as $ruta) {
+            if ($ruta && file_exists($ruta)) {
+                return 'data:' . mime_content_type($ruta) . ';base64,' . base64_encode(file_get_contents($ruta));
+            }
+        }
+
+        return '';
+    }
+
+    private function logoDelSistema(): string
     {
         $path = public_path('logos/logo.svg');
         if (!file_exists($path)) return '';

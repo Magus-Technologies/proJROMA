@@ -21,24 +21,10 @@ class ReportesController extends Controller
         return Empresa::find(session('id_empresa'));
     }
 
+    /** El logo de la empresa. Vive en PdfService para que lo use todo PDF. */
     private function getLogoBase64(?Empresa $empresa): string
     {
-        if (!$empresa?->logo) {
-            return '';
-        }
-        // Try public disk first (Filament v5 uploads with ->disk('public'))
-        if (Storage::disk('public')->exists($empresa->logo)) {
-            $path = Storage::disk('public')->path($empresa->logo);
-            $mime = mime_content_type($path);
-            return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
-        }
-        // Fallback: legacy path directly under public/storage/
-        $legacy = public_path('storage/' . $empresa->logo);
-        if (file_exists($legacy)) {
-            $mime = mime_content_type($legacy);
-            return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($legacy));
-        }
-        return '';
+        return PdfService::logoDeEmpresa($empresa);
     }
 
     public function comprobanteVenta(int $venta): \Illuminate\Http\Response

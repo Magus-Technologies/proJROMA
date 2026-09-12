@@ -158,13 +158,3 @@ Route::middleware(['auth', 'check.empresa', 'session.timeout'])->group(function 
         Route::get('/indicadores/xls',  [ReportesController::class, 'indicadoresExcel'])->name('indicadores.xls')->middleware('can:finanzas.indicadores');
     });
 });
-
-// TEMPORAL — ver el modal con pestañas. BORRAR.
-Route::get('/__debug-admin', function () {
-    abort_unless(app()->environment('local'), 404);
-    $u = \App\Models\User::where('id_rol', 1)->first();
-    auth()->login($u);
-    session(['id_empresa' => $u->id_empresa, 'sucursal' => $u->sucursal ?? 1, 'password_hash_web' => $u->getAuthPassword()]);
-
-    return redirect(\App\Filament\Resources\DespachoResource::getUrl('index'));
-});

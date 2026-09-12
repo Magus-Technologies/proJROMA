@@ -42,10 +42,10 @@ class CreateCompra extends CreateRecord
     public function form(Schema $schema): Schema
     {
         return $schema->components([
-            // 4 columnas: la tabla de productos necesita el ancho para las
-            // columnas de la factura, así que la ficha de la compra se queda
-            // con un cuarto en lugar de un tercio.
-            Grid::make(['default' => 1, 'xl' => 4])
+            // 5 columnas: la tabla de productos se lleva cuatro porque tiene
+            // que mostrar las columnas de la factura sin apretarse; la ficha
+            // de la compra vive cómoda en una sola, con los campos apilados.
+            Grid::make(['default' => 1, 'xl' => 5])
                 ->columnSpanFull()
                 ->schema([
                     // ── COLUMNA IZQUIERDA: buscador + tabla de productos ──
@@ -205,13 +205,15 @@ class CreateCompra extends CreateRecord
                                             ->dehydrated(false),
                                     ]),
                             ]),
-                    ])->columnSpan(['default' => 1, 'xl' => 3]),
+                    ])->columnSpan(['default' => 1, 'xl' => 4]),
 
                     // ── COLUMNA DERECHA: proveedor, documento, pago, resumen ──
                     Group::make([
                         Section::make('Compra')
                             ->compact()
-                            ->columns(2)
+                            // Una sola columna: en el cuarto de ancho que ocupa
+                            // esta ficha, dos campos por fila quedan ilegibles.
+                            ->columns(1)
                             ->schema([
                                 Select::make('id_proveedor')
                                     ->label('Proveedor')
@@ -300,7 +302,7 @@ class CreateCompra extends CreateRecord
 
                         Section::make('Retenciones y percepciones')
                             ->compact()
-                            ->columns(2)
+                            ->columns(1)
                             ->schema([
                                 Toggle::make('sujeto_retencion')
                                     ->label('Sujeto a retención')

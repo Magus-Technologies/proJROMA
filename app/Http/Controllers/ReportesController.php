@@ -743,23 +743,20 @@ class ReportesController extends Controller
         $despacho = \App\Models\TmsDespacho::with(['ruta', 'vehiculo', 'conductor'])->findOrFail($id);
         $empresa  = $this->getEmpresa() ?? Empresa::find($despacho->id_empresa);
 
-        $sinFacturar = app(\App\Services\TmsDespachoService::class)->pedidosSinFacturarDeDespacho($id);
-        if ($sinFacturar) {
-            abort(422, 'No se pueden generar las guías de reparto: pedidos sin facturar (' . implode(', ', $sinFacturar) . '). Convierte los pedidos a boleta o factura primero.');
-        }
 
         $mercadoIds = collect(explode(',', (string) request('mercados')))
             ->filter()->map(fn ($v) => (int) $v)->values()->all();
 
-        $cotIds = \Illuminate\Support\Facades\DB::table('tms_despacho_pedidos')
+        $ventaIds = \Illuminate\Support\Facades\DB::table('tms_despacho_pedidos')
             ->where('id_despacho', $id)
             ->when($mercadoIds, fn ($q) => $q->whereIn('id_mercado', $mercadoIds))
-            ->orderBy('orden')->pluck('id_cotizacion')->all();
+            ->whereNotNull('id_venta')
+            ->orderBy('orden')->pluck('id_venta')->all();
 
-        $pedidos = Cotizacion::with(['cliente', 'productos.producto', 'usuario'])
-            ->whereIn('cotizacion_id', $cotIds)
+        $pedidos = Venta::with(['cliente', 'productosVenta.producto', 'vendedor'])
+            ->whereIn('id_venta', $ventaIds)
             ->get()
-            ->sortBy(fn ($c) => array_search($c->cotizacion_id, $cotIds))
+            ->sortBy(fn ($v) => array_search($v->id_venta, $ventaIds))
             ->values();
 
         $mercados = \App\Models\TmsMercado::where('id_empresa', $despacho->id_empresa)
@@ -792,25 +789,15 @@ class ReportesController extends Controller
         $despacho = \App\Models\TmsDespacho::findOrFail($id);
         $empresa  = $this->getEmpresa() ?? Empresa::find($despacho->id_empresa);
 
-        $sinFacturar = app(\App\Services\TmsDespachoService::class)->pedidosSinFacturarDeDespacho($id);
-        if ($sinFacturar) {
-            abort(422, 'No se pueden generar las guías de remisión: pedidos sin facturar (' . implode(', ', $sinFacturar) . '). Convierte los pedidos a boleta o factura primero.');
-        }
 
         $mercadoIds = collect(explode(',', (string) request('mercados')))
             ->filter()->map(fn ($v) => (int) $v)->values()->all();
 
-        $cotIds = \Illuminate\Support\Facades\DB::table('tms_despacho_pedidos')
+        $ventaIds = \Illuminate\Support\Facades\DB::table('tms_despacho_pedidos')
             ->where('id_despacho', $id)
             ->when($mercadoIds, fn ($q) => $q->whereIn('id_mercado', $mercadoIds))
-            ->orderBy('orden')->pluck('id_cotizacion')->all();
-
-        $ventaPorCoti = \Illuminate\Support\Facades\DB::table('cotizaciones')
-            ->whereIn('cotizacion_id', $cotIds)
             ->whereNotNull('id_venta')
-            ->pluck('id_venta', 'cotizacion_id')->all();
-
-        $ventaIds = collect($cotIds)->map(fn ($c) => $ventaPorCoti[$c] ?? null)->filter()->values()->all();
+            ->orderBy('orden')->pluck('id_venta')->all();
 
         $guias = GuiaRemision::with(['venta.cliente', 'detalles'])
             ->whereIn('id_venta', $ventaIds)
@@ -840,26 +827,15 @@ class ReportesController extends Controller
         $despacho = \App\Models\TmsDespacho::findOrFail($id);
         $empresa  = $this->getEmpresa() ?? Empresa::find($despacho->id_empresa);
 
-        $sinFacturar = app(\App\Services\TmsDespachoService::class)->pedidosSinFacturarDeDespacho($id);
-        if ($sinFacturar) {
-            abort(422, 'No se pueden generar los comprobantes: pedidos sin facturar (' . implode(', ', $sinFacturar) . '). Convierte los pedidos a boleta o factura primero.');
-        }
 
         $mercadoIds = collect(explode(',', (string) request('mercados')))
             ->filter()->map(fn ($v) => (int) $v)->values()->all();
 
-        $cotIds = \Illuminate\Support\Facades\DB::table('tms_despacho_pedidos')
+        $ventaIds = \Illuminate\Support\Facades\DB::table('tms_despacho_pedidos')
             ->where('id_despacho', $id)
             ->when($mercadoIds, fn ($q) => $q->whereIn('id_mercado', $mercadoIds))
-            ->orderBy('orden')->pluck('id_cotizacion')->all();
-
-        // id_venta de cada cotización, respetando el orden de reparto
-        $ventaPorCoti = \Illuminate\Support\Facades\DB::table('cotizaciones')
-            ->whereIn('cotizacion_id', $cotIds)
             ->whereNotNull('id_venta')
-            ->pluck('id_venta', 'cotizacion_id')->all();
-
-        $ventaIds = collect($cotIds)->map(fn ($c) => $ventaPorCoti[$c] ?? null)->filter()->values()->all();
+            ->orderBy('orden')->pluck('id_venta')->all();
 
         if (! $ventaIds) {
             abort(422, 'El despacho no tiene comprobantes para imprimir.');
@@ -887,10 +863,6 @@ class ReportesController extends Controller
         $despacho = \App\Models\TmsDespacho::with(['ruta', 'vehiculo', 'conductor', 'pedidos'])->findOrFail($id);
         $empresa  = $this->getEmpresa() ?? Empresa::find($despacho->id_empresa);
 
-        $sinFacturar = app(\App\Services\TmsDespachoService::class)->pedidosSinFacturarDeDespacho($id);
-        if ($sinFacturar) {
-            abort(422, 'No se puede generar la hoja de carga: pedidos sin facturar (' . implode(', ', $sinFacturar) . '). Convierte los pedidos a boleta o factura primero.');
-        }
 
         // Filtros: ?mercados=1,2&medidas=Kilos,Unidad (o el mercado de la ruta legada).
         $mercadoIds = collect(explode(',', (string) request('mercados')))
@@ -932,9 +904,8 @@ class ReportesController extends Controller
             ->filter()->map(fn ($v) => (int) $v)->values()->all();
 
         $filas = \Illuminate\Support\Facades\DB::table('tms_despacho_pedidos as dp')
-            ->join('cotizaciones as c', 'c.cotizacion_id', '=', 'dp.id_cotizacion')
             ->join('clientes as cl', 'cl.id_cliente', '=', 'dp.id_cliente')
-            ->leftJoin('ventas as v', 'v.id_venta', '=', 'c.id_venta')
+            ->leftJoin('ventas as v', 'v.id_venta', '=', 'dp.id_venta')
             ->leftJoin('tms_mercados as m', 'm.id', '=', 'dp.id_mercado')
             ->where('dp.id_despacho', $id)
             ->when($mercadoIds, fn ($q) => $q->whereIn('dp.id_mercado', $mercadoIds))

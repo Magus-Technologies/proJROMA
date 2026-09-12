@@ -100,8 +100,6 @@ class DespachoResource extends Resource
                                     ->bulkToggleable(),
                             ])
                             ->action(function (array $data, TmsDespacho $record, $livewire): void {
-                                if (self::notificarPedidosSinFacturar($record, 'la hoja de carga')) return;
-
                                 $qs = http_build_query(array_filter([
                                     'mercados' => implode(',', $data['mercados'] ?? []),
                                     'medidas'  => implode(',', $data['medidas'] ?? []),
@@ -126,8 +124,6 @@ class DespachoResource extends Resource
                                     ->bulkToggleable(),
                             ])
                             ->action(function (array $data, TmsDespacho $record, $livewire): void {
-                                if (self::notificarPedidosSinFacturar($record, 'las guías de reparto')) return;
-
                                 $qs = http_build_query(array_filter([
                                     'mercados' => implode(',', $data['mercados'] ?? []),
                                 ]));
@@ -174,8 +170,6 @@ class DespachoResource extends Resource
                                     ->bulkToggleable(),
                             ])
                             ->action(function (array $data, TmsDespacho $record, $livewire): void {
-                                if (self::notificarPedidosSinFacturar($record, 'los comprobantes')) return;
-
                                 $qs = http_build_query(array_filter([
                                     'mercados' => implode(',', $data['mercados'] ?? []),
                                 ]));
@@ -199,11 +193,8 @@ class DespachoResource extends Resource
                                     ->bulkToggleable(),
                             ])
                             ->action(function (array $data, TmsDespacho $record, $livewire): void {
-                                if (self::notificarPedidosSinFacturar($record, 'las guías de remisión')) return;
-
                                 $tieneGuias = DB::table('guia_remision')
-                                    ->join('cotizaciones as c', 'c.id_venta', '=', 'guia_remision.id_venta')
-                                    ->join('tms_despacho_pedidos as dp', 'dp.id_cotizacion', '=', 'c.cotizacion_id')
+                                    ->join('tms_despacho_pedidos as dp', 'dp.id_venta', '=', 'guia_remision.id_venta')
                                     ->where('dp.id_despacho', $record->id)
                                     ->exists();
                                 if (! $tieneGuias) {
@@ -254,7 +245,7 @@ class DespachoResource extends Resource
                                         return app(TmsDespachoService::class)
                                             ->pedidosPendientes((int) $record->id_ruta, (string) $desde, (string) $hasta, (int) session('id_empresa'))
                                             ->mapWithKeys(fn ($p) => [
-                                                $p->cotizacion_id => "{$p->cliente} · {$p->mercado} · " .
+                                                $p->id_venta => "{$p->documento} · {$p->cliente} · {$p->mercado} · " .
                                                     number_format((float) $p->peso, 1) . ' kg · S/ ' . number_format((float) $p->total, 2),
                                             ])->toArray();
                                     })
@@ -464,22 +455,6 @@ class DespachoResource extends Resource
             ->defaultSort('id', 'desc');
     }
 
-    /** Notifica si el despacho tiene pedidos sin facturar. Devuelve true si debe bloquearse la acción. */
-    private static function notificarPedidosSinFacturar(TmsDespacho $despacho, string $documento): bool
-    {
-        $sinFacturar = app(TmsDespachoService::class)->pedidosSinFacturarDeDespacho($despacho->id);
-        if (!$sinFacturar) return false;
-
-        Notification::make()->danger()
-            ->title('Pedidos sin facturar')
-            ->body('No se puede generar ' . $documento . ': los pedidos ' . implode(', ', $sinFacturar) .
-                ' aún no fueron convertidos a boleta o factura.')
-            ->persistent()
-            ->send();
-
-        return true;
-    }
-
     /** Mercados presentes en los pedidos del despacho, para el filtro del PDF. */
     public static function mercadosDelDespacho(TmsDespacho $despacho): array
     {
@@ -492,16 +467,16 @@ class DespachoResource extends Resource
             ->toArray();
     }
 
-    /** Unidades de medida presentes en las líneas de los pedidos del despacho. */
+    /** Unidades de medida presentes en las líneas de las ventas del despacho. */
     public static function medidasDelDespacho(TmsDespacho $despacho): array
     {
-        return DB::table('productos_cotis as pc')
-            ->join('tms_despacho_pedidos as dp', 'dp.id_cotizacion', '=', 'pc.id_coti')
+        return DB::table('productos_ventas as pv')
+            ->join('tms_despacho_pedidos as dp', 'dp.id_venta', '=', 'pv.id_venta')
             ->where('dp.id_despacho', $despacho->id)
-            ->whereNotNull('pc.medida')->where('pc.medida', '<>', '')
+            ->whereNotNull('pv.medida')->where('pv.medida', '<>', '')
             ->distinct()
-            ->orderBy('pc.medida')
-            ->pluck('pc.medida', 'pc.medida')
+            ->orderBy('pv.medida')
+            ->pluck('pv.medida', 'pv.medida')
             ->toArray();
     }
 

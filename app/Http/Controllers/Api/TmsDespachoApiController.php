@@ -15,7 +15,6 @@ class TmsDespachoApiController extends Controller
     private const TIDO_PEDIDO = 6;
 
     /** Estado de cotización cuando ya fue convertida a boleta/factura. */
-    private const ESTADO_FACTURADO = '3';
 
     private function empresa(): int  { return (int) session('id_empresa'); }
     private function sucursal(): int { return (int) session('sucursal'); }
@@ -60,26 +59,16 @@ class TmsDespachoApiController extends Controller
         return array_values(array_unique(array_merge($deMercados, $tiendas)));
     }
 
-    /** Peso por pedido = Σ(cantidad × peso_bruto) de sus líneas. */
-    private function pesosPorPedido(array $cotizacionIds): array
+    /** Peso por venta = Σ(cantidad × peso_bruto) de sus líneas. */
+    private function pesosPorPedido(array $ventaIds): array
     {
-        if (!$cotizacionIds) return [];
-
-        return DB::table('productos_cotis as pc')
-            ->join('productos as p', 'p.id_producto', '=', 'pc.id_producto')
-            ->whereIn('pc.id_coti', $cotizacionIds)
-            ->groupBy('pc.id_coti')
-            ->select('pc.id_coti', DB::raw('SUM(pc.cantidad * COALESCE(p.peso_bruto, 0)) as peso'))
-            ->pluck('peso', 'pc.id_coti')->all();
+        return app(\App\Services\TmsDespachoService::class)->pesosPorVenta($ventaIds);
     }
 
-    /** Cotizaciones ya tomadas por un despacho no anulado. */
+    /** Ventas ya tomadas por un despacho no anulado. */
     private function pedidosYaDespachados(): array
     {
-        return DB::table('tms_despacho_pedidos as dp')
-            ->join('tms_despachos as d', 'd.id', '=', 'dp.id_despacho')
-            ->where('d.estado', '<>', 'ANULADO')
-            ->pluck('dp.id_cotizacion')->all();
+        return app(\App\Services\TmsDespachoService::class)->pedidosYaDespachados();
     }
 
     // ── Jalar pedidos pendientes de una ruta + fecha ───────────────────────
@@ -98,31 +87,10 @@ class TmsDespachoApiController extends Controller
 
         $yaDespachados = $this->pedidosYaDespachados();
 
-        $pedidos = DB::table('cotizaciones as c')
-            ->join('clientes as cl', 'cl.id_cliente', '=', 'c.id_cliente')
-            ->leftJoin('tms_mercados as m', 'm.id', '=', 'cl.mercado')
-            ->where('c.id_empresa', $this->empresa())
-            ->whereIn('c.id_cliente', $clientes)
-            ->whereDate('c.fecha', '>=', $r->fecha_desde)
-            ->whereDate('c.fecha', '<=', $r->fecha_hasta)
-            ->where('c.id_tido', self::TIDO_PEDIDO)
-            ->where('c.estado', self::ESTADO_FACTURADO)
-            ->when($yaDespachados, fn ($q) => $q->whereNotIn('c.cotizacion_id', $yaDespachados))
-            ->orderBy('cl.mercado')
-            ->select(
-                'c.cotizacion_id', 'c.numero', 'c.fecha', 'c.total', 'c.id_cliente',
-                'cl.datos as cliente', 'cl.mercado as id_mercado',
-                DB::raw("COALESCE(m.nombre, CASE WHEN cl.mercado > 0 THEN CONCAT('Mercado ', cl.mercado) ELSE 'Tienda' END) as mercado")
-            )
-            ->get();
+        $pedidos = app(\App\Services\TmsDespachoService::class)
+            ->pedidosPendientes((int) $r->id_ruta, (string) $r->fecha_desde, (string) $r->fecha_hasta, $this->empresa());
 
-        $pesos = $this->pesosPorPedido($pedidos->pluck('cotizacion_id')->all());
-
-        $pesoTotal = 0;
-        $pedidos->each(function ($p) use ($pesos, &$pesoTotal) {
-            $p->peso = round((float) ($pesos[$p->cotizacion_id] ?? 0), 2);
-            $pesoTotal += $p->peso;
-        });
+        $pesoTotal = round((float) $pedidos->sum('peso'), 2);
 
         $resumen = [
             'pedidos'    => $pedidos->count(),
@@ -208,27 +176,29 @@ class TmsDespachoApiController extends Controller
             return response()->json(['res' => false, 'msg' => 'Algunos pedidos ya están en otro despacho.'], 409);
         }
 
-        $rows = DB::table('cotizaciones as c')
-            ->join('clientes as cl', 'cl.id_cliente', '=', 'c.id_cliente')
-            ->where('c.id_empresa', $this->empresa())
-            ->whereIn('c.cotizacion_id', $r->pedidos)
-            ->select('c.cotizacion_id', 'c.numero', 'c.estado', 'c.total', 'c.id_cliente', 'cl.mercado as id_mercado')
+        $rows = DB::table('ventas as v')
+            ->join('clientes as cl', 'cl.id_cliente', '=', 'v.id_cliente')
+            ->leftJoin('cotizaciones as c', 'c.id_venta', '=', 'v.id_venta')
+            ->where('v.id_empresa', $this->empresa())
+            ->whereIn('v.id_venta', $r->pedidos)
+            ->select('v.id_venta', 'v.serie', 'v.numero', 'v.estado', 'v.total', 'v.id_cliente',
+                'cl.mercado as id_mercado', 'c.cotizacion_id')
             ->get();
 
-        if ($rows->isEmpty()) return response()->json(['res' => false, 'msg' => 'No hay pedidos válidos.'], 422);
+        if ($rows->isEmpty()) return response()->json(['res' => false, 'msg' => 'No hay ventas válidas.'], 422);
 
-        $sinFacturar = $rows->filter(fn ($row) => (string) $row->estado !== self::ESTADO_FACTURADO)->pluck('numero');
-        if ($sinFacturar->isNotEmpty()) {
+        $anuladas = $rows->filter(fn ($row) => (string) $row->estado === '0')
+            ->map(fn ($row) => $row->serie . '-' . $row->numero);
+        if ($anuladas->isNotEmpty()) {
             return response()->json([
                 'res' => false,
-                'msg' => 'Pedidos sin facturar: ' . $sinFacturar->implode(', ') .
-                    '. Solo se pueden despachar pedidos convertidos a boleta o factura.',
+                'msg' => 'Ventas anuladas: ' . $anuladas->implode(', ') . '. No se pueden repartir.',
             ], 422);
         }
 
-        $pesos = $this->pesosPorPedido($rows->pluck('cotizacion_id')->all());
+        $pesos = $this->pesosPorPedido($rows->pluck('id_venta')->all());
         $pesoTotal = 0;
-        foreach ($rows as $row) { $pesoTotal += (float) ($pesos[$row->cotizacion_id] ?? 0); }
+        foreach ($rows as $row) { $pesoTotal += (float) ($pesos[$row->id_venta] ?? 0); }
 
         // Advertencias (no bloquean, pero informan)
         $excedeCapacidad = $pesoTotal > (float) $veh->capacidad_kg;
@@ -264,10 +234,11 @@ class TmsDespachoApiController extends Controller
             foreach ($rows as $row) {
                 $detalles[] = [
                     'id_despacho'    => $id,
+                    'id_venta'       => $row->id_venta,
                     'id_cotizacion'  => $row->cotizacion_id,
                     'id_cliente'     => $row->id_cliente,
                     'id_mercado'     => $row->id_mercado ?: null,
-                    'peso'           => round((float) ($pesos[$row->cotizacion_id] ?? 0), 2),
+                    'peso'           => round((float) ($pesos[$row->id_venta] ?? 0), 2),
                     'monto'          => round((float) $row->total, 2),
                     'orden'          => $orden++,
                     'estado_entrega' => 'PENDIENTE',
@@ -320,12 +291,12 @@ class TmsDespachoApiController extends Controller
         $pedidos = DB::table('tms_despacho_pedidos as dp')
             ->leftJoin('clientes as cl', 'cl.id_cliente', '=', 'dp.id_cliente')
             ->leftJoin('tms_mercados as m', 'm.id', '=', 'dp.id_mercado')
-            ->leftJoin('cotizaciones as c', 'c.cotizacion_id', '=', 'dp.id_cotizacion')
+            ->leftJoin('ventas as v', 'v.id_venta', '=', 'dp.id_venta')
             ->where('dp.id_despacho', $id)
             ->orderBy('dp.orden')
             ->select(
                 'dp.id', 'dp.orden', 'dp.peso', 'dp.monto', 'dp.estado_entrega', 'dp.motivo_rechazo',
-                'c.numero',
+                'v.numero', 'v.serie',
                 DB::raw("COALESCE(cl.datos, '-') as cliente"),
                 DB::raw("COALESCE(cl.direccion, '-') as direccion"),
                 DB::raw("COALESCE(m.nombre, 'Tienda') as mercado")
@@ -349,19 +320,20 @@ class TmsDespachoApiController extends Controller
 
         if (!$despacho) return response()->json(['res' => false, 'msg' => 'No encontrado.'], 404);
 
-        $cotIds = DB::table('tms_despacho_pedidos')->where('id_despacho', $id)->pluck('id_cotizacion')->all();
+        $ventaIds = DB::table('tms_despacho_pedidos')->where('id_despacho', $id)
+            ->whereNotNull('id_venta')->pluck('id_venta')->all();
 
         // Consolidado POR ARTÍCULO (hoja de carga): código, descripción, cantidad, kilos
         $porArticulo = collect();
-        if ($cotIds) {
-            $porArticulo = DB::table('productos_cotis as pc')
-                ->join('productos as p', 'p.id_producto', '=', 'pc.id_producto')
-                ->whereIn('pc.id_coti', $cotIds)
+        if ($ventaIds) {
+            $porArticulo = DB::table('productos_ventas as pv')
+                ->join('productos as p', 'p.id_producto', '=', 'pv.id_producto')
+                ->whereIn('pv.id_venta', $ventaIds)
                 ->groupBy('p.id_producto', 'p.codigo', 'p.descripcion')
                 ->select(
                     'p.codigo', 'p.descripcion',
-                    DB::raw('SUM(pc.cantidad) as cantidad'),
-                    DB::raw('SUM(pc.cantidad * COALESCE(p.peso_bruto, 0)) as kilos')
+                    DB::raw('SUM(pv.cantidad) as cantidad'),
+                    DB::raw('SUM(pv.cantidad * COALESCE(p.peso_bruto, 0)) as kilos')
                 )
                 ->orderBy('p.descripcion')
                 ->get();

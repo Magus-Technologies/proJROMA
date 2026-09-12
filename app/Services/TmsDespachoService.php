@@ -5,13 +5,21 @@ namespace App\Services;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * El despacho reparte VENTAS: boletas, facturas y notas de venta por igual.
+ *
+ * Antes partía de las cotizaciones de tipo pedido ya convertidas, así que una
+ * venta hecha directo en mostrador no se podía repartir nunca. Ahora la línea
+ * del despacho apunta a la venta y lo único que la deja afuera es estar
+ * anulada o ya estar en otro despacho.
+ */
 class TmsDespachoService
 {
     /** id_tido que representa un "pedido" (Nota de Venta). */
     public const TIDO_PEDIDO = 6;
 
-    /** Estado de cotización cuando ya fue convertida a boleta/factura. */
-    public const ESTADO_FACTURADO = '3';
+    /** Estado de venta anulada: esas no se reparten. */
+    public const ESTADO_ANULADA = '0';
 
     /** IDs de clientes que pertenecen a los puntos de una ruta (mercados + tiendas). */
     public function clientesDeRuta(int $idRuta, int $empresa): array
@@ -32,39 +40,35 @@ class TmsDespachoService
         return array_values(array_unique(array_merge($deMercados, $tiendas)));
     }
 
-    /** Peso por pedido = Σ(cantidad × peso_bruto) de sus líneas. */
-    public function pesosPorPedido(array $cotizacionIds): array
+    /** Peso por venta = Σ(cantidad × peso_bruto) de sus líneas. */
+    public function pesosPorVenta(array $ventaIds): array
     {
-        if (!$cotizacionIds) return [];
+        if (!$ventaIds) return [];
 
-        return DB::table('productos_cotis as pc')
-            ->join('productos as p', 'p.id_producto', '=', 'pc.id_producto')
-            ->whereIn('pc.id_coti', $cotizacionIds)
-            ->groupBy('pc.id_coti')
-            ->select('pc.id_coti', DB::raw('SUM(pc.cantidad * COALESCE(p.peso_bruto, 0)) as peso'))
-            ->pluck('peso', 'pc.id_coti')->all();
+        return DB::table('productos_ventas as pv')
+            ->join('productos as p', 'p.id_producto', '=', 'pv.id_producto')
+            ->whereIn('pv.id_venta', $ventaIds)
+            ->groupBy('pv.id_venta')
+            ->select('pv.id_venta', DB::raw('SUM(pv.cantidad * COALESCE(p.peso_bruto, 0)) as peso'))
+            ->pluck('peso', 'pv.id_venta')->all();
     }
 
-    /** Números de pedidos del despacho cuya cotización aún no está facturada. */
-    public function pedidosSinFacturarDeDespacho(int $idDespacho): array
-    {
-        return DB::table('tms_despacho_pedidos as dp')
-            ->join('cotizaciones as c', 'c.cotizacion_id', '=', 'dp.id_cotizacion')
-            ->where('dp.id_despacho', $idDespacho)
-            ->where('c.estado', '<>', self::ESTADO_FACTURADO)
-            ->pluck('c.numero')->all();
-    }
-
-    /** Cotizaciones ya tomadas por un despacho no anulado. */
+    /** Ventas ya tomadas por un despacho no anulado. */
     public function pedidosYaDespachados(): array
     {
         return DB::table('tms_despacho_pedidos as dp')
             ->join('tms_despachos as d', 'd.id', '=', 'dp.id_despacho')
             ->where('d.estado', '<>', 'ANULADO')
-            ->pluck('dp.id_cotizacion')->all();
+            ->whereNotNull('dp.id_venta')
+            ->pluck('dp.id_venta')->all();
     }
 
-    /** Pedidos pendientes de una ruta en un rango de fechas, con su peso. */
+    /**
+     * Ventas de la ruta pendientes de reparto en un rango de fechas, con su peso.
+     *
+     * Entra cualquier tipo de documento —boleta, factura o nota de venta— y no
+     * importa si ya se envió a SUNAT: lo que se reparte es la mercadería.
+     */
     public function pedidosPendientes(int $idRuta, string $desde, string $hasta, int $empresa): Collection
     {
         $clientes = $this->clientesDeRuta($idRuta, $empresa);
@@ -72,33 +76,37 @@ class TmsDespachoService
 
         $yaDespachados = $this->pedidosYaDespachados();
 
-        $pedidos = DB::table('cotizaciones as c')
-            ->join('clientes as cl', 'cl.id_cliente', '=', 'c.id_cliente')
+        $ventas = DB::table('ventas as v')
+            ->join('clientes as cl', 'cl.id_cliente', '=', 'v.id_cliente')
             ->leftJoin('tms_mercados as m', 'm.id', '=', 'cl.mercado')
-            ->where('c.id_empresa', $empresa)
-            ->whereIn('c.id_cliente', $clientes)
-            ->whereDate('c.fecha', '>=', $desde)
-            ->whereDate('c.fecha', '<=', $hasta)
-            ->where('c.id_tido', self::TIDO_PEDIDO)
-            ->where('c.estado', self::ESTADO_FACTURADO)
-            ->when($yaDespachados, fn ($q) => $q->whereNotIn('c.cotizacion_id', $yaDespachados))
+            ->leftJoin('documentos_sunat as ds', 'ds.id_tido', '=', 'v.id_tido')
+            ->where('v.id_empresa', $empresa)
+            ->whereIn('v.id_cliente', $clientes)
+            ->whereDate('v.fecha_emision', '>=', $desde)
+            ->whereDate('v.fecha_emision', '<=', $hasta)
+            ->where('v.estado', '<>', self::ESTADO_ANULADA)
+            ->when($yaDespachados, fn ($q) => $q->whereNotIn('v.id_venta', $yaDespachados))
             ->orderBy('cl.mercado')
             ->select(
-                'c.cotizacion_id', 'c.numero', 'c.fecha', 'c.total', 'c.id_cliente',
+                'v.id_venta', 'v.serie', 'v.numero', 'v.fecha_emision as fecha', 'v.total', 'v.id_cliente',
                 'cl.mercado as id_mercado', 'cl.datos as cliente',
+                DB::raw("COALESCE(ds.abreviatura, '') as tipo_doc"),
                 DB::raw("COALESCE(m.nombre, CASE WHEN cl.mercado > 0 THEN CONCAT('Mercado ', cl.mercado) ELSE 'Tienda' END) as mercado")
             )
             ->get();
 
-        $pesos = $this->pesosPorPedido($pedidos->pluck('cotizacion_id')->all());
-        $pedidos->each(fn ($p) => $p->peso = round((float) ($pesos[$p->cotizacion_id] ?? 0), 2));
+        $pesos = $this->pesosPorVenta($ventas->pluck('id_venta')->all());
+        $ventas->each(function ($v) use ($pesos): void {
+            $v->peso = round((float) ($pesos[$v->id_venta] ?? 0), 2);
+            $v->documento = trim($v->serie . '-' . str_pad((string) $v->numero, 8, '0', STR_PAD_LEFT), '-');
+        });
 
-        return $pedidos;
+        return $ventas;
     }
 
     /**
-     * Crea un despacho a partir de una ruta, fecha, vehículo, conductor y lista de pedidos.
-     * Devuelve ['id', 'peso_total', 'advertencias'] o lanza \RuntimeException.
+     * Crea un despacho a partir de una ruta, fecha, vehículo, conductor y lista
+     * de ventas. Devuelve ['id', 'peso_total', 'advertencias'] o lanza \RuntimeException.
      */
     public function crear(array $d, int $empresa, int $sucursal, int $usuarioId): array
     {
@@ -118,31 +126,31 @@ class TmsDespachoService
             ->where('id_conductor', $d['id_conductor'])->exists();
         if ($conOcupado) throw new \RuntimeException('El conductor ya tiene un despacho ese día.');
 
-        $pedidosIds = array_values(array_map('intval', $d['pedidos'] ?? []));
-        if (!$pedidosIds) throw new \RuntimeException('Selecciona al menos un pedido.');
+        $ventaIds = array_values(array_map('intval', $d['pedidos'] ?? []));
+        if (!$ventaIds) throw new \RuntimeException('Selecciona al menos una venta.');
 
-        $choque = array_intersect($pedidosIds, $this->pedidosYaDespachados());
-        if ($choque) throw new \RuntimeException('Algunos pedidos ya están en otro despacho.');
+        $choque = array_intersect($ventaIds, $this->pedidosYaDespachados());
+        if ($choque) throw new \RuntimeException('Algunas ventas ya están en otro despacho.');
 
-        $rows = DB::table('cotizaciones as c')
-            ->join('clientes as cl', 'cl.id_cliente', '=', 'c.id_cliente')
-            ->where('c.id_empresa', $empresa)
-            ->whereIn('c.cotizacion_id', $pedidosIds)
-            ->select('c.cotizacion_id', 'c.numero', 'c.estado', 'c.total', 'c.id_cliente', 'cl.mercado as id_mercado')
+        $rows = DB::table('ventas as v')
+            ->join('clientes as cl', 'cl.id_cliente', '=', 'v.id_cliente')
+            ->leftJoin('cotizaciones as c', 'c.id_venta', '=', 'v.id_venta')
+            ->where('v.id_empresa', $empresa)
+            ->whereIn('v.id_venta', $ventaIds)
+            ->select('v.id_venta', 'v.serie', 'v.numero', 'v.estado', 'v.total', 'v.id_cliente',
+                'cl.mercado as id_mercado', 'c.cotizacion_id')
             ->get();
-        if ($rows->isEmpty()) throw new \RuntimeException('No hay pedidos válidos.');
+        if ($rows->isEmpty()) throw new \RuntimeException('No hay ventas válidas.');
 
-        $sinFacturar = $rows->filter(fn ($row) => (string) $row->estado !== self::ESTADO_FACTURADO)->pluck('numero');
-        if ($sinFacturar->isNotEmpty()) {
-            throw new \RuntimeException(
-                'Pedidos sin facturar: ' . $sinFacturar->implode(', ') .
-                '. Solo se pueden despachar pedidos convertidos a boleta o factura.'
-            );
+        $anuladas = $rows->filter(fn ($row) => (string) $row->estado === self::ESTADO_ANULADA)
+            ->map(fn ($row) => $row->serie . '-' . $row->numero);
+        if ($anuladas->isNotEmpty()) {
+            throw new \RuntimeException('Ventas anuladas: ' . $anuladas->implode(', ') . '. No se pueden repartir.');
         }
 
-        $pesos = $this->pesosPorPedido($rows->pluck('cotizacion_id')->all());
+        $pesos = $this->pesosPorVenta($rows->pluck('id_venta')->all());
         $pesoTotal = 0.0;
-        foreach ($rows as $row) { $pesoTotal += (float) ($pesos[$row->cotizacion_id] ?? 0); }
+        foreach ($rows as $row) { $pesoTotal += (float) ($pesos[$row->id_venta] ?? 0); }
 
         $advertencias = [];
         if ($pesoTotal > (float) $veh->capacidad_kg) {
@@ -177,10 +185,12 @@ class TmsDespachoService
             foreach ($rows as $row) {
                 $detalles[] = [
                     'id_despacho'    => $id,
+                    'id_venta'       => $row->id_venta,
+                    // El pedido que la originó, si vino de uno: sirve de rastro.
                     'id_cotizacion'  => $row->cotizacion_id,
                     'id_cliente'     => $row->id_cliente,
                     'id_mercado'     => $row->id_mercado ?: null,
-                    'peso'           => round((float) ($pesos[$row->cotizacion_id] ?? 0), 2),
+                    'peso'           => round((float) ($pesos[$row->id_venta] ?? 0), 2),
                     'monto'          => round((float) $row->total, 2),
                     'orden'          => $orden++,
                     'estado_entrega' => 'PENDIENTE',
@@ -210,31 +220,31 @@ class TmsDespachoService
             throw new \RuntimeException("No se pueden agregar pedidos a un despacho {$despacho->estado}.");
         }
 
-        $pedidosIds = array_values(array_unique(array_map('intval', $pedidosIds)));
-        if (! $pedidosIds) throw new \RuntimeException('Selecciona al menos un pedido.');
+        $ventaIds = array_values(array_unique(array_map('intval', $pedidosIds)));
+        if (! $ventaIds) throw new \RuntimeException('Selecciona al menos una venta.');
 
-        $choque = array_intersect($pedidosIds, $this->pedidosYaDespachados());
-        if ($choque) throw new \RuntimeException('Algunos pedidos ya están en este u otro despacho.');
+        $choque = array_intersect($ventaIds, $this->pedidosYaDespachados());
+        if ($choque) throw new \RuntimeException('Algunas ventas ya están en este u otro despacho.');
 
-        $rows = DB::table('cotizaciones as c')
-            ->join('clientes as cl', 'cl.id_cliente', '=', 'c.id_cliente')
-            ->where('c.id_empresa', $empresa)
-            ->whereIn('c.cotizacion_id', $pedidosIds)
-            ->select('c.cotizacion_id', 'c.numero', 'c.estado', 'c.total', 'c.id_cliente', 'cl.mercado as id_mercado')
+        $rows = DB::table('ventas as v')
+            ->join('clientes as cl', 'cl.id_cliente', '=', 'v.id_cliente')
+            ->leftJoin('cotizaciones as c', 'c.id_venta', '=', 'v.id_venta')
+            ->where('v.id_empresa', $empresa)
+            ->whereIn('v.id_venta', $ventaIds)
+            ->select('v.id_venta', 'v.serie', 'v.numero', 'v.estado', 'v.total', 'v.id_cliente',
+                'cl.mercado as id_mercado', 'c.cotizacion_id')
             ->get();
-        if ($rows->isEmpty()) throw new \RuntimeException('No hay pedidos válidos.');
+        if ($rows->isEmpty()) throw new \RuntimeException('No hay ventas válidas.');
 
-        $sinFacturar = $rows->filter(fn ($row) => (string) $row->estado !== self::ESTADO_FACTURADO)->pluck('numero');
-        if ($sinFacturar->isNotEmpty()) {
-            throw new \RuntimeException(
-                'Pedidos sin facturar: ' . $sinFacturar->implode(', ') .
-                '. Solo se pueden despachar pedidos convertidos a boleta o factura.'
-            );
+        $anuladas = $rows->filter(fn ($row) => (string) $row->estado === self::ESTADO_ANULADA)
+            ->map(fn ($row) => $row->serie . '-' . $row->numero);
+        if ($anuladas->isNotEmpty()) {
+            throw new \RuntimeException('Ventas anuladas: ' . $anuladas->implode(', ') . '. No se pueden repartir.');
         }
 
-        $pesos = $this->pesosPorPedido($rows->pluck('cotizacion_id')->all());
+        $pesos = $this->pesosPorVenta($rows->pluck('id_venta')->all());
         $pesoNuevo = 0.0;
-        foreach ($rows as $row) { $pesoNuevo += (float) ($pesos[$row->cotizacion_id] ?? 0); }
+        foreach ($rows as $row) { $pesoNuevo += (float) ($pesos[$row->id_venta] ?? 0); }
         $pesoTotal = round((float) $despacho->peso_total + $pesoNuevo, 2);
 
         $advertencias = [];
@@ -250,10 +260,11 @@ class TmsDespachoService
             foreach ($rows as $row) {
                 $detalles[] = [
                     'id_despacho'    => $idDespacho,
+                    'id_venta'       => $row->id_venta,
                     'id_cotizacion'  => $row->cotizacion_id,
                     'id_cliente'     => $row->id_cliente,
                     'id_mercado'     => $row->id_mercado ?: null,
-                    'peso'           => round((float) ($pesos[$row->cotizacion_id] ?? 0), 2),
+                    'peso'           => round((float) ($pesos[$row->id_venta] ?? 0), 2),
                     'monto'          => round((float) $row->total, 2),
                     'orden'          => ++$orden,
                     'estado_entrega' => 'PENDIENTE',
@@ -276,36 +287,37 @@ class TmsDespachoService
      */
     public function reporte(int $idDespacho, array $mercadoIds = [], array $medidas = []): array
     {
-        $cotIds = DB::table('tms_despacho_pedidos')
+        $ventaIds = DB::table('tms_despacho_pedidos')
             ->where('id_despacho', $idDespacho)
             ->when($mercadoIds, fn ($q) => $q->whereIn('id_mercado', $mercadoIds))
-            ->pluck('id_cotizacion')->all();
+            ->whereNotNull('id_venta')
+            ->pluck('id_venta')->all();
 
         $porArticulo = collect();
-        if ($cotIds) {
-            $porArticulo = DB::table('productos_cotis as pc')
-                ->join('productos as p', 'p.id_producto', '=', 'pc.id_producto')
-                ->whereIn('pc.id_coti', $cotIds)
-                ->when($medidas, fn ($q) => $q->whereIn('pc.medida', $medidas))
+        if ($ventaIds) {
+            $porArticulo = DB::table('productos_ventas as pv')
+                ->join('productos as p', 'p.id_producto', '=', 'pv.id_producto')
+                ->whereIn('pv.id_venta', $ventaIds)
+                ->when($medidas, fn ($q) => $q->whereIn('pv.medida', $medidas))
                 ->groupBy('p.id_producto', 'p.codigo', 'p.descripcion')
                 ->select('p.id_producto', 'p.codigo', 'p.descripcion',
-                    DB::raw('SUM(pc.cantidad) as cantidad'),
-                    DB::raw('SUM(pc.cantidad * COALESCE(p.peso_bruto, 0)) as kilos'))
+                    DB::raw('SUM(pv.cantidad) as cantidad'),
+                    DB::raw('SUM(pv.cantidad * COALESCE(p.peso_bruto, 0)) as kilos'))
                 ->orderBy('p.descripcion')
                 ->get();
 
             // Desglose por tamaño de pedido: cuántos pedidos llevan X cantidad
             // de cada producto (el almacén arma los bultos por pedido).
-            $porTamano = DB::table('productos_cotis as pc')
-                ->join('productos as p', 'p.id_producto', '=', 'pc.id_producto')
-                ->whereIn('pc.id_coti', $cotIds)
-                ->when($medidas, fn ($q) => $q->whereIn('pc.medida', $medidas))
-                ->groupBy('p.id_producto', 'pc.cantidad', 'pc.medida')
-                ->select('p.id_producto', 'pc.medida',
-                    'pc.cantidad as tamano',
+            $porTamano = DB::table('productos_ventas as pv')
+                ->join('productos as p', 'p.id_producto', '=', 'pv.id_producto')
+                ->whereIn('pv.id_venta', $ventaIds)
+                ->when($medidas, fn ($q) => $q->whereIn('pv.medida', $medidas))
+                ->groupBy('p.id_producto', 'pv.cantidad', 'pv.medida')
+                ->select('p.id_producto', 'pv.medida',
+                    'pv.cantidad as tamano',
                     DB::raw('COUNT(*) as pedidos'),
-                    DB::raw('SUM(pc.cantidad) as total'))
-                ->orderBy('pc.cantidad')
+                    DB::raw('SUM(pv.cantidad) as total'))
+                ->orderBy('pv.cantidad')
                 ->get()
                 ->groupBy('id_producto');
 
@@ -324,19 +336,19 @@ class TmsDespachoService
 
         // ── Por mercado (productos agrupados por mercado) ────────────────
         $porMercado = collect();
-        if ($cotIds) {
-            $porMercado = DB::table('productos_cotis as pc')
-                ->join('productos as p', 'p.id_producto', '=', 'pc.id_producto')
-                ->join('tms_despacho_pedidos as dp', 'dp.id_cotizacion', '=', 'pc.id_coti')
+        if ($ventaIds) {
+            $porMercado = DB::table('productos_ventas as pv')
+                ->join('productos as p', 'p.id_producto', '=', 'pv.id_producto')
+                ->join('tms_despacho_pedidos as dp', 'dp.id_venta', '=', 'pv.id_venta')
                 ->join('tms_mercados as m', 'm.id', '=', 'dp.id_mercado')
                 ->where('dp.id_despacho', $idDespacho)
                 ->when($mercadoIds, fn ($q) => $q->whereIn('dp.id_mercado', $mercadoIds))
-                ->when($medidas, fn ($q) => $q->whereIn('pc.medida', $medidas))
+                ->when($medidas, fn ($q) => $q->whereIn('pv.medida', $medidas))
                 ->groupBy('m.id', 'm.nombre', 'p.id_producto', 'p.codigo', 'p.descripcion')
                 ->select('m.id as mercado_id', 'm.nombre as mercado_nombre',
                     'p.codigo', 'p.descripcion',
-                    DB::raw('SUM(pc.cantidad) as cantidad'),
-                    DB::raw('SUM(pc.cantidad * COALESCE(p.peso_bruto, 0)) as kilos'))
+                    DB::raw('SUM(pv.cantidad) as cantidad'),
+                    DB::raw('SUM(pv.cantidad * COALESCE(p.peso_bruto, 0)) as kilos'))
                 ->orderBy('m.nombre')
                 ->orderBy('p.descripcion')
                 ->get()

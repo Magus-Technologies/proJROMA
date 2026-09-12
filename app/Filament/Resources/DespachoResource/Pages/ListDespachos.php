@@ -43,7 +43,7 @@ class ListDespachos extends ListRecords
                     DatePicker::make('fecha_hasta')->label('Fecha hasta')->default(now())->live()->required(),
 
                     CheckboxList::make('pedidos')
-                        ->label('Pedidos a despachar')
+                        ->label('Ventas a repartir')
                         ->options(function (callable $get) use ($svc, $empresa) {
                             $ruta = $get('id_ruta');
                             $desde = $get('fecha_desde');
@@ -52,7 +52,7 @@ class ListDespachos extends ListRecords
 
                             return $svc->pedidosPendientes((int) $ruta, (string) $desde, (string) $hasta, $empresa)
                                 ->mapWithKeys(fn ($p) => [
-                                    $p->cotizacion_id => "{$p->cliente} · {$p->mercado} · " .
+                                    $p->id_venta => "{$p->documento} · {$p->cliente} · {$p->mercado} · " .
                                         number_format((float) $p->peso, 1) . ' kg · S/ ' . number_format((float) $p->total, 2),
                                 ])->toArray();
                         })
@@ -60,17 +60,17 @@ class ListDespachos extends ListRecords
                         ->bulkToggleable()
                         ->helperText(function (callable $get) use ($svc, $empresa) {
                             $sel = $get('pedidos') ?: [];
-                            if (!$sel) return 'Selecciona ruta y fechas para ver los pedidos.';
-                            $pesos = $svc->pesosPorPedido(array_map('intval', $sel));
+                            if (!$sel) return 'Selecciona ruta y fechas para ver las ventas.';
+                            $pesos = $svc->pesosPorVenta(array_map('intval', $sel));
                             $peso = array_sum($pesos);
-                            return count($sel) . ' pedidos seleccionados · ' . number_format($peso, 2) . ' kg';
+                            return count($sel) . ' ventas seleccionadas · ' . number_format($peso, 2) . ' kg';
                         })
                         ->columnSpanFull(),
 
                     Select::make('id_vehiculo')->label('Vehículo')
                         ->options(function (callable $get) use ($svc, $empresa, $sucursal) {
                             $sel  = $get('pedidos') ?: [];
-                            $peso = $sel ? array_sum($svc->pesosPorPedido(array_map('intval', $sel))) : 0;
+                            $peso = $sel ? array_sum($svc->pesosPorVenta(array_map('intval', $sel))) : 0;
 
                             return TmsVehiculo::with('tipo')->where('id_empresa', $empresa)->where('sucursal', $sucursal)
                                 ->where('estado', 1)->orderBy('placa')->get()
@@ -89,7 +89,7 @@ class ListDespachos extends ListRecords
                             $sel = $get('pedidos') ?: [];
                             if (! $sel || ! $get('id_vehiculo')) return null;
 
-                            $peso = array_sum($svc->pesosPorPedido(array_map('intval', $sel)));
+                            $peso = array_sum($svc->pesosPorVenta(array_map('intval', $sel)));
                             $cap  = (float) TmsVehiculo::where('id_empresa', $empresa)->where('id', $get('id_vehiculo'))->value('capacidad_kg');
                             $dif  = $cap - $peso;
 

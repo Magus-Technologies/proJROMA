@@ -31,7 +31,7 @@
 
 @foreach($pedidos as $idx => $p)
     @php
-        $numeroDoc = $serie . '-' . str_pad((string) $p->numero, 8, '0', STR_PAD_LEFT);
+        $numeroDoc = ($p->serie ?: $serie) . '-' . str_pad((string) $p->numero, 8, '0', STR_PAD_LEFT);
         $total     = (float) $p->total;
         $entero    = floor($total);
         $decimales = str_pad((string) round(($total - $entero) * 100), 2, '0', STR_PAD_LEFT);
@@ -61,7 +61,7 @@
                         </td>
                         <td style="width:38%; padding-left:6px;">
                             <div class="doc-box">
-                                PEDIDO<br>{{ $numeroDoc }}<br>
+                                GUIA DE REPARTO<br>{{ $numeroDoc }}<br>
                                 <span style="font-size:6.5pt;">ITEM: {{ $idx + 1 }} / {{ $pedidos->count() }}</span>
                             </div>
                         </td>
@@ -75,11 +75,11 @@
                     </tr>
                     <tr>
                         <td><b>DIRECCIÓN:</b> {{ $p->cliente?->direccion ?? '-' }}</td>
-                        <td><b>VENDEDOR:</b> {{ $p->usuario?->nombres ?? '-' }}</td>
+                        <td><b>VENDEDOR:</b> {{ $p->vendedor?->nombres ?? '-' }}</td>
                     </tr>
                     <tr>
                         <td><b>RUC/DNI:</b> {{ $p->cliente?->documento ?? '-' }}</td>
-                        <td><b>FECHA:</b> {{ strtoupper(\Carbon\Carbon::parse($p->fecha)->translatedFormat('F d \d\e\l Y')) }}</td>
+                        <td><b>FECHA:</b> {{ strtoupper(\Carbon\Carbon::parse($p->fecha_emision)->translatedFormat('F d \d\e\l Y')) }}</td>
                     </tr>
                     <tr>
                         <td style="border-bottom:none;"><b>MERCADO:</b> {{ $mercadoNombre ?? '-' }} | <b>MONEDA:</b> SOLES</td>
@@ -99,7 +99,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($p->productos as $linea)
+                        @foreach($p->productosVenta as $linea)
                         <tr>
                             <td style="text-align:center;">{{ $loop->iteration }}</td>
                             <td>{{ $linea->producto?->descripcion ?? ('Producto #' . $linea->id_producto) }}</td>

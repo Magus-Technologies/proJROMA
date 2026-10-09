@@ -65,12 +65,50 @@
                 <p style="margin-top:1.25rem;text-align:center;font-size:.625rem;color:rgba(147,197,253,.4);">
                     &copy; {{ date('Y') }} {{ filament()->getBrandName() }} &middot; Panel Administrativo
                 </p>
+
+                {{-- Créditos del desarrollador --}}
+                <a href="https://magustechnologies.com/" target="_blank" rel="noopener noreferrer" class="stc-magus">
+                    <img src="{{ asset('logos/magus.png') }}" alt="Magus Technologies" class="stc-magus-logo">
+                    <span class="stc-magus-sep"></span>
+                    <span class="stc-magus-text">
+                        <strong>Desarrollado por Magus Technologies</strong>
+                        <span class="stc-magus-link">
+                            magustechnologies.com
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>
+                        </span>
+                    </span>
+                </a>
             </div>
         </div>
     </div>
 
     <style>
         @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+        .stc-magus {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding: .875rem 1.25rem;
+            border-radius: 1rem;
+            background: #0a121f;
+            border: 1px solid #22d3ee;
+            box-shadow: 0 0 0 1px rgba(34,211,238,.15), 0 8px 24px rgba(0,0,0,.35);
+            text-decoration: none;
+            transition: box-shadow .15s ease, transform .15s ease;
+        }
+        .stc-magus:hover {
+            box-shadow: 0 0 0 1px rgba(34,211,238,.4), 0 0 20px rgba(34,211,238,.25), 0 8px 24px rgba(0,0,0,.35);
+            transform: translateY(-1px);
+        }
+        .stc-magus-logo { height: 2.5rem; width: auto; flex-shrink: 0; }
+        .stc-magus-sep  { align-self: stretch; width: 1px; background: rgba(255,255,255,.18); flex-shrink: 0; }
+        .stc-magus-text { display: flex; flex-direction: column; gap: .125rem; min-width: 0; }
+        .stc-magus-text strong { color: #fff; font-size: .8125rem; font-weight: 700; }
+        .stc-magus-link {
+            display: inline-flex; align-items: center; gap: .375rem;
+            color: #22d3ee; font-size: .75rem;
+        }
         @media (min-width: 1024px) {
             .stc-left        { display: flex !important; }
             .stc-mobile-logo { display: none !important; }
